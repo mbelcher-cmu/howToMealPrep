@@ -40,7 +40,7 @@ jobs:
           NEXT_PUBLIC_APP_ENV: staging
           NEXT_PUBLIC_RELEASE: ${{ github.sha }}
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.SENTRY_DSN }}
-          NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.STAGING_POSTHOG_KEY }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.STAGING_POSTHOG_KEY || 'phc_t28zgGKsQ2WMABNA6dRHYsYiAjaGWqQtRKp7iLZfHp6Y' }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.STAGING_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.STAGING_SUPABASE_ANON_KEY }}
           NEXT_PUBLIC_FLAGS: ${{ vars.STAGING_FLAGS }}
@@ -51,9 +51,9 @@ jobs:
           NEXT_PUBLIC_APP_ENV: ${{ github.event_name == 'pull_request' && 'development' || 'production' }}
           NEXT_PUBLIC_RELEASE: ${{ github.sha }}
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.SENTRY_DSN }}
-          NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.POSTHOG_KEY || 'phc_t28zgGKsQ2WMABNA6dRHYsYiAjaGWqQtRKp7iLZfHp6Y' }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://xfhxwkmeiktxvhedmfhj.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY || 'sb_publishable_QvER-hwBYT43Qa_88IDTWQ_TAGe5swU' }}
           NEXT_PUBLIC_FLAGS: ${{ vars.FLAGS }}
       - name: Add staging under /staging/
         if: github.event_name != 'pull_request'
