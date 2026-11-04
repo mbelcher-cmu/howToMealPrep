@@ -115,7 +115,7 @@ export default function Groceries() {
         <aside className="grid content-start gap-4 lg:sticky lg:top-6 lg:self-start">
           <Card>
             <SectionTitle>Total</SectionTitle>
-            <BudgetBar cost={r.cost} budget={r.budget} />
+            <BudgetBar cost={r.cost} budget={r.budget} takeout={r.takeout?.cost ?? 0} />
             <p className="mt-3 text-sm text-muted">{got} of {total} in the cart</p>
             <div className="mt-1 h-1.5 rounded-full bg-sunk"><div className="h-full rounded-full bg-accent" style={{ width: `${total ? (got / total) * 100 : 0}%` }} /></div>
             <div className="mt-4 grid gap-2">

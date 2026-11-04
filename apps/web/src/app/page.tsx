@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { ArrowRight, ChefHat, ShoppingCart } from "lucide-react";
-import { RECIPES_BY_ID } from "@prep-cart/catalog";
+import { MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
 import { BudgetBar, PlanMacros, PlanStatus, RecipeTile, SolvingNote, usePreppedTargets } from "@/components/plan-bits";
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
 import { useApp } from "@/lib/store";
@@ -42,12 +42,21 @@ export default function Home() {
         </Card>
         <Card>
           <SectionTitle>Groceries</SectionTitle>
-          <BudgetBar cost={r.cost} budget={r.budget} />
+          <BudgetBar cost={r.cost} budget={r.budget} takeout={r.takeout?.cost ?? 0} />
           <p className="mt-3 text-sm text-muted">{bought} of {r.cart.length} items in the cart</p>
           <Link href="/groceries/" className="btn btn-primary mt-3 w-full"><ShoppingCart size={16} aria-hidden /> Shopping list</Link>
         </Card>
         <Card className="lg:col-span-2">
           <SectionTitle aside={<Link href="/plan/" className="text-sm text-accent underline-offset-2 hover:underline">Whole week</Link>}>{day ? `${DAY_LONG[dayIdx]}'s food` : "Today"}</SectionTitle>
+          {day?.takeout?.map((t) => {
+            const item = MENU_BY_ID[t.itemId];
+            return item ? (
+              <Link key={t.occasionId} href="/eat-out/" className="mb-2 flex items-center gap-3 rounded-lg bg-warn-soft p-2 text-sm">
+                <span className="min-w-0 flex-1"><span className="label block">{t.occasionName} · takeout</span><span className="block truncate font-medium">{RESTAURANTS_BY_ID[item.restaurantId]?.name}: {item.name.split(" (")[0]}</span></span>
+                <span className="num text-muted">{item.kcal} kcal</span>
+              </Link>
+            ) : null;
+          })}
           {day && day.meals.length ? (
             <ul className="grid grid-cols-1 gap-2">
               {day.meals.map((m) => {

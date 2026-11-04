@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { ChevronDown, Lock, LockOpen, Shuffle, X } from "lucide-react";
-import { RECIPES_BY_ID } from "@prep-cart/catalog";
+import { MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
 import { BudgetEditor, MealStructureEditor, MoodEditor, StoresEditor, TargetsEditor } from "@/components/editors";
 import { BudgetBar, LockedTag, PerServing, PlanMacros, PlanStatus, RecipeMeta, RecipeTile, SolvingNote } from "@/components/plan-bits";
 import { Card, EmptyState, PageHeader, SectionTitle, Tag } from "@/components/ui";
@@ -58,7 +58,7 @@ export default function PlanPage() {
                   </div>
                   <div>
                     <SectionTitle>Groceries</SectionTitle>
-                    <BudgetBar cost={plan.result.cost} budget={plan.result.budget} />
+                    <BudgetBar cost={plan.result.cost} budget={plan.result.budget} takeout={plan.result.takeout?.cost ?? 0} />
                     <p className="mt-2 text-xs text-muted">At {plan.result.stores.map(chainName).join(" + ") || "—"} · estimated prices</p>
                   </div>
                 </div>
@@ -125,6 +125,13 @@ export default function PlanPage() {
                           {plan.schedule.days.map((d) => {
                             const m = d.meals.find((x) => x.occasionId === o.id);
                             const r = m ? RECIPES_BY_ID[m.recipeId] : null;
+                            const out = d.takeout?.find((x) => x.occasionId === o.id);
+                            const item = out ? MENU_BY_ID[out.itemId] : null;
+                            if (item) return (
+                              <td key={d.day} className="rounded-md bg-warn-soft px-1.5 py-1 align-top text-xs leading-snug">
+                                <Link href="/eat-out/" className="hover:underline"><b className="block font-semibold">{RESTAURANTS_BY_ID[item.restaurantId]?.name}</b>{item.name.split(" (")[0]}</Link>
+                              </td>
+                            );
                             return (
                               <td key={d.day} className={cx("rounded-md px-1.5 py-1 align-top text-xs leading-snug", r ? "bg-accent-soft" : "bg-sunk text-muted")}>
                                 {r ? <Link href={`/recipes/${r.id}/`} className="hover:underline">{r.name}</Link> : o.prepped ? "—" : "Free"}
@@ -136,7 +143,7 @@ export default function PlanPage() {
                     </tbody>
                   </table>
                 </div>
-                <p className="mt-2 text-xs text-muted">"Free" meals aren't prepped. Their calories are left open for eating out or cooking fresh.</p>
+                <p className="mt-2 text-xs text-muted">"Free" meals aren't prepped. Their calories are left open for eating out or cooking fresh. <Link href="/eat-out/" className="underline">Add takeout</Link> to any meal and the plan cooks around it.</p>
               </Card>
               <p className="text-xs text-muted">Solved in {(plan.result.solveMs / 1000).toFixed(1)} s · {money(plan.result.cost)} total</p>
             </>

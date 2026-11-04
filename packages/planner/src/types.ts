@@ -48,6 +48,9 @@ export interface Weights {
   extraStopCost: number;
 }
 
+/** A takeout meal placed on one day's eating occasion. Days count from 0. */
+export interface EatOut { day: number; occasionId: string; itemId: string }
+
 export interface PlanRequest {
   days: number;
   targets: Targets;
@@ -68,6 +71,8 @@ export interface PlanRequest {
   avoidSets?: string[][];
   /** solver time limit in seconds */
   timeLimit?: number;
+  /** takeout meals that replace prepped ones; their cost comes out of the budget */
+  eatingOut?: EatOut[];
 }
 
 export interface PlannedRecipe {
@@ -112,5 +117,7 @@ export interface PlanResult {
   cost: number;
   stores: ChainId[];
   budget: number;
+  /** takeout meals the plan accounted for (invalid ones are dropped) */
+  takeout: { meals: EatOut[]; cost: number };
   solveMs: number;
 }

@@ -1,8 +1,8 @@
-import { CHAINS, INGREDIENTS, type ChainId, type MealType, type Recipe } from "@prep-cart/catalog";
+import { CHAINS, INGREDIENTS, MENU_BY_ID, type ChainId, type MealType, type Recipe } from "@prep-cart/catalog";
 import { splitTargets } from "@prep-cart/nutrition";
 import { LpModel } from "./lp";
 import { candidatePool, preferenceFit, servingCost, slotTypeFor } from "./filters";
-import type { CartLine, DayNutrition, PlanRequest, PlanResult, PlannedRecipe, Weights } from "./types";
+import type { CartLine, DayNutrition, EatOut, PlanRequest, PlanResult, PlannedRecipe, Weights } from "./types";
 
 /** Minimal shape of the HiGHS solver object we use. */
 export interface HighsLike {
@@ -48,7 +48,7 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   const wrap = (result: PlanResult, objective = Infinity) => ({ result, objective });
   const empty = (status: PlanResult["status"], message: string): PlanResult => ({
     status, message, recipes: [], daily: { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sodiumMg: 0 }, allowanceKcal: 0,
-    cart: [], pantryUsed: [], cost: 0, stores: [], budget: req.budget, solveMs: Date.now() - t0,
+    cart: [], pantryUsed: [], cost: 0, stores: [], budget: req.budget, takeout: { meals: [], cost: 0 }, solveMs: Date.now() - t0,
   });
   if (!stores.length) return wrap(empty("no_recipes", "Pick at least one store."));
   if (!(days >= 1 && days <= 7)) return wrap(empty("no_recipes", "Plan between 1 and 7 days."));
@@ -75,6 +75,32 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   const totalMeals = SLOTS.reduce((a, s) => a + slotCount[s], 0);
   if (!totalMeals) return wrap(empty("no_recipes", "Mark at least one meal or snack as prepped."));
 
+  // -- Takeout: each one replaces a prepped meal, and its cost comes out of the grocery budget --
+  const takeout: EatOut[] = [];
+  const seen = new Set<string>();
+  for (const e of req.eatingOut ?? []) {
+    const key = e.day + ":" + e.occasionId;
+    if (seen.has(key) || e.day < 0 || e.day >= days || !MENU_BY_ID[e.itemId] || !req.occasions.some((o) => o.id === e.occasionId)) continue;
+    seen.add(key);
+    takeout.push(e);
+  }
+  const takeoutCost = Math.round(takeout.reduce((a, e) => a + MENU_BY_ID[e.itemId]!.price, 0) * 100) / 100;
+  const zero = () => ({ kcal: 0, protein: 0, carbs: 0, fat: 0 });
+  const slotTakeout: Record<MealType, number> = { breakfast: 0, main: 0, snack: 0 };
+  const replacedSlot: Record<MealType, { kcal: number; protein: number; carbs: number; fat: number }> = { breakfast: zero(), main: zero(), snack: zero() };
+  const eaten = zero();
+  for (const e of takeout) {
+    const i = req.occasions.findIndex((o) => o.id === e.occasionId);
+    const o = req.occasions[i]!;
+    if (!o.prepped) continue; // eaten from the free allowance: only the cost matters
+    const slot = slotTypeFor(o);
+    const part = parts[i]!;
+    const item = MENU_BY_ID[e.itemId]!;
+    slotTakeout[slot] += 1;
+    for (const k of ["kcal", "protein", "carbs", "fat"] as const) { replacedSlot[slot][k] += part[k]; eaten[k] += item[k]; }
+  }
+  const groceryBudget = Math.max(0, req.budget - takeoutCost);
+
   // ── Free ingredients (pantry staples) and pantry amounts ──
   const pantryGrams = new Map<string, number>();
   for (const p of req.pantry) pantryGrams.set(p.ingredientId, (pantryGrams.get(p.ingredientId) ?? 0) + p.grams);
@@ -84,7 +110,7 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   const pools: Record<MealType, { r: Recipe; fit: number; reasons: string[]; cost: number }[]> = { breakfast: [], main: [], snack: [] };
   const variety: Record<MealType, number> = { breakfast: 0, main: 0, snack: 0 };
   for (const slot of SLOTS) {
-    const meals = slotCount[slot] * days;
+    const meals = slotCount[slot] * days - slotTakeout[slot];
     if (!meals) continue;
     const { ok, rejected } = candidatePool(slot, req.prefs);
     if (!ok.length) {
@@ -122,7 +148,7 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   for (const slot of SLOTS) pools[slot].forEach((c, i) => all.push({ key: `${slot[0]}${i}`, slot, ...c }));
 
   for (const slot of SLOTS) {
-    const N = slotCount[slot] * days;
+    const N = slotCount[slot] * days - slotTakeout[slot];
     if (!N) continue;
     const members = all.filter((a) => a.slot === slot);
     m.addRow(members.map((a) => [1, `y_${a.key}`]), "=", variety[slot], `var_${slot}`);
@@ -141,7 +167,7 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
       if (a.r.fridgeDays < days && !a.r.freezerFriendly) m.addObjective(`y_${a.key}`, 1.5 * (days - a.r.fridgeDays));
     }
     // calories per slot type (keeps breakfast breakfast-sized)
-    const tk = slotKcal[slot] * days;
+    const tk = slotKcal[slot] * days - replacedSlot[slot].kcal;
     m.addRow([...members.map((a): [number, string] => [a.r.perServing.kcal / 4, `s_${a.key}`]), [-1, `kp_${slot}`], [1, `kn_${slot}`]], "=", tk);
     m.addObjective(`kp_${slot}`, 0.004 * macroW);
     m.addObjective(`kn_${slot}`, 0.004 * macroW);
@@ -149,7 +175,7 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
     if (slotMacros[slot].custom) {
       for (const k of ["protein", "carbs", "fat"] as const) {
         const v = `${k[0]}${slot}`;
-        m.addRow([...members.map((a): [number, string] => [a.r.perServing[k] / 4, `s_${a.key}`]), [-1, `${v}_p`], [1, `${v}_n`]], "=", slotMacros[slot][k] * days);
+        m.addRow([...members.map((a): [number, string] => [a.r.perServing[k] / 4, `s_${a.key}`]), [-1, `${v}_p`], [1, `${v}_n`]], "=", slotMacros[slot][k] * days - replacedSlot[slot][k]);
         const w = (k === "fat" ? 0.12 : 0.05) * macroW;
         m.addObjective(`${v}_p`, w); m.addObjective(`${v}_n`, k === "protein" ? w * 3 : w);
       }
@@ -172,7 +198,8 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
     { key: "fat", inPos: 0.12, inNeg: 0.12, wInPos: 0.02, wOutPos: 0.5, wInNeg: 0.02, wOutNeg: 0.5 },
   ];
   for (const mr of macroRows) {
-    const T = dayTarget[mr.key] * days;
+    // prepped food plus takeout should add up to the week's targets
+    const T = Math.max(0, dayTarget[mr.key] * days - eaten[mr.key]);
     const bandNeg = mr.key === "protein" ? 10 * days : mr.inNeg * T;
     const v = (s: string) => `${mr.key}_${s}`;
     m.addRow([...all.map((a): [number, string] => [a.r.perServing[mr.key] / 4, `s_${a.key}`]), [-1, v("pi")], [-1, v("po")], [1, v("ni")], [1, v("no")]], "=", T);
@@ -224,7 +251,7 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   // cost and budget
   m.addRow([...costTerms, [-1, "cost"]], "=", 0);
   m.bound("cost", 0, null);
-  m.addRow([[1, "cost"], [-1, "over"]], "<=", req.budget);
+  m.addRow([[1, "cost"], [-1, "over"]], "<=", groceryBudget);
   m.bound("over", 0, null);
   m.addObjective("cost", costW);
   m.addObjective("over", 6);
@@ -256,6 +283,7 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   }
   const daily: DayNutrition = { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sodiumMg: 0 };
   for (const p of recipes) for (const k of Object.keys(daily) as (keyof DayNutrition)[]) daily[k] += (p.recipe.perServing[k] * p.servings) / days;
+  for (const k of ["kcal", "protein", "carbs", "fat"] as const) daily[k] += eaten[k] / days;
   for (const k of Object.keys(daily) as (keyof DayNutrition)[]) daily[k] = Math.round(daily[k] * 10) / 10;
 
   // groceries actually needed by the chosen plan
@@ -276,12 +304,12 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   }
   const cost = Math.round(cart.reduce((s, l) => s + l.cost, 0) * 100) / 100;
   const usedStores = stores.filter((c) => cart.some((l) => l.chain === c));
-  const over = cost > req.budget + 0.005;
+  const over = cost + takeoutCost > req.budget + 0.005;
   return wrap({
     status: over ? "over_budget" : "ok",
-    ...(over ? { message: `This plan costs $${(cost - req.budget).toFixed(2)} more than your budget. Raise the budget, lower protein, or allow more stores.` } : {}),
+    ...(over ? { message: `Groceries${takeoutCost ? " plus takeout" : ""} cost $${(cost + takeoutCost - req.budget).toFixed(2)} more than your budget. Raise the budget, ${takeoutCost ? "drop a takeout meal, " : ""}lower protein, or allow more stores.` } : {}),
     recipes: recipes.sort((a, b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot)),
-    daily, allowanceKcal, cart, pantryUsed, cost, stores: usedStores, budget: req.budget, solveMs: Date.now() - t0,
+    daily, allowanceKcal, cart, pantryUsed, cost, stores: usedStores, budget: req.budget, takeout: { meals: takeout, cost: takeoutCost }, solveMs: Date.now() - t0,
   }, sol.ObjectiveValue ?? Infinity);
 }
 

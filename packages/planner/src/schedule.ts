@@ -3,7 +3,8 @@ import { slotTypeFor } from "./filters";
 import type { PlanResult, PlannedRecipe } from "./types";
 
 export interface ScheduledMeal { occasionId: string; occasionName: string; recipeId: string; portion: number; fromSession: number }
-export interface ScheduledDay { day: number; meals: ScheduledMeal[] }
+export interface ScheduledTakeout { occasionId: string; occasionName: string; itemId: string }
+export interface ScheduledDay { day: number; meals: ScheduledMeal[]; takeout: ScheduledTakeout[] }
 export interface PrepSession {
   index: number;
   /** cook the evening before this day index (0 = before day 1) */
@@ -25,10 +26,15 @@ export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: nu
   const prepped = occasions.filter((o) => o.prepped);
   const remaining = new Map(plan.recipes.map((p) => [p.recipe.id, p.meals]));
   const byId = new Map(plan.recipes.map((p) => [p.recipe.id, p]));
-  const out: ScheduledDay[] = Array.from({ length: days }, (_, d) => ({ day: d, meals: [] }));
+  const out: ScheduledDay[] = Array.from({ length: days }, (_, d) => ({ day: d, meals: [], takeout: [] }));
+  for (const e of plan.takeout?.meals ?? []) {
+    const o = occasions.find((x) => x.id === e.occasionId);
+    if (o && out[e.day]) out[e.day]!.takeout.push({ occasionId: o.id, occasionName: o.name, itemId: e.itemId });
+  }
 
   for (let d = 0; d < days; d++) {
     for (const o of prepped) {
+      if (out[d]!.takeout.some((t) => t.occasionId === o.id)) continue;
       const slot = slotTypeFor(o);
       const options = plan.recipes.filter((p) => p.slot === slot && (remaining.get(p.recipe.id) ?? 0) > 0);
       if (!options.length) continue;

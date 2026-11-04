@@ -21,6 +21,7 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
     avoidSets,
     priceOverrides: s.priceOverrides,
     timeLimit: 2,
+    eatingOut: s.eatingOut.filter((e) => e.day < s.days && s.occasions.some((o) => o.id === e.occasionId)),
   };
 }
 type Req = ReturnType<typeof requestFrom>;
