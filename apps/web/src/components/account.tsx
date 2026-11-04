@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Cloud, LogOut, RefreshCw } from "lucide-react";
 import { sendCode, signOut, syncNow, useAccount, verifyCode } from "@/lib/account";
 
@@ -17,6 +17,15 @@ export function AccountPanel() {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  // a sign-in link that failed comes back with an error in the address: say so plainly, then tidy the address
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search + "&" + window.location.hash.slice(1));
+    const code = q.get("error_code");
+    if (!code) return;
+    setMsg(code === "otp_expired" ? "That sign-in link has expired or was already used. Ask for a new one below and open only the newest email." : "That sign-in link didn't work. Please ask for a new one.");
+    window.history.replaceState(null, "", window.location.pathname);
+  }, []);
 
   if (a.status === "off") return null;
   if (a.status === "loading") return <p className="text-sm text-muted">Checking your account…</p>;
