@@ -8,7 +8,8 @@ import { BudgetBar, LockedTag, PerServing, PlanMacros, PlanStatus, RecipeMeta, R
 import { Card, EmptyState, PageHeader, SectionTitle, Tag } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
-import { chainName, cx, DAY_NAMES, fmtServings, money } from "@/lib/format";
+import { chainName, cx, fmtServings, money } from "@/lib/format";
+import { useDays } from "@/lib/days";
 
 function Panel({ title, children, open: initial = false }: { title: string; children: ReactNode; open?: boolean }) {
   const [open, setOpen] = useState(initial);
@@ -25,6 +26,7 @@ function Panel({ title, children, open: initial = false }: { title: string; chil
 }
 
 export default function PlanPage() {
+  const { DAY_NAMES } = useDays();
   const hydrated = useHydrated();
   const { plan, status, tryAnother } = usePlanner();
   const s = useApp();

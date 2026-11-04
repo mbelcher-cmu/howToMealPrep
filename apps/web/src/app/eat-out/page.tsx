@@ -7,11 +7,13 @@ import { BudgetBar, PlanMacros, PlanStatus, SolvingNote } from "@/components/pla
 import { Card, Chip, PageHeader, SectionTitle, Tag } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
-import { cx, DAY_LONG, DAY_NAMES, money } from "@/lib/format";
+import { cx, money } from "@/lib/format";
+import { useDays } from "@/lib/days";
 
 const fitLabel = (f: number) => (f < 0.35 ? { text: "Great fit", cls: "pill" } : f < 0.8 ? { text: "Good fit", cls: "pill bg-sunk" } : { text: "Far off", cls: "pill pill-warn" });
 
 export default function EatOut() {
+  const { DAY_NAMES, DAY_LONG } = useDays();
   const hydrated = useHydrated();
   const s = useApp();
   const { plan } = usePlanner();
