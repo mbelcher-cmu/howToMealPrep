@@ -8,7 +8,7 @@ Until a value is set, its feature stays off and the app works as before.
 
 ## Supabase (database, sign-in, backups)
 
-1. Sign up at supabase.com with GitHub. Create two projects: `prep-cart` and `prep-cart-staging`
+1. Sign up at supabase.com with GitHub. Create two projects: `macroaisle` and `macroaisle-staging`
    (region: East US). Save each database password somewhere safe.
 2. For each project, open Project Settings → API and copy the Project URL and the `anon` public key.
 
@@ -17,10 +17,14 @@ Until a value is set, its feature stays off and the app works as before.
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY` | production project | variable |
 | `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_ANON_KEY` | staging project | variable |
 | `SUPABASE_DB_URL` | production → Connect → Session pooler connection string, with the password filled in | secret |
+| `STAGING_SUPABASE_DB_URL` | the same, for the staging project | secret |
 | `BACKUP_PASSPHRASE` | any long random phrase; keep a copy outside GitHub, since it is the only way to open a backup | secret |
 
-3. Apply the schema to each project: `npx supabase@latest db push --db-url "<connection string>"`
-   (Claude does this once the URLs exist). The privacy rules are tested in `apps/web/test/rls.test.ts`.
+3. In each project, Authentication → URL Configuration: set Site URL to the production address
+   below and add the staging address as a redirect URL.
+4. The **Database schema** workflow applies `supabase/migrations` to staging, then production, using
+   the secrets above. It runs whenever a migration changes on main, or by hand from the Actions tab.
+   The privacy rules are tested in `apps/web/test/rls.test.ts`.
 
 ## Sentry (error reports)
 
@@ -54,6 +58,7 @@ address (`?flags=reset` clears it).
 | --- | --- | --- |
 | Keep the database awake | every 3 days | calls `public.ping` on both projects so free projects don't pause |
 | Nightly database backup | 07:41 UTC | encrypted production dump, kept 30 days as a workflow artifact |
+| Database schema | when a migration changes, or by hand | applies new migrations to staging, then production |
 | Uptime check | every 30 minutes | the live site, staging and the database; a failure emails the repo owner |
 
 ## Where each build lives
