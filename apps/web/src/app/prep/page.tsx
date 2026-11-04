@@ -10,7 +10,7 @@ import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { useDays } from "@/lib/days";
 import { at, buildIcs, downloadText, nextWeekday, type CalEvent } from "@/lib/ics";
-import { chainName, cx, DAY_LONG as WEEKDAYS, fmtServings } from "@/lib/format";
+import { chainName, cx, DAY_LONG as WEEKDAYS, fmtServings, recipeHref } from "@/lib/format";
 
 const clock = (start: string, plus: number) => {
   const [h, m] = start.split(":").map(Number);
@@ -156,7 +156,7 @@ export default function Prep() {
                         <RecipeTile recipe={b.recipe} />
                         <div className="min-w-0 flex-1">
                           <p className="label">Recipe {n + 1}</p>
-                          <h3 className="font-display text-lg font-bold"><Link href={`/recipes/${b.recipe.id}/`} className="hover:underline">{b.recipe.name}</Link></h3>
+                          <h3 className="font-display text-lg font-bold"><Link href={recipeHref(b.recipe.id)} className="hover:underline">{b.recipe.name}</Link></h3>
                           <p className="text-sm text-muted">Make {fmtServings(b.servings)} ({scale === 1 ? "as written" : `${Math.round(scale * 100) / 100}× the recipe`})</p>
                         </div>
                       </div>

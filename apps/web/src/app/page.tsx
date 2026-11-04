@@ -7,7 +7,7 @@ import { BudgetBar, PlanMacros, PlanStatus, RecipeTile, SolvingNote, usePreppedT
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
-import { chainName, money } from "@/lib/format";
+import { chainName, money, recipeHref } from "@/lib/format";
 import { useDays } from "@/lib/days";
 
 export default function Home() {
@@ -71,7 +71,7 @@ export default function Home() {
                 if (!rec) return null;
                 return (
                   <li key={m.occasionId}>
-                    <Link href={`/recipes/${rec.id}/`} className="flex min-w-0 items-center gap-3 rounded-lg p-1.5 hover:bg-sunk">
+                    <Link href={recipeHref(rec.id)} className="flex min-w-0 items-center gap-3 rounded-lg p-1.5 hover:bg-sunk">
                       <RecipeTile recipe={rec} size={40} />
                       <span className="min-w-0 flex-1">
                         <span className="label block">{m.occasionName}</span>

@@ -22,6 +22,7 @@ export function hardRejection(r: Recipe, p: Preferences): string | null {
   if (r.equipment.every((e) => p.missingEquipment.includes(e))) return "needs equipment you don't have";
   if (r.activeMinutes > p.maxActiveMinutes) return `takes ${r.activeMinutes} minutes hands-on`;
   if (p.excludeRecipes?.includes(r.id)) return "skipped this week";
+  if (p.ratings?.[r.id] === 1) return "you rated it 1 star";
   return null;
 }
 
@@ -53,6 +54,11 @@ export function preferenceFit(r: Recipe, p: Preferences): { fit: number; reasons
     const musts = Object.entries(wishes).filter(([, w]) => w === "must").map(([k]) => k);
     if (musts.length && !tags.some((t) => musts.includes(t))) fit -= kind === "cuisine" ? 2.5 : 1.5;
   }
+  const stars = p.ratings?.[r.id];
+  if (stars === 5) { fit += 2; reasons.unshift("you rated it 5 stars"); }
+  else if (stars === 4) { fit += 1; reasons.unshift("you rated it 4 stars"); }
+  else if (stars === 2) fit -= 1.5;
+  if (r.id.startsWith("custom_")) { fit += 0.5; reasons.unshift("your recipe"); }
   return { fit, reasons };
 }
 
