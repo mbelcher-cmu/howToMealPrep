@@ -1,0 +1,95 @@
+/*
+ * Skin v2 (November 2026 redesign). Everything here is scoped to <html data-skin="v2">, which the
+ * "redesign" feature flag turns on (staging first, production after review). With the flag off
+ * the app looks exactly as before.
+ *
+ * Direction: clean white surfaces, soft borderless cards, near-black pill buttons, heavy tight
+ * Inter for reading, a wide uppercase display face (Archivo at 125% width) for page titles and
+ * eyebrows, and color-coded macros: red protein, orange carbs, blue fat. Dark mode is true black.
+ */
+
+:root[data-skin="v2"] {
+  --bg: 247 247 249;
+  --surface: 255 255 255;
+  --sunk: 241 241 244;
+  --line: 230 230 235;
+  --ink: 17 17 20;
+  --muted: 108 108 118;
+  --accent: 17 17 20;
+  --accent-ink: 255 255 255;
+  --accent-soft: 236 236 241;
+  --good: 30 150 85;
+  --warn: 210 64 58;
+  --warn-soft: 253 233 231;
+  --caution: 196 124 14;
+  --protein: 226 88 88;
+  --carbs: 230 145 60;
+  --fat: 76 128 230;
+  --font-display: "Inter Variable";
+  --font-sans: "Inter Variable";
+  --font-wide: "Archivo Variable";
+  --shadow-card: 0 1px 2px rgb(16 16 24 / 0.04), 0 6px 24px rgb(16 16 24 / 0.06);
+  --shadow-float: 0 2px 6px rgb(16 16 24 / 0.06), 0 12px 32px rgb(16 16 24 / 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-skin="v2"]:not([data-theme="light"]) {
+    --bg: 0 0 0; --surface: 22 22 24; --sunk: 34 34 37; --line: 44 44 48;
+    --ink: 245 245 247; --muted: 146 146 154;
+    --accent: 245 245 247; --accent-ink: 0 0 0; --accent-soft: 44 44 48;
+    --good: 76 210 130; --warn: 255 105 97; --warn-soft: 60 24 22; --caution: 245 180 70;
+    --protein: 255 110 106; --carbs: 255 166 88; --fat: 106 152 255;
+    --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.06);
+    --shadow-float: 0 0 0 1px rgb(255 255 255 / 0.08), 0 12px 32px rgb(0 0 0 / 0.6);
+  }
+}
+:root[data-skin="v2"][data-theme="dark"] {
+  --bg: 0 0 0; --surface: 22 22 24; --sunk: 34 34 37; --line: 44 44 48;
+  --ink: 245 245 247; --muted: 146 146 154;
+  --accent: 245 245 247; --accent-ink: 0 0 0; --accent-soft: 44 44 48;
+  --good: 76 210 130; --warn: 255 105 97; --warn-soft: 60 24 22; --caution: 245 180 70;
+  --protein: 255 110 106; --carbs: 255 166 88; --fat: 106 152 255;
+  --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.06);
+  --shadow-float: 0 0 0 1px rgb(255 255 255 / 0.08), 0 12px 32px rgb(0 0 0 / 0.6);
+}
+
+/* Type */
+[data-skin="v2"] body { font-size: 15px; letter-spacing: -0.006em; font-feature-settings: "cv11", "ss01"; }
+[data-skin="v2"] .font-display { letter-spacing: -0.022em; }
+[data-skin="v2"] h1.font-display, [data-skin="v2"] h2.font-display { font-weight: 750; }
+/* Page titles: wide, heavy, uppercase */
+[data-skin="v2"] .page-title {
+  font-family: var(--font-wide), system-ui, sans-serif; font-stretch: 125%; font-weight: 800;
+  text-transform: uppercase; letter-spacing: -0.01em; font-size: 26px; line-height: 1.05;
+}
+@media (min-width: 640px) { [data-skin="v2"] .page-title { font-size: 32px; } }
+[data-skin="v2"] .wide { font-family: var(--font-wide), system-ui, sans-serif; font-stretch: 125%; }
+[data-skin="v2"] .label {
+  font-family: var(--font-wide), system-ui, sans-serif; font-stretch: 125%;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em;
+}
+[data-skin="v2"] .num { letter-spacing: -0.02em; }
+
+/* Surfaces */
+[data-skin="v2"] .card { border-radius: 22px; border-color: transparent; box-shadow: var(--shadow-card); }
+[data-skin="v2"] .tint { background: hsl(var(--h, 140) 38% 94%); }
+@media (prefers-color-scheme: dark) { :root[data-skin="v2"]:not([data-theme="light"]) .tint { background: hsl(var(--h, 140) 14% 15%); } }
+:root[data-skin="v2"][data-theme="dark"] .tint { background: hsl(var(--h, 140) 14% 15%); }
+
+/* Controls */
+[data-skin="v2"] .btn { min-height: 48px; border-radius: 999px; padding-inline: 20px; font-weight: 600; }
+[data-skin="v2"] .btn-sm { min-height: 38px; padding-inline: 14px; }
+[data-skin="v2"] .btn-primary { box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+[data-skin="v2"] .input { border-radius: 14px; border-color: transparent; background: rgb(var(--sunk)); min-height: 44px; }
+[data-skin="v2"] .input:focus { border-color: rgb(var(--ink)); background: rgb(var(--surface)); outline: none; }
+[data-skin="v2"] .pill { background: rgb(var(--sunk)); }
+[data-skin="v2"] .pill-warn { background: rgb(var(--warn-soft)); }
+[data-skin="v2"] .chip-macro { border-radius: 999px; }
+
+/* Segmented control: a gray track with a white thumb */
+[data-skin="v2"] .seg { border: 0; border-radius: 999px; background: rgb(var(--sunk)); padding: 4px; gap: 4px; }
+[data-skin="v2"] .seg > button { border: 0; border-radius: 999px; background: transparent; }
+[data-skin="v2"] .seg > button[aria-checked="true"] { background: rgb(var(--surface)); color: rgb(var(--ink)); box-shadow: 0 1px 3px rgb(0 0 0 / 0.1); }
+[data-skin="v2"] .stepper { border: 0; border-radius: 999px; background: rgb(var(--sunk)); }
+[data-skin="v2"] .wordmark { font-family: var(--font-wide), system-ui, sans-serif; font-stretch: 125%; font-weight: 800; text-transform: uppercase; font-size: 18px; letter-spacing: -0.01em; }
+[data-skin="v2"] .wordmark span { color: rgb(var(--muted)); }

@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { ArrowLeft, Lock, LockOpen, Trash2 } from "lucide-react";
+import { ArrowLeft, Droplet, Drumstick, Flame, Lock, LockOpen, Trash2, Wheat } from "lucide-react";
+import { useFlag } from "@/lib/flags";
 import { ALLERGENS, CHAINS, DIETS, EQUIPMENT, formatAmount, INGREDIENTS, MOODS, RECIPES_BY_ID } from "@prep-cart/catalog";
 import { macroShares } from "@prep-cart/nutrition";
 import { buildPriceTable, hardRejection, servingCost } from "@prep-cart/planner";
@@ -18,6 +19,7 @@ export function RecipeDetail({ id }: { id: string }) {
   const hydrated = useHydrated();
   const s = useApp();
   const [servings, setServings] = useState(r.servings);
+  const v2 = useFlag("redesign");
   const scale = servings / r.servings;
   const prices = useMemo(() => buildPriceTable(s.priceOverrides), [s.priceOverrides]);
   const n = r.perServing;
@@ -59,6 +61,23 @@ export function RecipeDetail({ id }: { id: string }) {
         <div className="grid content-start gap-4">
           <Card>
             <SectionTitle>Per serving</SectionTitle>
+            {v2 ? (
+              <>
+                <div className="flex items-center gap-4">
+                  <span className="grid h-14 w-14 place-items-center rounded-2xl bg-sunk" aria-hidden><Flame size={24} /></span>
+                  <div><p className="text-sm text-muted">Calories</p><p className="num text-[34px] font-bold leading-none">{n.kcal}</p></div>
+                </div>
+                <dl className="num mt-4 grid grid-cols-3 gap-2">
+                  {([["Protein", n.protein, Drumstick, "text-protein"], ["Carbs", n.carbs, Wheat, "text-carbs"], ["Fat", n.fat, Droplet, "text-fat"]] as const).map(([label, g, Icon, color]) => (
+                    <div key={label} className="rounded-2xl border border-line p-3">
+                      <dt className="flex items-center gap-1.5 text-[13px] text-muted"><Icon size={14} className={color} aria-hidden /> {label}</dt>
+                      <dd className="mt-0.5 text-[18px] font-bold">{g}g</dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="num mt-3 text-sm text-muted">Fiber {n.fiber} g · Sodium {n.sodiumMg.toLocaleString()} mg</p>
+              </>
+            ) : (<>
             <div className="num text-[28px] font-semibold leading-none">{n.kcal}<span className="text-sm font-normal text-muted"> kcal</span></div>
             <dl className="num mt-3 grid grid-cols-3 gap-2 text-sm">
               <div><dt className="label">Protein</dt><dd className="font-semibold text-protein">{n.protein} g</dd></div>
@@ -67,6 +86,7 @@ export function RecipeDetail({ id }: { id: string }) {
               <div><dt className="label">Fiber</dt><dd>{n.fiber} g</dd></div>
               <div className="col-span-2"><dt className="label">Sodium</dt><dd>{n.sodiumMg.toLocaleString()} mg</dd></div>
             </dl>
+            </>)}
             <div className="mt-3 flex h-2.5 overflow-hidden rounded-full" role="img" aria-label={`Protein ${Math.round(shares.protein * 100)}%, carbs ${Math.round(shares.carbs * 100)}%, fat ${Math.round(shares.fat * 100)}% of calories`}>
               <div style={{ width: `${shares.protein * 100}%` }} className="bg-protein" />
               <div style={{ width: `${shares.carbs * 100}%` }} className="bg-carbs" />

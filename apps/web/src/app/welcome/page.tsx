@@ -153,7 +153,7 @@ export default function Welcome() {
   return (
     <div className="mx-auto grid min-h-dvh w-full max-w-[640px] grid-rows-[auto_1fr_auto] px-4 pb-6 pt-6 sm:px-6">
       <header>
-        <div className="font-display text-xl font-bold">Macro<span className="text-accent">Aisle</span></div>
+        <div className="wordmark font-display text-xl font-bold">Macro<span className="text-accent">Aisle</span></div>
         <ol className="mt-4 flex gap-1.5" aria-label="Setup progress">
           {TITLES.map((st, n) => (
             <li key={st.title} className={cx("h-1.5 flex-1 rounded-full", n <= i ? "bg-accent" : "bg-line")} aria-current={n === i ? "step" : undefined}>
@@ -162,7 +162,7 @@ export default function Welcome() {
           ))}
         </ol>
         <p className="label mt-4">Step {i + 1} of {TITLES.length}</p>
-        <h1 className="mt-1 font-display text-[28px] font-bold leading-tight">{step.title}</h1>
+        <h1 className="page-title mt-1 font-display text-[28px] font-bold leading-tight">{step.title}</h1>
         <p className="mt-1 text-muted">{step.lead}</p>
       </header>
       <section className="card mt-5 self-start p-4 sm:p-5" aria-label={step.title}>

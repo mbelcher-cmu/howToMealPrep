@@ -1,5 +1,7 @@
 @import "@fontsource-variable/bricolage-grotesque";
 @import "@fontsource-variable/public-sans";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/archivo/wdth.css";
 
 @tailwind base;
 @tailwind components;
@@ -22,6 +24,10 @@
   --protein: 45 106 76;
   --carbs: 184 138 30;
   --fat: 165 88 58;
+  --good: 45 106 76;
+  --font-display: "Bricolage Grotesque Variable";
+  --font-sans: "Public Sans Variable";
+  --font-wide: "Bricolage Grotesque Variable";
   color-scheme: light;
   /* motion: strong ease-out for anything entering or responding to a press */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -32,7 +38,7 @@
     --bg: 16 21 17; --surface: 24 32 26; --sunk: 20 26 22; --line: 43 54 46;
     --ink: 229 236 230; --muted: 154 168 158; --accent: 116 196 151; --accent-ink: 13 26 18; --accent-soft: 31 58 42;
     --warn: 236 122 98; --warn-soft: 61 33 27; --caution: 224 184 81;
-    --protein: 116 196 151; --carbs: 224 184 81; --fat: 224 138 104;
+    --protein: 116 196 151; --carbs: 224 184 81; --fat: 224 138 104; --good: 116 196 151;
     color-scheme: dark;
   }
 }
@@ -40,7 +46,7 @@
   --bg: 16 21 17; --surface: 24 32 26; --sunk: 20 26 22; --line: 43 54 46;
   --ink: 229 236 230; --muted: 154 168 158; --accent: 116 196 151; --accent-ink: 13 26 18; --accent-soft: 31 58 42;
   --warn: 236 122 98; --warn-soft: 61 33 27; --caution: 224 184 81;
-  --protein: 116 196 151; --carbs: 224 184 81; --fat: 224 138 104;
+  --protein: 116 196 151; --carbs: 224 184 81; --fat: 224 138 104; --good: 116 196 151;
   color-scheme: dark;
 }
 
@@ -51,7 +57,7 @@ button, a, summary, label, select, [role="button"], [role="radio"], [role="switc
 button, summary, [role="button"], [role="radio"], .btn, nav a { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 /* iOS zooms the page into any input under 16px and never zooms back out */
 @media (pointer: coarse) { input, select, textarea, .input { font-size: 16px; } }
-body { font-family: "Public Sans Variable", system-ui, sans-serif; font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+body { font-family: var(--font-sans), system-ui, sans-serif; font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
 h1, h2, h3 { text-wrap: balance; }
 .num { font-variant-numeric: tabular-nums; }
 :focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }

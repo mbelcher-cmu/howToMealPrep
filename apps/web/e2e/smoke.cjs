@@ -9,7 +9,8 @@ const BASE = BASE_URL || "http://localhost:4173";
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-  await page.goto(BASE + '/');
+  // the meter checks below read the original macro meters
+  await page.goto(BASE + '/?flags=redesign=off');
   await page.waitForURL('**/welcome/**', { timeout: 10000 });
   await page.screenshot({ path: `${OUT}/01-welcome.png` });
   await page.getByRole('radio', { name: 'Maintain' }).click();
