@@ -53,6 +53,9 @@ export interface Weights {
 }
 
 /** A takeout meal placed on one day's eating occasion. Days count from 0. */
+/** Someone else eating the plan. Portions scale by kcal against the main person's calories. */
+export interface HouseholdMember { id: string; name: string; kcal: number }
+
 export interface EatOut { day: number; occasionId: string; itemId: string }
 
 export interface PlanRequest {
@@ -77,6 +80,8 @@ export interface PlanRequest {
   timeLimit?: number;
   /** takeout meals that replace prepped ones; their cost comes out of the budget */
   eatingOut?: EatOut[];
+  /** other people who eat the same prepped meals, each with their own daily calories */
+  household?: HouseholdMember[];
 }
 
 export interface PlannedRecipe {
@@ -123,5 +128,7 @@ export interface PlanResult {
   budget: number;
   /** takeout meals the plan accounted for (invalid ones are dropped) */
   takeout: { meals: EatOut[]; cost: number };
+  /** everyone the food is cooked for. servings and the cart already include them */
+  household: { people: number; factor: number; members: { id: string; name: string; scale: number; daily: DayNutrition }[] };
   solveMs: number;
 }
