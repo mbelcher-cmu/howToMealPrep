@@ -39,6 +39,8 @@ export interface PantryItem {
   ingredientId: string;
   /** grams on hand; Infinity for staples you never run out of */
   grams: number;
+  /** days left before it spoils, counted from the plan's first day; the planner tries to use it up first */
+  daysLeft?: number;
 }
 
 export interface Weights {

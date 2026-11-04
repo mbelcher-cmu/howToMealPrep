@@ -182,6 +182,22 @@ export const INGREDIENTS: Record<string, Ingredient> = Object.fromEntries(
   }),
 );
 
+/** Typical days an opened or fresh item keeps in the fridge or cupboard, by aisle. */
+export const SHELF_LIFE_DAYS: Record<Aisle, number> = {
+  Produce: 6, "Meat and seafood": 3, Deli: 5, "Dairy and eggs": 14, Bakery: 6, "Grains and pasta": 365,
+  "Canned and jarred": 365, "Sauces and condiments": 120, "Oils and nuts": 180, Frozen: 120,
+};
+/** A few items keep much longer or shorter than their aisle. */
+const SHELF_OVERRIDES: Record<string, number> = {
+  eggs: 28, potatoes: 30, sweet_potato: 30, onion: 30, garlic: 60, apples: 21, carrots: 21, limes: 14, lemons: 14,
+  cheddar: 28, parmesan: 60, mozzarella: 21, feta: 21, butter: 60, bananas: 5, berries: 4, spinach: 5, avocado: 4, cilantro: 6,
+};
+export function shelfLifeDays(id: string): number {
+  const ing = INGREDIENTS[id];
+  if (!ing) return 7;
+  return SHELF_OVERRIDES[id] ?? SHELF_LIFE_DAYS[ing.aisle];
+}
+
 export const CHAINS: { id: ChainId; name: string; note: string; search: (q: string) => string }[] = [
   { id: "aldi", name: "Aldi", note: "Lowest prices, smaller selection", search: (q) => `https://www.aldi.us/results?q=${encodeURIComponent(q)}` },
   { id: "gianteagle", name: "Giant Eagle", note: "Widest selection in the Pittsburgh area", search: (q) => `https://www.gianteagle.com/search?q=${encodeURIComponent(q)}` },

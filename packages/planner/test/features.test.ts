@@ -44,4 +44,14 @@ describe("planner features", async () => {
     const r = plan(baseRequest({ days: 3, eatingOut: [{ day: 5, occasionId: "meal-3", itemId: "chipotle_chicken_bowl" }] }), highs);
     expect(r.takeout.meals).toHaveLength(0);
   });
+
+  it("uses up pantry food that's about to spoil", () => {
+    const base = baseRequest();
+    const without = plan(base, highs);
+    const usesSpinach = (rs: typeof without.recipes) => rs.some((p) => p.recipe.lines.some((l) => l.ingredientId === "spinach"));
+    const pantry = [...base.pantry, { ingredientId: "spinach", grams: 280, daysLeft: 2 }];
+    const r = plan(baseRequest({ pantry }), highs);
+    expect(usesSpinach(r.recipes), `before: ${usesSpinach(without.recipes)}`).toBe(true);
+    expect(r.recipes.some((p) => p.reasons.some((x) => x.includes("uses up your"))) || usesSpinach(without.recipes)).toBe(true);
+  });
 });

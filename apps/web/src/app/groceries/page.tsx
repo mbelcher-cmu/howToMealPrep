@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Check, Copy, ExternalLink, PackageCheck } from "lucide-react";
+import { Check, Copy, ExternalLink, House, PackageCheck } from "lucide-react";
 import { CHAINS, formatAmount, INGREDIENTS, type Aisle, type ChainId } from "@prep-cart/catalog";
 import type { CartLine } from "@prep-cart/planner";
 import { BudgetBar, PlanStatus, SolvingNote } from "@/components/plan-bits";
@@ -52,7 +52,7 @@ export default function Groceries() {
 
   return (
     <>
-      <PageHeader title="Groceries" lead="Your in-store list, sorted by aisle. Tick items as they go in the cart." action={<SolvingNote />} />
+      <PageHeader title="Groceries" lead="Your in-store list, sorted by aisle. Tick items as they go in the cart. Tap the house if you already have something at home and the plan drops it." action={<SolvingNote />} />
       <PlanStatus />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="grid min-w-0 grid-cols-1 content-start gap-4">
@@ -89,6 +89,10 @@ export default function Groceries() {
                                 <div className="num text-sm font-semibold">{money(l.cost)}</div>
                                 <div className="text-[11px] text-muted">{l.packages > 1 && `${money(l.unitPrice)} ea · `}{SOURCE_LABEL[l.priceSource]}</div>
                               </div>
+                              <button className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted hover:bg-sunk hover:text-ink" title="I already have this" aria-label={`I already have ${ing.name}`}
+                                onClick={() => s.addToPantry(ing.id, l.needGrams)}>
+                                <House size={16} aria-hidden />
+                              </button>
                               <a href={c.search(ing.name)} target="_blank" rel="noreferrer" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted hover:bg-sunk hover:text-ink" aria-label={`Look up ${ing.name} at ${c.name} (opens new tab)`}>
                                 <ExternalLink size={16} aria-hidden />
                               </a>
