@@ -19,6 +19,7 @@ export const DIETS = {
   noPork: { label: "No pork", detail: "Fits halal-style and kosher-style eating (ingredients only, not certification)" },
   lowCarb: { label: "Low-carb", detail: "Under 25 g carbs a serving" },
   keto: { label: "Keto", detail: "Under 10 g net carbs a serving" },
+  wholeFoods: { label: "Whole foods", detail: "No processed meats, refined grains or sugary sauces" },
 } as const;
 export type Diet = keyof typeof DIETS;
 

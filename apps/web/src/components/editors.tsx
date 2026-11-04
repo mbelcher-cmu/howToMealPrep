@@ -4,10 +4,13 @@ import {
   ALLERGENS, CHAINS, CUISINES, DIETS, EQUIPMENT, FLAVORS, INGREDIENTS, MOODS, PROTEIN_SOURCES,
   type Allergen, type Diet, type Equipment,
 } from "@prep-cart/catalog";
-import { ACTIVITY_LEVELS, cmToFeetInches, feetInchesToCm, kgToLb, lbToKg, macroShares, MAX_MEALS, MAX_SNACKS, splitTargets, SPLIT_PRESETS, suggestTargets, type ActivityLevel, type Goal, type SplitPreset } from "@prep-cart/nutrition";
+import { ACTIVITY_LEVELS, customOverflow, cmToFeetInches, feetInchesToCm, kgToLb, lbToKg, macroShares, MAX_MEALS, MAX_SNACKS, splitTargets, SPLIT_PRESETS, suggestTargets, type ActivityLevel, type Goal, type SplitPreset } from "@prep-cart/nutrition";
 import { useApp } from "@/lib/store";
 import { Chip, NumberField, Segmented, Slider, Stepper, Toggle, WishChip } from "./ui";
-import { money } from "@/lib/format";
+import { cx, money } from "@/lib/format";
+import { Lock, LockOpen, SlidersHorizontal } from "lucide-react";
+
+const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
 
 /* ───────────── Body stats ───────────── */
 export function BodyStatsEditor() {
@@ -68,12 +71,31 @@ export function TargetsEditor({ showSuggest = true }: { showSuggest?: boolean })
   const presetOptions = Object.entries(SPLIT_PRESETS).map(([k, v]) => ({ value: k, label: v.label }));
   const change = (m: "protein" | "carbs" | "fat", g: number) => {
     const r = s.setMacro(m, g);
-    if (r.clamped) setNote(`That's more than your calories allow. Raise calories or switch to "Set grams".`); else setNote(null);
+    if (r.clamped) setNote(`That's more than your calories allow with the other macros locked. Unlock one, raise calories, or switch to "Set grams freely".`);
+    else setNote(null);
   };
+  const locked = s.lockedMacros ?? [];
+  const caloriesMode = s.targetMode === "calories";
+  const macroField = (m: "protein" | "carbs" | "fat", label: string, max: number, step: number) => {
+    const isLocked = locked.includes(m);
+    return (
+      <div className="grid min-w-0 gap-1">
+        <NumberField label={label} value={t[m]} min={0} max={max} step={step} onChange={(g) => change(m, g)} suffix="g" />
+        {caloriesMode && (
+          <button type="button" onClick={() => s.toggleMacroLock(m)} aria-pressed={isLocked}
+            className={cx("inline-flex min-h-[32px] items-center justify-center gap-1 rounded-md border text-xs font-semibold", isLocked ? "border-accent bg-accent-soft text-ink" : "border-line text-muted hover:bg-sunk")}>
+            {isLocked ? <Lock size={12} aria-hidden /> : <LockOpen size={12} aria-hidden />} {isLocked ? "Locked" : "Lock"}
+            <span className="sr-only"> {label}</span>
+          </button>
+        )}
+      </div>
+    );
+  };
+  const free = (["protein", "carbs", "fat"] as const).filter((k) => !locked.includes(k));
   return (
     <div className="grid gap-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {s.targetMode === "calories" ? (
+        {caloriesMode ? (
           <NumberField label="Calories per day" value={t.kcal} min={1000} max={6000} step={50} onChange={(k) => s.setCalories(k)} suffix="kcal" />
         ) : (
           <div className="grid gap-1">
@@ -96,15 +118,17 @@ export function TargetsEditor({ showSuggest = true }: { showSuggest?: boolean })
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <NumberField label="Protein" value={t.protein} min={0} max={500} step={5} onChange={(g) => change("protein", g)} suffix="g" />
-        <NumberField label="Carbs" value={t.carbs} min={0} max={900} step={5} onChange={(g) => change("carbs", g)} suffix="g" />
-        <NumberField label="Fat" value={t.fat} min={0} max={300} step={1} onChange={(g) => change("fat", g)} suffix="g" />
+        {macroField("protein", "Protein", 500, 5)}
+        {macroField("carbs", "Carbs", 900, 5)}
+        {macroField("fat", "Fat", 300, 1)}
       </div>
-      {s.targetMode === "calories" && (
-        <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted">
-          <span>Balance changes with</span>
-          <Segmented size="sm" label="Balance with" value={s.balancer} onChange={s.setBalancer} options={[{ value: "carbs", label: "Carbs" }, { value: "fat", label: "Fat" }]} />
-        </div>
+      {caloriesMode && (
+        <p className="text-xs text-muted">
+          {free.length === 3 && "Nothing is locked: changing one macro moves the other two to keep your calories. Changing calories rescales all three."}
+          {free.length === 2 && `${cap(locked[0]!)} is locked. Changing ${free[0]} moves ${free[1]} (and the other way round). Changing calories moves ${free.join(" and ")}.`}
+          {free.length === 1 && `${cap(locked.join(" and "))} are locked. Changing ${free[0]} changes your calories; changing calories moves ${free[0]}.`}
+          {free.length === 0 && "All three are locked, so calories stay where they are. Unlock a macro to change calories."}
+        </p>
       )}
       {note && <p role="status" className="text-sm text-warn">{note}</p>}
 
@@ -132,9 +156,48 @@ export function TargetsEditor({ showSuggest = true }: { showSuggest?: boolean })
 }
 
 /* ───────────── Meals and snacks ───────────── */
+function OccasionRow({ id, part }: { id: string; part: { protein: number; carbs: number; fat: number; kcal: number } }) {
+  const s = useApp();
+  const o = s.occasions.find((x) => x.id === id)!;
+  const [open, setOpen] = useState(false);
+  const custom = !!o.macros;
+  const setM = (k: "protein" | "carbs" | "fat", g: number) => s.setOccasionMacros(o.id, { protein: part.protein, carbs: part.carbs, fat: part.fat, ...o.macros, [k]: g });
+  return (
+    <li className="px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-sm font-medium">{o.name}{custom && <span className="pill">Custom</span>}</div>
+          <div className="num text-xs text-muted">{part.kcal} kcal · {part.protein}P · {part.carbs}C · {part.fat}F</div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className={cx("btn btn-sm", (open || custom) && "border-accent")} aria-expanded={open} onClick={() => setOpen(!open)}>
+            <SlidersHorizontal size={14} aria-hidden /> Macros
+          </button>
+          <Segmented size="sm" label={`${o.name} source`} value={o.prepped ? "prep" : "fresh"} onChange={(v) => s.updateOccasion(o.id, { prepped: v === "prep" })}
+            options={[{ value: "prep", label: "Meal prep" }, { value: "fresh", label: "Not prepped" }]} />
+        </div>
+      </div>
+      {open && (
+        <div className="mt-2 grid gap-2 rounded-lg bg-sunk p-3">
+          <div className="grid grid-cols-3 gap-2">
+            <NumberField compact label="Protein" value={part.protein} min={0} max={300} step={5} suffix="g" onChange={(g) => setM("protein", g)} />
+            <NumberField compact label="Carbs" value={part.carbs} min={0} max={500} step={5} suffix="g" onChange={(g) => setM("carbs", g)} />
+            <NumberField compact label="Fat" value={part.fat} min={0} max={200} step={1} suffix="g" onChange={(g) => setM("fat", g)} />
+          </div>
+          <p className="text-xs text-muted">
+            {custom ? "These grams are fixed for this meal. Your other meals share what's left of the day." : "Change a number to set this meal's macros yourself. Until then it gets its share of the day automatically."}
+          </p>
+          {custom && <button type="button" className="btn btn-sm justify-self-start" onClick={() => s.setOccasionMacros(o.id, null)}>Back to automatic</button>}
+        </div>
+      )}
+    </li>
+  );
+}
+
 export function MealStructureEditor() {
   const s = useApp();
   const parts = useMemo(() => splitTargets(s.targets, s.occasions), [s.targets, s.occasions]);
+  const overflow = useMemo(() => customOverflow(s.targets, s.occasions), [s.targets, s.occasions]);
   return (
     <div className="grid gap-4">
       <div className="grid grid-cols-2 gap-3">
@@ -142,17 +205,13 @@ export function MealStructureEditor() {
         <Stepper label="Snacks a day" value={s.snacks} min={0} max={MAX_SNACKS} onChange={(n) => s.setStructure(s.meals, n)} />
       </div>
       <ul className="divide-y divide-line rounded-lg border border-line">
-        {s.occasions.map((o, i) => (
-          <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
-            <div className="min-w-0">
-              <div className="text-sm font-medium">{o.name}</div>
-              <div className="num text-xs text-muted">{parts[i]!.kcal} kcal · {parts[i]!.protein} g protein</div>
-            </div>
-            <Segmented size="sm" label={`${o.name} source`} value={o.prepped ? "prep" : "fresh"} onChange={(v) => s.updateOccasion(o.id, { prepped: v === "prep" })}
-              options={[{ value: "prep", label: "Meal prep" }, { value: "fresh", label: "Not prepped" }]} />
-          </li>
-        ))}
+        {s.occasions.map((o, i) => <OccasionRow key={o.id} id={o.id} part={parts[i]!} />)}
       </ul>
+      {(overflow.protein > 0 || overflow.carbs > 0 || overflow.fat > 0) && (
+        <p role="status" className="text-sm text-warn">
+          Your custom meals add up to more than your day ({[overflow.protein && `${overflow.protein} g protein`, overflow.carbs && `${overflow.carbs} g carbs`, overflow.fat && `${overflow.fat} g fat`].filter(Boolean).join(", ")} over). Other meals get nothing of that macro.
+        </p>
+      )}
       <p className="text-xs text-muted">"Not prepped" keeps those calories free for eating out or cooking fresh. The plan fills the rest.</p>
       <div className="grid grid-cols-3 gap-3">
         <Stepper label="Breakfast recipes" value={s.variety.breakfast} min={1} max={3} onChange={(v) => s.set({ variety: { ...s.variety, breakfast: v } })} />
