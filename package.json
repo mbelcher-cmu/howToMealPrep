@@ -1,0 +1,15 @@
+{
+  "name": "prep-cart",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Meal prep planner: budget + macros -> weekly plan and in-store shopping list",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "npm run dev -w @prep-cart/web",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "engines": { "node": ">=20" }
+}
