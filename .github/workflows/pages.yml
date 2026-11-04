@@ -41,8 +41,8 @@ jobs:
           NEXT_PUBLIC_RELEASE: ${{ github.sha }}
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.SENTRY_DSN || 'https://f80c85262f096a3f83926a6c2e09de94@o4512375036051456.ingest.us.sentry.io/4512375174266880' }}
           NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.STAGING_POSTHOG_KEY || 'phc_t28zgGKsQ2WMABNA6dRHYsYiAjaGWqQtRKp7iLZfHp6Y' }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.STAGING_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.STAGING_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.STAGING_SUPABASE_URL || 'https://xfhxwkmeiktxvhedmfhj.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.STAGING_SUPABASE_ANON_KEY || 'sb_publishable_QvER-hwBYT43Qa_88IDTWQ_TAGe5swU' }}
           NEXT_PUBLIC_FLAGS: ${{ vars.STAGING_FLAGS }}
       - name: Build production site
         run: npm run build -w @prep-cart/web
