@@ -31,12 +31,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   const onboarded = useApp((s) => s.onboarded);
   const { status } = usePlanner();
   const isOnboarding = path.startsWith("/welcome");
+  const isShopping = path.startsWith("/shop");
+
+  useEffect(() => {
+    // offline support for the installed app; skipped in development so builds don't go stale
+    if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/sw.js`).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (hydrated && !onboarded && !isOnboarding) router.replace("/welcome/");
   }, [hydrated, onboarded, isOnboarding, router]);
 
-  if (isOnboarding) return <main className="min-h-dvh">{children}</main>;
+  if (isOnboarding || isShopping) return <main id="main" className="min-h-dvh">{children}</main>;
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[232px_minmax(0,1fr)]">
