@@ -101,7 +101,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           const on = href === "/more/" ? active(path, href) || MORE.some((m) => active(path, m.href)) : active(path, href);
           return (
             <Link key={href} href={href} aria-current={on ? "page" : undefined}
-              className={cx("flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium", on ? "text-accent" : "text-muted")}>
+              className={cx("press flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium", on ? "text-accent" : "text-muted")}>
               <Icon size={20} aria-hidden /> {label}
             </Link>
           );

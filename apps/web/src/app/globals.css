@@ -23,6 +23,9 @@
   --carbs: 184 138 30;
   --fat: 165 88 58;
   color-scheme: light;
+  /* motion: strong ease-out for anything entering or responding to a press */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -41,12 +44,22 @@
   color-scheme: dark;
 }
 
-html, body { background: rgb(var(--bg)); color: rgb(var(--ink)); }
+html, body { background: rgb(var(--bg)); color: rgb(var(--ink)); overscroll-behavior-y: none; }
+/* Feel native on a phone: no gray tap flash, no double-tap delay, no text selection on long-press of a control */
+html { -webkit-tap-highlight-color: transparent; }
+button, a, summary, label, select, [role="button"], [role="radio"], [role="switch"] { touch-action: manipulation; }
+button, summary, [role="button"], [role="radio"], .btn, nav a { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* iOS zooms the page into any input under 16px and never zooms back out */
+@media (pointer: coarse) { input, select, textarea, .input { font-size: 16px; } }
 body { font-family: "Public Sans Variable", system-ui, sans-serif; font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
 h1, h2, h3 { text-wrap: balance; }
 .num { font-variant-numeric: tabular-nums; }
 :focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+/* Reduced motion keeps color and opacity changes (they help comprehension) and drops movement */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition-property: color, background-color, border-color, opacity !important; }
+  .press:active, .btn:active { transform: none !important; }
+}
 
 @layer components {
   .card { @apply rounded-card border border-line/70 bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_14px_rgb(0_0_0/0.04)]; }
@@ -59,7 +72,15 @@ h1, h2, h3 { text-wrap: balance; }
   .chip-macro { @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold; }
   .label { @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-muted; }
   .input { @apply w-full min-w-0 rounded-lg border border-line bg-bg px-3 py-2 text-[15px] text-ink placeholder:text-muted/70; }
-  .btn { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink transition-colors hover:bg-sunk disabled:opacity-50; }
+  .btn { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink hover:bg-sunk disabled:opacity-50; }
+  /* press feedback on finger-down, not on release: a small scale that every pressable shares */
+  .btn, .press { transition: transform 140ms var(--ease-out), background-color 150ms ease, color 150ms ease, border-color 150ms ease; }
+  .btn:not(:disabled):active, .press:not(:disabled):active { transform: scale(0.97); }
+  /* popovers grow from their trigger; toasts rise from the bottom edge they live on */
+  .pop { transform-origin: top right; transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out); }
+  @starting-style { .pop { opacity: 0; transform: scale(0.96); } }
+  .toast { transition: opacity 220ms var(--ease-out), transform 220ms var(--ease-out); }
+  @starting-style { .toast { opacity: 0; transform: translateY(12px); } }
   .btn-primary { @apply border-accent bg-accent text-accent-ink hover:bg-accent/90; }
   .btn-sm { @apply min-h-[36px] px-3 text-[13px]; }
   .pill { @apply inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-ink; }

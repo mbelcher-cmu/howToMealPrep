@@ -181,7 +181,7 @@ export default function Shop() {
       )}
 
       {undo && (
-        <div role="status" className="fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-[600px] items-center justify-between gap-3 rounded-xl bg-ink px-4 py-3 text-bg shadow-lg" style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}>
+        <div role="status" className="toast fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-[600px] items-center justify-between gap-3 rounded-xl bg-ink px-4 py-3 text-bg shadow-lg" style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}>
           <span className="truncate">{undo} is in the cart</span>
           <button className="inline-flex items-center gap-1 font-semibold" onClick={() => { if (last.current) s.toggleChecked(last.current); last.current = null; setUndo(null); }}><Undo2 size={16} aria-hidden /> Undo</button>
         </div>

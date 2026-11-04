@@ -4,6 +4,8 @@ const v = (name: string) => `rgb(var(--${name}) / <alpha-value>)`;
 
 export default {
   content: ["./src/**/*.{ts,tsx}"],
+  // hover styles only on devices that can hover, so a tap never leaves a button stuck in its hover state
+  future: { hoverOnlyWhenSupported: true },
   darkMode: ["class", '[data-theme="dark"]'],
   theme: {
     extend: {
