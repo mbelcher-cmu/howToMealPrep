@@ -127,8 +127,8 @@ export function Chip({ selected, onClick, children, tone = "accent", title }: { 
       title={title}
       onClick={onClick}
       className={cx(
-        "min-h-[34px] rounded-full border px-3 text-[13px] transition-colors",
-        selected ? (tone === "warn" ? "border-warn bg-warn-soft font-semibold text-warn" : "border-accent bg-accent font-semibold text-accent-ink") : "border-line bg-bg text-ink hover:bg-sunk",
+        "min-h-[36px] shrink-0 whitespace-nowrap rounded-full border px-3.5 text-[13px] transition-colors",
+        selected ? (tone === "warn" ? "border-warn bg-warn-soft font-semibold text-warn" : "border-accent bg-accent font-semibold text-accent-ink") : "border-line bg-surface text-ink hover:bg-sunk",
       )}
     >
       {children}
