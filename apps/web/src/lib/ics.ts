@@ -14,7 +14,7 @@ const fold = (line: string) => {
 
 export function buildIcs(events: CalEvent[]): string {
   const now = utcStamp(new Date());
-  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Prep Cart//Meal prep//EN", "CALSCALE:GREGORIAN"];
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//MacroAisle//Meal prep//EN", "CALSCALE:GREGORIAN"];
   for (const e of events) {
     const end = new Date(e.start.getTime() + e.minutes * 60000);
     lines.push("BEGIN:VEVENT", `UID:${e.uid}@prepcart`, `DTSTAMP:${now}`, `DTSTART:${stamp(e.start)}`, `DTEND:${stamp(end)}`, fold(`SUMMARY:${text(e.title)}`));

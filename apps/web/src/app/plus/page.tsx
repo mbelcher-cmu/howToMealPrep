@@ -13,7 +13,7 @@ export default function Plus() {
   if (!hydrated) return null;
   return (
     <>
-      <PageHeader title="Prep Cart Plus" lead="The planned paid tier. Everything you use today stays free. Nothing is charged yet." />
+      <PageHeader title="MacroAisle Plus" lead="The planned paid tier. Everything you use today stays free. Nothing is charged yet." />
       <div className="grid max-w-[960px] gap-4 md:grid-cols-2">
         <Card>
           <p className="label">Free</p>
@@ -33,7 +33,7 @@ export default function Plus() {
             ))}
           </ul>
           <div className="mt-4 border-t border-line pt-3">
-            <Toggle checked={s.plusPreview} onChange={(plusPreview) => s.set({ plusPreview })} label="Preview Plus on this device" detail="Turns on the features that already work, such as smart swaps. Free while Prep Cart is in testing." />
+            <Toggle checked={s.plusPreview} onChange={(plusPreview) => s.set({ plusPreview })} label="Preview Plus on this device" detail="Turns on the features that already work, such as smart swaps. Free while MacroAisle is in testing." />
           </div>
         </Card>
       </div>

@@ -19,7 +19,7 @@ const NAV = [
   { href: "/settings/", label: "Settings", icon: Settings, primary: false },
 ];
 /** Pages reached from the phone's More tab. */
-export const MORE = [...NAV.filter((n) => !n.primary), { href: "/preps/", label: "Meal preps", icon: Sparkles, primary: false }, { href: "/plus/", label: "Prep Cart Plus", icon: Sparkles, primary: false }];
+export const MORE = [...NAV.filter((n) => !n.primary), { href: "/preps/", label: "Meal preps", icon: Sparkles, primary: false }, { href: "/plus/", label: "MacroAisle Plus", icon: Sparkles, primary: false }];
 
 function active(path: string, href: string) {
   if (href === "/") return path === "/";
@@ -69,7 +69,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-surface px-3 py-5 md:flex">
         <Link href="/" className="mb-6 px-3 font-display text-xl font-bold tracking-tight">
-          Prep <span className="text-accent">Cart</span>
+          Macro<span className="text-accent">Aisle</span>
         </Link>
         <nav aria-label="Main" className="grid gap-0.5">
           {NAV.map(({ href, label, icon: Icon }) => (
@@ -87,7 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="min-w-0">
         {/* Phone header */}
         <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-surface/95 px-4 py-3 backdrop-blur md:hidden" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}>
-          <Link href="/" className="font-display text-lg font-bold">Prep <span className="text-accent">Cart</span></Link>
+          <Link href="/" className="font-display text-lg font-bold">Macro<span className="text-accent">Aisle</span></Link>
           {status === "solving" && <span className="inline-flex items-center gap-1.5 text-xs text-muted"><Loader2 size={14} className="animate-spin" aria-hidden /> Updating</span>}
         </header>
         <main id="main" className="mx-auto w-full max-w-[1120px] px-4 pb-28 pt-5 sm:px-6 md:pb-12 md:pt-8">{children}</main>

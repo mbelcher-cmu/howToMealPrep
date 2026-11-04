@@ -47,13 +47,13 @@ export default function Settings() {
       localStorage.setItem(STORE_KEY, text);
       await useApp.persist.rehydrate();
       setMsg("Imported.");
-    } catch { setMsg("That file isn't a Prep Cart backup."); }
+    } catch { setMsg("That file isn't a MacroAisle backup."); }
   };
   return (
     <>
       <PageHeader title="Settings" lead="Everything here is saved on this device only." />
       <nav aria-label="Settings sections" className="mb-4 flex flex-wrap gap-2 text-sm">
-        {[["you", "You"], ["household", "Household"], ["fitness", "Fitness apps"], ["plus", "Prep Cart Plus"], ["data", "Data"]].map(([id, label]) => (
+        {[["you", "You"], ["household", "Household"], ["fitness", "Fitness apps"], ["plus", "MacroAisle Plus"], ["data", "Data"]].map(([id, label]) => (
           <a key={id} href={`#${id}`} className="rounded-full border border-line bg-surface px-3 py-1 hover:bg-sunk">{label}</a>
         ))}
       </nav>
@@ -84,7 +84,7 @@ export default function Settings() {
         <Section id="fitness" title="Fitness apps" lead="Use what your watch or tracker measured instead of an estimate.">
           <FitnessSync />
         </Section>
-        {plus && <Section id="plus" title="Prep Cart Plus" lead="Smart swaps and more, coming later.">
+        {plus && <Section id="plus" title="MacroAisle Plus" lead="Smart swaps and more, coming later.">
           <Link href="/plus/" className="btn">See what's in Plus</Link>
         </Section>}
         <Section id="data" title="Your data" lead="There's no account yet. Back up your settings and plans to a file to move them to another device.">
@@ -99,7 +99,7 @@ export default function Settings() {
           {msg && <p role="status" className="mt-2 text-sm text-muted">{msg}</p>}
           <label className="mt-4 flex items-start gap-2 text-sm">
             <input type="checkbox" className="mt-1" checked={!noAnalytics} onChange={(e) => { setAnalyticsOptOut(!e.target.checked); setNoAnalytics(!e.target.checked); }} />
-            <span>Share anonymous usage stats, like how many plans are built, to help improve Prep Cart. Never your body stats, food or prices.</span>
+            <span>Share anonymous usage stats, like how many plans are built, to help improve MacroAisle. Never your body stats, food or prices.</span>
           </label>
           <p className="mt-4 text-xs text-muted">Nutrition is estimated from USDA ingredient data and is not medical advice. Prices are estimates for the Pittsburgh area and change often.</p>
         </Section>

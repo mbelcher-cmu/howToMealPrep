@@ -1,4 +1,4 @@
-# Prep Cart
+# MacroAisle
 
 Plan a week of meal prep that hits your calories and macros within your grocery budget, then shop it in person at stores near you (Pittsburgh first).
 

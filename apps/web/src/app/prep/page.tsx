@@ -48,7 +48,7 @@ export default function Prep() {
     const prepDate = nextWeekday((s.weekStart + 6) % 7);
     const events: CalEvent[] = [];
     const stores = plan.result.stores.map(chainName).join(" and ") || "the store";
-    events.push({ uid: `shop-${plan.id}`, start: at(prepDate, "10:00", 0), minutes: 60, title: `Grocery run: ${stores}`, description: `${plan.result.cart.length} items, about $${plan.result.cost.toFixed(2)}. Open Prep Cart for the list sorted by aisle.`, alarmMinutesBefore: 30 });
+    events.push({ uid: `shop-${plan.id}`, start: at(prepDate, "10:00", 0), minutes: 60, title: `Grocery run: ${stores}`, description: `${plan.result.cart.length} items, about $${plan.result.cost.toFixed(2)}. Open MacroAisle for the list sorted by aisle.`, alarmMinutesBefore: 30 });
     sessions.forEach((sess, i) => {
       const t = timelines[i]!;
       const day = sess.index === 0 ? prepDate : at(prepDate, "00:00", sess.beforeDay);

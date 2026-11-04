@@ -1,6 +1,6 @@
 {
-  "name": "Prep Cart",
-  "short_name": "Prep Cart",
+  "name": "MacroAisle",
+  "short_name": "MacroAisle",
   "description": "Meal prep that hits your macros within your grocery budget, with an in-store shopping list.",
   "start_url": "./",
   "scope": "./",
