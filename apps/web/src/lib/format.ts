@@ -23,3 +23,8 @@ export function cx(...parts: (string | false | null | undefined)[]) {
 
 /** Link to a recipe. The person's own recipes have no prebuilt page, so they share one page. */
 export const recipeHref = (id: string) => (id.startsWith("custom_") ? `/recipes/mine/?id=${encodeURIComponent(id)}` : `/recipes/${id}/`);
+
+/** Pittsburgh-area ZIP codes (150 to 152): local-only recipes, packs and restaurants show here. */
+export const isPittsburghZip = (zip: string | undefined) => /^15[0-2]/.test(zip ?? "");
+/** Packs and restaurants that only make sense near Pittsburgh. */
+export const PITTSBURGH_ONLY = new Set(["pittsburgh", "primanti"]);

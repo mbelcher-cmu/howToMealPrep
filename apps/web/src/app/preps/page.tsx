@@ -3,6 +3,8 @@ import { useState } from "react";
 import { PREP_PACKS, packDay } from "@prep-cart/catalog";
 import { PrepPackCard, usePackCost } from "@/components/preps";
 import { Chip, PageHeader } from "@/components/ui";
+import { isPittsburghZip, PITTSBURGH_ONLY } from "@/lib/format";
+import { useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
 
 type Sort = "featured" | "protein" | "kcal" | "cost";
@@ -11,8 +13,9 @@ export default function Preps() {
   const hydrated = useHydrated();
   const costOf = usePackCost();
   const [sort, setSort] = useState<Sort>("featured");
+  const zip = useApp((st) => st.profile.zip);
   if (!hydrated) return null;
-  const list = PREP_PACKS.map((p) => ({ p, d: packDay(p), cost: costOf(p) }));
+  const list = PREP_PACKS.filter((p) => isPittsburghZip(zip) || !PITTSBURGH_ONLY.has(p.id)).map((p) => ({ p, d: packDay(p), cost: costOf(p) }));
   if (sort === "protein") list.sort((a, b) => b.d.protein / b.d.kcal - a.d.protein / a.d.kcal);
   if (sort === "kcal") list.sort((a, b) => a.d.kcal - b.d.kcal);
   if (sort === "cost") list.sort((a, b) => (a.cost ?? 99) - (b.cost ?? 99));

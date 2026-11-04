@@ -109,7 +109,7 @@ export default function Settings() {
             <input type="checkbox" className="mt-1" checked={!noAnalytics} onChange={(e) => { setAnalyticsOptOut(!e.target.checked); setNoAnalytics(!e.target.checked); }} />
             <span>Share anonymous usage stats, like how many plans are built, to help improve MacroAisle. Never your body stats, food or prices.</span>
           </label>
-          <p className="mt-4 text-xs text-muted">Nutrition is estimated from USDA ingredient data and is not medical advice. Prices are estimates for the Pittsburgh area and change often.</p>
+          <p className="mt-4 text-xs text-muted">Nutrition is estimated from USDA ingredient data and is not medical advice. Prices are estimates from Pittsburgh-area stores (Walmart and Aldi are similar nationwide) and change often.</p>
         </Section>
       </div>
     </>

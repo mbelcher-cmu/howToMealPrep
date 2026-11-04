@@ -7,7 +7,7 @@ import {
 import { ACTIVITY_LEVELS, customOverflow, cmToFeetInches, feetInchesToCm, kgToLb, lbToKg, macroShares, MAX_MEALS, MAX_SNACKS, splitTargets, SPLIT_PRESETS, suggestTargets, type ActivityLevel, type Goal, type SplitPreset } from "@prep-cart/nutrition";
 import { useApp } from "@/lib/store";
 import { Chip, NumberField, Segmented, Slider, Stepper, Toggle, WishChip } from "./ui";
-import { cx, money } from "@/lib/format";
+import { cx, isPittsburghZip, money } from "@/lib/format";
 import { Lock, LockOpen, SlidersHorizontal } from "lucide-react";
 
 const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
@@ -339,7 +339,7 @@ export function MoodEditor() {
   const p = s.prefs;
   const [all, setAll] = useState<Record<string, boolean>>({});
   // the Pittsburgh cuisine only shows near Pittsburgh (ZIPs 150 to 152) or once picked
-  const local = /^15[0-2]/.test(s.profile.zip ?? "");
+  const local = isPittsburghZip(s.profile.zip);
   const groups = [
     { key: "cuisines" as const, title: "Cuisines", labels: CUISINES as Record<string, string> },
     { key: "moods" as const, title: "Moods", labels: MOODS as Record<string, string> },
