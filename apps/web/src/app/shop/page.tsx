@@ -127,8 +127,14 @@ export default function Shop() {
           {todo.length === 0 && (
             <div className="rounded-xl bg-accent-soft p-5 text-center">
               <p className="font-display text-xl font-bold">All done at {chainName(cur)}</p>
-              <p className="mt-1 text-sm text-muted">{stores.length > 1 ? "Switch stores above, or head" : "Head"} back to the list and tap Done shopping to save leftovers to your pantry.</p>
-              <Link href="/groceries/" className="btn btn-primary mt-3">Back to the list</Link>
+              {stores.length > 1 && <p className="mt-1 text-sm text-muted">Switch stores above for the rest of the list.</p>}
+              {s.shoppedPlanId === plan.id
+                ? <p className="mt-2 text-sm">Leftovers are saved to your pantry. Next week's plan uses them first.</p>
+                : <>
+                    <p className="mt-1 text-sm text-muted">Save what's left of each package to your pantry, so next week's plan uses it first.</p>
+                    <button className="btn btn-primary mt-3" onClick={() => s.finishShopping()}><Check size={16} aria-hidden /> Done shopping</button>
+                  </>}
+              <Link href="/" className="btn mt-2">Back home</Link>
             </div>
           )}
           {order.filter((a) => byAisle.has(a)).map((a) => (

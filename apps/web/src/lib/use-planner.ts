@@ -18,7 +18,7 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
     stores: s.stores,
     storeMode: s.storeMode,
     // drop spoiled food; tell the planner what spoils soon
-    pantry: s.pantry.filter((p) => !p.useBy || daysUntil(p.useBy) >= 0).map(({ useBy, ...p }) => (useBy ? { ...p, daysLeft: daysUntil(useBy) } : p)),
+    pantry: (s.pantryForPlan ?? s.pantry).filter((p) => !p.useBy || daysUntil(p.useBy) >= 0).map(({ useBy, ...p }) => (useBy ? { ...p, daysLeft: daysUntil(useBy) } : p)),
     weights: { costVsMacros: s.costVsMacros },
     lockedRecipes: s.locked,
     avoidSets,

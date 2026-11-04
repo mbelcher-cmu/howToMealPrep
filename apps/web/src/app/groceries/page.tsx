@@ -21,7 +21,7 @@ export default function Groceries() {
   const { plan } = usePlanner();
   const s = useApp();
   const [copied, setCopied] = useState(false);
-  const [done, setDone] = useState(false);
+  const done = !!s.current && s.shoppedPlanId === s.current.id;
 
   const byStore = useMemo(() => {
     const m = new Map<ChainId, Map<Aisle, CartLine[]>>();
@@ -128,11 +128,14 @@ export default function Groceries() {
             <div className="mt-4 grid gap-2">
               <Link href="/shop/" className="btn btn-primary"><Store size={16} aria-hidden /> Start in-store mode</Link>
               <button className="btn" onClick={copy}>{copied ? <><Check size={16} aria-hidden /> Copied</> : <><Copy size={16} aria-hidden /> Copy list</>}</button>
-              <button className="btn" onClick={() => { s.finishShopping(); setDone(true); }} disabled={done}>
+              <button className="btn" onClick={() => s.finishShopping()} disabled={done}>
                 <PackageCheck size={16} aria-hidden /> {done ? "Leftovers saved to pantry" : "Done shopping"}
               </button>
             </div>
-            <p className="mt-3 text-xs text-muted">Done shopping moves what's left of each package into your pantry, so next week's plan uses it first.</p>
+            {done
+              ? <button className="btn btn-primary mt-2 w-full" onClick={() => s.planNextWeek()}>Plan next week</button>
+              : null}
+            <p className="mt-3 text-xs text-muted">{done ? "Your leftovers are in the pantry. This week's plan stays as it is until you plan next week." : "Done shopping moves what's left of each package into your pantry, so next week's plan uses it first."}</p>
           </Card>
           {s.nearby.length === 0 && (
             <Card>

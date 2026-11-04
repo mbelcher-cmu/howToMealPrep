@@ -4,12 +4,12 @@ import { ArrowRight, ChefHat, ShoppingCart } from "lucide-react";
 import { INGREDIENTS, MENU_BY_ID, PREP_PACKS, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
 import { usualPrice } from "@/components/deals";
 import { BudgetBar, PlanMacros, PlanStatus, SolvingNote, usePreppedTargets } from "@/components/plan-bits";
-import { ItemCard, RecipeCard, Rail } from "@/components/food";
+import { ItemCard, RecipeArt, RecipeCard, Rail } from "@/components/food";
 import { PrepPackCard, usePackCost } from "@/components/preps";
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
-import { chainName, money } from "@/lib/format";
+import { chainName, money, recipeHref } from "@/lib/format";
 import { useDays } from "@/lib/days";
 
 export default function Home() {
@@ -79,9 +79,28 @@ export default function Home() {
           {!day?.meals.length && !day?.takeout?.length && <p className="text-sm text-muted">Nothing prepped is planned for today.</p>}
         </Rail>
 
-        <Rail title="Your prep this week" href="/prep/" linkLabel="Prep plan" lead={nextSession ? <>Cook {nextSession.batches.length} recipes before {DAY_LONG[nextSession.beforeDay]}.{plan.schedule.sessions.length > 1 && <> A short top-up session before {DAY_LONG[plan.schedule.sessions[1]!.beforeDay]} keeps everything fresh.</>}</> : undefined}>
-          {r.recipes.map((p) => <RecipeCard key={p.recipe.id} recipe={p.recipe} portion={p.portion} eyebrow={`${p.meals} meal${p.meals === 1 ? "" : "s"} · ${p.slot === "main" ? "lunch or dinner" : p.slot}`} />)}
-        </Rail>
+        <section aria-label="Your prep this week">
+          <div className="mb-2 flex items-end justify-between gap-3">
+            <div>
+              <h2 className="font-display text-xl font-bold">Your prep this week</h2>
+              {nextSession && <p className="text-sm text-muted">Cook {nextSession.batches.length} recipes before {DAY_LONG[nextSession.beforeDay]}.{plan.schedule.sessions.slice(1).map((x) => <span key={x.index}> Then {x.batches.length} more before {DAY_LONG[x.beforeDay]}, so it stays fresh.</span>)}</p>}
+            </div>
+            <Link href="/prep/" className="shrink-0 text-sm font-semibold text-accent hover:underline">Prep plan</Link>
+          </div>
+          <ul className="card divide-y divide-line">
+            {r.recipes.map((p) => (
+              <li key={p.recipe.id}>
+                <Link href={recipeHref(p.recipe.id)} className="flex items-center gap-3 px-3 py-2.5 hover:bg-sunk">
+                  <RecipeArt recipe={p.recipe} badges={false} className="h-12 w-12 shrink-0 rounded-lg" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">{p.recipe.name}</span>
+                    <span className="block text-xs text-muted">{p.meals} meal{p.meals === 1 ? "" : "s"} · {p.slot === "main" ? "lunch or dinner" : p.slot}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         <Rail title="Featured meal preps" href="/preps/" lead="Ready-made weeks with their macros. Use one and the plan builds around it.">
           {PREP_PACKS.map((p) => <PrepPackCard key={p.id} pack={p} cost={packCost(p)} />)}

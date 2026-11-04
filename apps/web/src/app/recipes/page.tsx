@@ -23,7 +23,7 @@ export default function Recipes() {
   const [cuisine, setCuisine] = useState<Cuisine | "">("");
   const [mood, setMood] = useState<Mood | "">("");
   const [diet, setDiet] = useState<Diet | "">("");
-  const [fitsMe, setFitsMe] = useState(false);
+  const [fitsMe, setFitsMe] = useState(true);
   const [sort, setSort] = useState<Sort>("protein");
 
   const list = useMemo(() => {

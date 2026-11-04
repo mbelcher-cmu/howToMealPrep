@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import {
-  ALLERGENS, CHAINS, CUISINES, DIETS, EQUIPMENT, FLAVORS, INGREDIENTS, MOODS, PROTEIN_SOURCES,
+  ALLERGENS, CHAINS, CUISINES, DIETS, EQUIPMENT, INGREDIENTS, MOODS, PROTEIN_SOURCES,
   type Allergen, type Diet, type Equipment,
 } from "@prep-cart/catalog";
 import { ACTIVITY_LEVELS, customOverflow, cmToFeetInches, feetInchesToCm, kgToLb, lbToKg, macroShares, MAX_MEALS, MAX_SNACKS, splitTargets, SPLIT_PRESETS, suggestTargets, type ActivityLevel, type Goal, type SplitPreset } from "@prep-cart/nutrition";
@@ -68,6 +68,7 @@ export function TargetsEditor({ showSuggest = true }: { showSuggest?: boolean })
   const t = s.targets;
   const shares = macroShares(t);
   const [note, setNote] = useState<string | null>(null);
+  const [adv, setAdv] = useState(false);
   const presetOptions = Object.entries(SPLIT_PRESETS).map(([k, v]) => ({ value: k, label: v.label }));
   const change = (m: "protein" | "carbs" | "fat", g: number) => {
     const r = s.setMacro(m, g);
@@ -81,7 +82,7 @@ export function TargetsEditor({ showSuggest = true }: { showSuggest?: boolean })
     return (
       <div className="grid min-w-0 gap-1">
         <NumberField label={label} value={t[m]} min={0} max={max} step={step} onChange={(g) => change(m, g)} suffix="g" />
-        {caloriesMode && (
+        {caloriesMode && adv && (
           <button type="button" onClick={() => s.toggleMacroLock(m)} aria-pressed={isLocked}
             className={cx("inline-flex min-h-[32px] items-center justify-center gap-1 rounded-md border text-xs font-semibold", isLocked ? "border-accent bg-accent-soft text-ink" : "border-line text-muted hover:bg-sunk")}>
             {isLocked ? <Lock size={12} aria-hidden /> : <LockOpen size={12} aria-hidden />} {isLocked ? "Locked" : "Lock"}
@@ -107,22 +108,24 @@ export function TargetsEditor({ showSuggest = true }: { showSuggest?: boolean })
           <label htmlFor="split" className="text-[13px] text-muted">Macro split</label>
           <select id="split" className="input" value={s.splitPreset} onChange={(e) => e.target.value !== "custom" && s.setSplitPreset(e.target.value as SplitPreset)}>
             {presetOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            <option value="custom">Custom</option>
+            <option value="custom">{s.splitPreset === "custom" ? "Suggested or your own" : "Custom"}</option>
           </select>
         </div>
       </div>
 
-      <div className="grid gap-1">
-        <span className="text-[13px] text-muted">When I change a macro</span>
-        <Segmented size="sm" label="Editing mode" value={s.targetMode} onChange={s.setTargetMode} options={[{ value: "calories", label: "Keep calories fixed" }, { value: "grams", label: "Set grams freely" }]} />
-      </div>
+      {adv && (
+        <div className="grid gap-1">
+          <span className="text-[13px] text-muted">When I change a macro</span>
+          <Segmented size="sm" label="Editing mode" value={s.targetMode} onChange={s.setTargetMode} options={[{ value: "calories", label: "Keep calories fixed" }, { value: "grams", label: "Set grams freely" }]} />
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-3">
         {macroField("protein", "Protein", 500, 5)}
         {macroField("carbs", "Carbs", 900, 5)}
         {macroField("fat", "Fat", 300, 1)}
       </div>
-      {caloriesMode && (
+      {caloriesMode && adv && (
         <p className="text-xs text-muted">
           {free.length === 3 && "Nothing is locked: changing one macro moves the other two to keep your calories. Changing calories rescales all three."}
           {free.length === 2 && `${cap(locked[0]!)} is locked. Changing ${free[0]} moves ${free[1]} (and the other way round). Changing calories moves ${free.join(" and ")}.`}
@@ -144,19 +147,21 @@ export function TargetsEditor({ showSuggest = true }: { showSuggest?: boolean })
           <span><b className="text-fat">■</b> Fat {Math.round(shares.fat * 100)}% · {t.fat * 9} kcal</span>
           <span>Fiber goal {t.fiber} g</span>
         </div>
-        <p className="mt-2 text-xs text-muted">Calories always equal 4 × protein + 4 × carbs + 9 × fat.</p>
       </div>
-      {showSuggest && (
-        <button type="button" className="btn btn-sm justify-self-start" onClick={() => { s.applySuggestedTargets(); setNote(null); }}>
-          Use the suggestion from my body stats
-        </button>
-      )}
+      <div className="flex flex-wrap items-center gap-2">
+        {showSuggest && (
+          <button type="button" className="btn btn-sm" onClick={() => { s.applySuggestedTargets(); setNote(null); }}>
+            Use the suggestion from my body stats
+          </button>
+        )}
+        <button type="button" className="btn btn-sm border-transparent text-accent" aria-expanded={adv} onClick={() => setAdv(!adv)}>{adv ? "Fewer options" : "Locks and more options"}</button>
+      </div>
     </div>
   );
 }
 
 /* ───────────── Meals and snacks ───────────── */
-function OccasionRow({ id, part }: { id: string; part: { protein: number; carbs: number; fat: number; kcal: number } }) {
+function OccasionRow({ id, part, advanced }: { id: string; part: { protein: number; carbs: number; fat: number; kcal: number }; advanced: boolean }) {
   const s = useApp();
   const o = s.occasions.find((x) => x.id === id)!;
   const [open, setOpen] = useState(false);
@@ -170,9 +175,11 @@ function OccasionRow({ id, part }: { id: string; part: { protein: number; carbs:
           <div className="num text-xs text-muted">{part.kcal} kcal · {part.protein}P · {part.carbs}C · {part.fat}F</div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className={cx("btn btn-sm", (open || custom) && "border-accent")} aria-expanded={open} onClick={() => setOpen(!open)}>
-            <SlidersHorizontal size={14} aria-hidden /> Macros
-          </button>
+          {(advanced || custom) && (
+            <button type="button" className={cx("btn btn-sm", (open || custom) && "border-accent")} aria-expanded={open} onClick={() => setOpen(!open)}>
+              <SlidersHorizontal size={14} aria-hidden /> Macros
+            </button>
+          )}
           <Segmented size="sm" label={`${o.name} source`} value={o.prepped ? "prep" : "fresh"} onChange={(v) => s.updateOccasion(o.id, { prepped: v === "prep" })}
             options={[{ value: "prep", label: "Meal prep" }, { value: "fresh", label: "Not prepped" }]} />
         </div>
@@ -198,6 +205,7 @@ export function MealStructureEditor() {
   const s = useApp();
   const parts = useMemo(() => splitTargets(s.targets, s.occasions), [s.targets, s.occasions]);
   const overflow = useMemo(() => customOverflow(s.targets, s.occasions), [s.targets, s.occasions]);
+  const [adv, setAdv] = useState(false);
   return (
     <div className="grid gap-4">
       <div className="grid grid-cols-2 gap-3">
@@ -205,7 +213,7 @@ export function MealStructureEditor() {
         <Stepper label="Snacks a day" value={s.snacks} min={0} max={MAX_SNACKS} onChange={(n) => s.setStructure(s.meals, n)} />
       </div>
       <ul className="divide-y divide-line rounded-lg border border-line">
-        {s.occasions.map((o, i) => <OccasionRow key={o.id} id={o.id} part={parts[i]!} />)}
+        {s.occasions.map((o, i) => <OccasionRow key={o.id} id={o.id} part={parts[i]!} advanced={adv} />)}
       </ul>
       {(overflow.protein > 0 || overflow.carbs > 0 || overflow.fat > 0) && (
         <p role="status" className="text-sm text-warn">
@@ -213,11 +221,37 @@ export function MealStructureEditor() {
         </p>
       )}
       <p className="text-xs text-muted">"Not prepped" keeps those calories free for eating out or cooking fresh. The plan fills the rest.</p>
-      <div className="grid grid-cols-3 gap-3">
-        <Stepper label="Breakfast recipes" value={s.variety.breakfast} min={1} max={3} onChange={(v) => s.set({ variety: { ...s.variety, breakfast: v } })} />
-        <Stepper label="Lunch and dinner recipes" value={s.variety.main} min={1} max={5} onChange={(v) => s.set({ variety: { ...s.variety, main: v } })} />
-        <Stepper label="Snack recipes" value={s.variety.snack} min={1} max={3} onChange={(v) => s.set({ variety: { ...s.variety, snack: v } })} />
-      </div>
+      <RotationPicker />
+      <details className="group" onToggle={(e) => setAdv((e.target as HTMLDetailsElement).open)}>
+        <summary className="cursor-pointer text-sm font-semibold text-accent">More options: recipe counts and macros per meal</summary>
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          <Stepper label="Breakfast recipes" value={s.variety.breakfast} min={1} max={3} onChange={(v) => s.set({ variety: { ...s.variety, breakfast: v } })} />
+          <Stepper label="Lunch and dinner recipes" value={s.variety.main} min={1} max={5} onChange={(v) => s.set({ variety: { ...s.variety, main: v, rotation: v === 2 ? s.variety.rotation : "mix" } })} />
+          <Stepper label="Snack recipes" value={s.variety.snack} min={1} max={3} onChange={(v) => s.set({ variety: { ...s.variety, snack: v } })} />
+        </div>
+      </details>
+    </div>
+  );
+}
+
+/** How lunches and dinners rotate: one recipe all week, two in back-to-back blocks, or a mix. */
+export function RotationPicker() {
+  const s = useApp();
+  const v = s.variety;
+  const value = v.main === 1 ? "same" : v.main === 2 && v.rotation === "blocks" ? "blocks" : v.main === 2 ? "mix" : "custom";
+  const pick = (x: "same" | "blocks" | "mix") => s.set({ variety: { ...v, main: x === "same" ? 1 : 2, rotation: x === "blocks" ? "blocks" : "mix" } });
+  const hint = {
+    same: "One lunch-and-dinner recipe all week. Least cooking.",
+    blocks: `One recipe for the first ${Math.ceil(s.days / 2)} days, a different one for the rest. You cook the second one fresh mid-week.`,
+    mix: "Two recipes, alternating through the week.",
+    custom: `${v.main} recipes, mixed through the week.`,
+  }[value];
+  return (
+    <div className="grid gap-1.5">
+      <span className="text-[13px] text-muted">Lunches and dinners</span>
+      <Segmented size="sm" label="Lunches and dinners" value={value === "custom" ? "mix" : value} onChange={pick}
+        options={[{ value: "same", label: "Same all week" }, { value: "blocks", label: "Switch mid-week" }, { value: "mix", label: "Alternate" }]} />
+      <p className="text-xs text-muted">{hint}</p>
     </div>
   );
 }
@@ -299,29 +333,39 @@ export function RulesEditor() {
   );
 }
 
+const SHOWN = 10;
 export function MoodEditor() {
   const s = useApp();
   const p = s.prefs;
+  const [all, setAll] = useState<Record<string, boolean>>({});
+  // the Pittsburgh cuisine only shows near Pittsburgh (ZIPs 150 to 152) or once picked
+  const local = /^15[0-2]/.test(s.profile.zip ?? "");
   const groups = [
     { key: "cuisines" as const, title: "Cuisines", labels: CUISINES as Record<string, string> },
     { key: "moods" as const, title: "Moods", labels: MOODS as Record<string, string> },
     { key: "proteins" as const, title: "Proteins", labels: PROTEIN_SOURCES as Record<string, string> },
-    { key: "flavors" as const, title: "Flavors", labels: FLAVORS as Record<string, string> },
   ];
-  const count = groups.reduce((n, g) => n + Object.keys(p[g.key]).length, 0);
+  const count = [...groups.map((g) => g.key), "flavors" as const].reduce((n, k) => n + Object.keys(p[k]).length, 0);
   return (
     <div className="grid gap-5">
-      <p className="text-sm text-muted">Tap once for <b>Want</b>, twice for <b>Must</b>, three times to <b>Avoid</b>. Must-haves decide your lunches and dinners when enough recipes match.</p>
-      {groups.map((g) => (
-        <div key={g.key} className="grid gap-2">
-          <span className="label">{g.title}</span>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(g.labels).map(([k, label]) => (
-              <WishChip key={k} label={label} wish={(p[g.key] as Record<string, "must" | "nice" | "avoid">)[k]} onChange={(w) => s.setWish(g.key, k, w)} />
-            ))}
+      <p className="text-sm text-muted">Tap a tag to want more of it. Tap again to make it a must, and once more to avoid it.</p>
+      {groups.map((g) => {
+        const wishes = p[g.key] as Record<string, "must" | "nice" | "avoid">;
+        const entries = Object.entries(g.labels).filter(([k]) => k !== "pittsburgh" || local || wishes[k]);
+        const open = all[g.key] || entries.length <= SHOWN + 2;
+        const shown = open ? entries : entries.filter(([k], i) => i < SHOWN || wishes[k]);
+        return (
+          <div key={g.key} className="grid gap-2">
+            <span className="label">{g.title}</span>
+            <div className="flex flex-wrap gap-2">
+              {shown.map(([k, label]) => (
+                <WishChip key={k} label={label} wish={wishes[k]} onChange={(w) => s.setWish(g.key, k, w)} />
+              ))}
+              {!open && <button type="button" className="text-sm font-semibold text-accent" onClick={() => setAll({ ...all, [g.key]: true })}>All {entries.length}</button>}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
       {count > 0 && (
         <button type="button" className="btn btn-sm justify-self-start" onClick={() => s.set({ prefs: { ...p, cuisines: {}, moods: {}, proteins: {}, flavors: {} } })}>
           Clear all moods

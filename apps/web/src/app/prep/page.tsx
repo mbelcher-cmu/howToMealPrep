@@ -10,7 +10,7 @@ import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { useDays } from "@/lib/days";
 import { at, buildIcs, downloadText, nextWeekday, type CalEvent } from "@/lib/ics";
-import { chainName, cx, DAY_LONG as WEEKDAYS, fmtServings, recipeHref } from "@/lib/format";
+import { chainName, cx, DAY_LONG as WEEKDAYS, fmtQty, fmtServings, recipeHref } from "@/lib/format";
 
 const clock = (start: string, plus: number) => {
   const [h, m] = start.split(":").map(Number);
@@ -125,7 +125,7 @@ export default function Prep() {
             <section key={sess.index} aria-labelledby={`sess-${sess.index}`}>
               <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
                 <h2 id={`sess-${sess.index}`} className="font-display text-xl font-bold">
-                  {sess.index === 0 ? "Main prep" : "Top-up prep"} <span className="font-normal text-muted">· {day} at {clock(s.prepTime, 0)}</span>
+                  {sess.index === 0 ? "Main prep" : sessions.length > 2 ? `Cook ${sess.index + 1}` : "Mid-week cook"} <span className="font-normal text-muted">· {day} at {clock(s.prepTime, 0)}</span>
                 </h2>
                 <span className="inline-flex items-center gap-1.5 text-sm text-muted"><Timer size={15} aria-hidden /> Done by {clock(s.prepTime, t.totalMinutes)} · {t.handsOnMinutes} min hands-on</span>
               </div>
@@ -157,7 +157,7 @@ export default function Prep() {
                         <div className="min-w-0 flex-1">
                           <p className="label">Recipe {n + 1}</p>
                           <h3 className="font-display text-lg font-bold"><Link href={recipeHref(b.recipe.id)} className="hover:underline">{b.recipe.name}</Link></h3>
-                          <p className="text-sm text-muted">Make {fmtServings(b.servings)} ({scale === 1 ? "as written" : `${Math.round(scale * 100) / 100}× the recipe`})</p>
+                          <p className="text-sm text-muted">Make {fmtServings(b.servings)} ({scale === 1 ? "as written" : `${fmtQty(scale)}× the recipe`})</p>
                         </div>
                       </div>
                       <div className="mt-4 grid gap-5 md:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">

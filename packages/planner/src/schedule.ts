@@ -22,7 +22,7 @@ const lifeKey = (p: PlannedRecipe) => (p.recipe.freezerFriendly ? 100 + p.recipe
  * occasions on one day where possible, and anything eaten past its fridge life gets a second cook
  * session (or a freezer note, when it freezes well).
  */
-export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: number): Schedule {
+export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: number, rotation: "mix" | "blocks" = "mix"): Schedule {
   const prepped = occasions.filter((o) => o.prepped);
   const remaining = new Map(plan.recipes.map((p) => [p.recipe.id, p.meals]));
   const byId = new Map(plan.recipes.map((p) => [p.recipe.id, p]));
@@ -31,6 +31,9 @@ export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: nu
     const o = occasions.find((x) => x.id === e.occasionId);
     if (o && out[e.day]) out[e.day]!.takeout.push({ occasionId: o.id, occasionName: o.name, itemId: e.itemId });
   }
+  // blocks: lunches and dinners run one recipe after another, the one that keeps least first
+  const blocks = rotation === "blocks";
+  const blockOrder = new Map(plan.recipes.filter((p) => p.slot === "main").sort((a, b) => lifeKey(a) - lifeKey(b) || b.meals - a.meals).map((p, i) => [p.recipe.id, i]));
 
   for (let d = 0; d < days; d++) {
     for (const o of prepped) {
@@ -39,7 +42,8 @@ export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: nu
       const options = plan.recipes.filter((p) => p.slot === slot && (remaining.get(p.recipe.id) ?? 0) > 0);
       if (!options.length) continue;
       const usedToday = new Set(out[d]!.meals.map((m) => m.recipeId));
-      options.sort((a, b) =>
+      if (blocks && slot === "main") options.sort((a, b) => blockOrder.get(a.recipe.id)! - blockOrder.get(b.recipe.id)!);
+      else options.sort((a, b) =>
         Number(usedToday.has(a.recipe.id)) - Number(usedToday.has(b.recipe.id)) ||
         // a recipe that would otherwise run past its life goes first
         lifeKey(a) - lifeKey(b) ||
@@ -51,13 +55,16 @@ export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: nu
     }
   }
 
-  // second session for meals past their fridge life (eating on day d is d+1 days after cooking)
-  const late = new Map<string, { firstDay: number; portions: number }>();
-  const freezer: FreezerNote[] = [];
+  // when each recipe is cooked: day 0, or (blocks) fresh just before its block starts
+  const cookDay = new Map<string, number>();
+  for (const day of out) for (const m of day.meals) if (!cookDay.has(m.recipeId)) cookDay.set(m.recipeId, blocks && byId.get(m.recipeId)!.slot === "main" ? day.day : 0);
+
+  // a later top-up for meals past their fridge life (eating on day d is d - cook + 1 days after cooking)
+  const late = new Map<string, { firstDay: number; lastDay: number; portions: number; cook?: number }>();
   const frozen = new Map<string, FreezerNote>();
   for (const day of out) for (const m of day.meals) {
     const r = byId.get(m.recipeId)!.recipe;
-    if (day.day + 1 <= r.fridgeDays) continue;
+    if (day.day - (cookDay.get(r.id) ?? 0) + 1 <= r.fridgeDays) continue;
     if (r.freezerFriendly) {
       const f = frozen.get(r.id) ?? { recipeId: r.id, portions: 0, thawBeforeDay: day.day };
       f.portions += 1;
@@ -65,23 +72,44 @@ export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: nu
       frozen.set(r.id, f);
       continue;
     }
-    const l = late.get(r.id) ?? { firstDay: day.day, portions: 0 };
+    const l = late.get(r.id) ?? { firstDay: day.day, lastDay: day.day, portions: 0 };
     l.portions += m.portion;
+    l.lastDay = day.day;
     late.set(r.id, l);
   }
-  freezer.push(...frozen.values());
+  const freezer: FreezerNote[] = [...frozen.values()];
 
-  const sessions: PrepSession[] = [{ index: 0, beforeDay: 0, batches: [] }];
-  const secondDay = late.size ? Math.min(...[...late.values()].map((l) => l.firstDay)) : -1;
-  if (late.size) sessions.push({ index: 1, beforeDay: secondDay, batches: [] });
+  // sessions: one per distinct cook day. Late meals join an existing later cook when it keeps them fresh,
+  // otherwise one top-up session is added
+  const cookDays = [...new Set([0, ...cookDay.values()])];
+  let topUp = -1;
+  for (const [id, l] of late) {
+    const life = byId.get(id)!.recipe.fridgeDays;
+    const fits = cookDays.filter((d) => d <= l.firstDay && d > (cookDay.get(id) ?? 0) && l.lastDay - d + 1 <= life);
+    l.cook = fits.length ? Math.max(...fits) : undefined;
+  }
+  const loose = [...late.values()].filter((l) => l.cook == null);
+  if (loose.length) { topUp = Math.min(...loose.map((l) => l.firstDay)); for (const l of loose) l.cook = topUp; }
+  const sessionDays = [...new Set([...cookDays, ...(topUp >= 0 ? [topUp] : [])])].sort((a, b) => a - b);
+  const sessions: PrepSession[] = sessionDays.map((d, index) => ({ index, beforeDay: d, batches: [] }));
+  const at = (d: number) => sessions.find((x) => x.beforeDay === d)!;
+  const q = (n: number) => Math.round(n * 4) / 4;
   for (const p of plan.recipes) {
     const l = late.get(p.recipe.id);
-    const second = l ? Math.round(l.portions * 4) / 4 : 0;
-    if (p.servings - second > 0) sessions[0]!.batches.push({ recipeId: p.recipe.id, servings: Math.round((p.servings - second) * 4) / 4 });
-    if (second > 0) sessions[1]!.batches.push({ recipeId: p.recipe.id, servings: second });
+    const second = l ? q(l.portions) : 0;
+    const first = at(cookDay.get(p.recipe.id) ?? 0);
+    if (p.servings - second > 0) first.batches.push({ recipeId: p.recipe.id, servings: q(p.servings - second) });
+    if (second > 0) at(l!.cook!).batches.push({ recipeId: p.recipe.id, servings: second });
   }
-  if (late.size) for (const day of out) for (const m of day.meals) {
-    if (late.has(m.recipeId) && day.day >= secondDay) m.fromSession = 1;
+  for (const day of out) for (const m of day.meals) {
+    const l = late.get(m.recipeId);
+    const d = l && day.day >= l.firstDay ? l.cook! : cookDay.get(m.recipeId) ?? 0;
+    m.fromSession = at(d).index;
   }
-  return { days: out, sessions, freezer };
+  // a session left with nothing to cook (all its food came from elsewhere) is dropped
+  const kept = sessions.filter((x) => x.batches.length);
+  const remap = new Map(kept.map((x, i) => [x.index, i]));
+  for (const day of out) for (const m of day.meals) m.fromSession = remap.get(m.fromSession) ?? 0;
+  kept.forEach((x, i) => (x.index = i));
+  return { days: out, sessions: kept.length ? kept : [{ index: 0, beforeDay: 0, batches: [] }], freezer };
 }
