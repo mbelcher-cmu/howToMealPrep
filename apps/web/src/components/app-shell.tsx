@@ -16,6 +16,7 @@ const NAV = [
   { href: "/preps/", label: "Meal preps", icon: Sparkles, primary: false },
   { href: "/recipes/", label: "Recipes", icon: BookOpen, primary: true },
   { href: "/pantry/", label: "Pantry", icon: Package, primary: false },
+  { href: "/plus/", label: "Plus", icon: Sparkles, primary: false },
   { href: "/settings/", label: "Settings", icon: Settings, primary: true },
 ];
 
