@@ -6,6 +6,7 @@ import { MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog
 import { BudgetEditor, MealStructureEditor, MoodEditor, StoresEditor, TargetsEditor } from "@/components/editors";
 import { BudgetBar, LockedTag, PerServing, PlanMacros, PlanStatus, RecipeMeta, RecipeTile, SolvingNote } from "@/components/plan-bits";
 import { Card, EmptyState, PageHeader, SectionTitle, Tag } from "@/components/ui";
+import { SwapButton } from "@/components/swap";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { chainName, cx, fmtServings, money, recipeHref } from "@/lib/format";
@@ -104,6 +105,7 @@ export default function PlanPage() {
                             <button className="btn btn-sm" onClick={() => s.toggleLock(p.recipe.id)} aria-pressed={locked} aria-label={locked ? `Unlock ${p.recipe.name}` : `Keep ${p.recipe.name}`}>
                               {locked ? <Lock size={14} aria-hidden /> : <LockOpen size={14} aria-hidden />}<span className="hidden sm:inline">{locked ? "Locked" : "Keep"}</span>
                             </button>
+                            <SwapButton recipeId={p.recipe.id} />
                             <button className="btn btn-sm" onClick={() => exclude(p.recipe.id)} aria-label={`Skip ${p.recipe.name} this week`}>
                               <X size={14} aria-hidden /><span className="hidden sm:inline">Skip</span>
                             </button>

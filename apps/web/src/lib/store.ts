@@ -78,6 +78,8 @@ export interface AppState {
   customRecipes: RecipeSeed[];
   /** the person's star ratings by recipe id */
   ratings: Record<string, number>;
+  /** preview of the planned paid tier on this device */
+  plusPreview: boolean;
   /** first day of the plan, 0 = Monday; prep day is the day before */
   weekStart: number;
   /** prep session start, HH:MM */
@@ -150,6 +152,7 @@ function initial(): Omit<AppState, keyof Actions> {
     aisleOrder: {},
     customRecipes: [],
     ratings: {},
+    plusPreview: false,
     weekStart: 0,
     prepTime: "15:00",
     deals: [],
