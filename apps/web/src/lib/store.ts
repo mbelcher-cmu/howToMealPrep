@@ -15,6 +15,9 @@ export interface Profile {
   units: UnitSystem; zip: string;
 }
 
+/** Someone else the food is cooked for. kcal null means estimate from body stats and goal. */
+export interface Member { id: string; name: string; sex: Sex; ageYears: number; heightCm: number; weightKg: number; activity: ActivityLevel; goal: Goal; kcal: number | null }
+
 export type TargetMode = "calories" | "grams";
 export type BudgetPeriod = "week" | "month";
 
@@ -67,6 +70,8 @@ export interface AppState {
   checked: Record<string, boolean>;
   /** last energy reading synced from a fitness app */
   fitness: { source: string; maintenanceKcal: number; days: number; on: string } | null;
+  /** other people eating the same prepped meals */
+  household: Member[];
   /** first day of the plan, 0 = Monday; prep day is the day before */
   weekStart: number;
   /** prep session start, HH:MM */
@@ -135,6 +140,7 @@ function initial(): Omit<AppState, keyof Actions> {
     checked: {},
     eatingOut: [],
     fitness: null,
+    household: [],
     weekStart: 0,
     prepTime: "15:00",
     deals: [],

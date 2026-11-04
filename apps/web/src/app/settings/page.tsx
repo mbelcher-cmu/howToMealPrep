@@ -3,6 +3,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { Download, LocateFixed, MapPin, RotateCcw, Upload } from "lucide-react";
 import { BodyStatsEditor, MealStructureEditor, MoodEditor, RulesEditor, StoresEditor, TargetsEditor } from "@/components/editors";
 import { FitnessSync } from "@/components/fitness";
+import { HouseholdEditor } from "@/components/household";
 import { Card, PageHeader, Segmented, SectionTitle, Tag } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
@@ -12,7 +13,7 @@ import { chainName } from "@/lib/format";
 function Section({ id, title, lead, children }: { id: string; title: string; lead?: string; children: ReactNode }) {
   return (
     <Card as="section" className="scroll-mt-20">
-      <div id={id} className="-mt-20 pt-20" aria-hidden />
+      <div id={id} className="pointer-events-none -mt-20 pt-20" aria-hidden />
       <SectionTitle>{title}</SectionTitle>
       {lead && <p className="-mt-1 mb-4 text-sm text-muted">{lead}</p>}
       {children}
@@ -101,7 +102,7 @@ export default function Settings() {
     <>
       <PageHeader title="Settings" lead="Everything here is saved on this device only." />
       <nav aria-label="Settings sections" className="mb-4 flex flex-wrap gap-2 text-sm">
-        {[["you", "You"], ["targets", "Targets"], ["meals", "Meals"], ["rules", "Food rules"], ["moods", "Moods"], ["stores", "Stores"], ["fitness", "Fitness apps"], ["data", "Data"]].map(([id, label]) => (
+        {[["you", "You"], ["household", "Household"], ["targets", "Targets"], ["meals", "Meals"], ["rules", "Food rules"], ["moods", "Moods"], ["stores", "Stores"], ["fitness", "Fitness apps"], ["data", "Data"]].map(([id, label]) => (
           <a key={id} href={`#${id}`} className="rounded-full border border-line bg-surface px-3 py-1 hover:bg-sunk">{label}</a>
         ))}
       </nav>
@@ -122,6 +123,9 @@ export default function Settings() {
               }} options={[{ value: "system", label: "Auto" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} />
             </div>
           </div>
+        </Section>
+        <Section id="household" title="Household" lead="Cook once for everyone. Each person gets portions sized to their own calories.">
+          <HouseholdEditor />
         </Section>
         <Section id="targets" title="Calories and macros"><TargetsEditor /></Section>
         <Section id="meals" title="Meals and snacks"><MealStructureEditor /></Section>

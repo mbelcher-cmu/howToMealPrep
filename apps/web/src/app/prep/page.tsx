@@ -30,13 +30,17 @@ export default function Prep() {
     return plan.schedule.sessions.map((sess) => prepTimeline(sess.batches.flatMap((b) => {
       const recipe = RECIPES_BY_ID[b.recipeId];
       const portion = plan.result.recipes.find((p) => p.recipe.id === b.recipeId)?.portion ?? 1;
-      return recipe ? [{ recipe, servings: b.servings, portion }] : [];
+      // one container per person per meal: average container size across the household
+      const hh = plan.result.household ?? { people: 1, factor: 1 };
+      return recipe ? [{ recipe, servings: b.servings, portion: (portion * hh.factor) / hh.people }] : [];
     })));
   }, [plan]);
 
   if (!hydrated) return null;
   if (!plan) return (<><PageHeader title="Prep day" /><EmptyState title="No plan yet">Your cooking plan appears here once a plan is ready.</EmptyState></>);
   const { sessions, freezer } = plan.schedule;
+  const members = plan.result.household?.members ?? [];
+  const factor = plan.result.household?.factor ?? 1;
   const frozen = freezer.reduce((a, f) => a + f.portions, 0);
   const containers = timelines.reduce((a, t) => a + t.containers, 0);
 
@@ -174,7 +178,10 @@ export default function Prep() {
                             {b.recipe.steps.map((st, i) => <li key={i}>{st}</li>)}
                           </ol>
                           <p className="mt-3 text-xs text-muted">
-                            Portion into {Math.max(1, Math.round(b.servings / Math.max(0.25, portion)))} containers of {fmtServings(portion)}. Keeps {b.recipe.fridgeDays} days in the fridge.
+                            {members.length
+                              ? <>Portion into {Math.max(1, Math.round((b.servings / Math.max(0.25, portion * factor)) * (1 + members.length)))} containers: {fmtServings(portion)} for you, {members.map((m) => `${fmtServings(Math.round(portion * m.scale * 4) / 4 || 0.25)} for ${m.name}`).join(", ")}. </>
+                              : <>Portion into {Math.max(1, Math.round(b.servings / Math.max(0.25, portion)))} containers of {fmtServings(portion)}. </>}
+                            Keeps {b.recipe.fridgeDays} days in the fridge.
                             {b.recipe.reheat && <> Reheat: {b.recipe.reheat}</>}
                           </p>
                         </div>
