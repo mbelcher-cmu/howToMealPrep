@@ -20,8 +20,8 @@ jobs:
     steps:
       - name: Ping ${{ matrix.env }}
         env:
-          URL: ${{ matrix.env == 'production' && vars.SUPABASE_URL || vars.STAGING_SUPABASE_URL }}
-          KEY: ${{ matrix.env == 'production' && vars.SUPABASE_ANON_KEY || vars.STAGING_SUPABASE_ANON_KEY }}
+          URL: ${{ matrix.env == 'production' && (vars.SUPABASE_URL || 'https://xfhxwkmeiktxvhedmfhj.supabase.co') || vars.STAGING_SUPABASE_URL }}
+          KEY: ${{ matrix.env == 'production' && (vars.SUPABASE_ANON_KEY || 'sb_publishable_QvER-hwBYT43Qa_88IDTWQ_TAGe5swU') || vars.STAGING_SUPABASE_ANON_KEY }}
         run: |
           if [ -z "$URL" ] || [ -z "$KEY" ]; then echo "No ${{ matrix.env }} project configured yet; skipping."; exit 0; fi
-          curl -fsS --retry 3 --retry-delay 10 -X POST "$URL/rest/v1/rpc/ping" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d '{}'
+          curl -fsS --retry 3 --retry-delay 10 -X POST "$URL/rest/v1/rpc/ping" -H "apikey: $KEY" -H "Content-Type: application/json" -d '{}'
