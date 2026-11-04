@@ -73,6 +73,12 @@ export interface AppState {
   /** the pantry this week's plan was built from; set after shopping so the leftovers wait for next week's plan */
   pantryForPlan: PantryRow[] | null;
   history: SavedPlan[];
+  /** first day (YYYY-MM-DD) of the week the current plan is for; null until the person plans a week */
+  weekOf: string | null;
+  /** recipes sitting out the current week because the person asked for something new */
+  resting: string[];
+  /** the plan still being eaten while next week's plan waits for its first day */
+  lastWeek: SavedPlan | null;
   checked: Record<string, boolean>;
   /** last energy reading synced from a fitness app */
   fitness: { source: string; maintenanceKcal: number; days: number; on: string } | null;
@@ -120,6 +126,8 @@ export interface AppState {
   finishShopping: () => void;
   /** start next week: the planner now counts the leftovers in the pantry */
   planNextWeek: () => void;
+  /** set up next week: keep some recipes, rest the others, carry the leftovers over */
+  startNextWeek: (o: { startsOn: string; locked: string[]; resting: string[]; shopped: boolean }) => void;
   setTakeout: (day: number, occasionId: string, itemId: string | null) => void;
   addDeal: (d: Deal) => void;
   removeDeal: (id: string) => void;
@@ -155,6 +163,9 @@ function initial(): Omit<AppState, keyof Actions> {
     shoppedPlanId: null,
     pantryForPlan: null,
     history: [],
+    weekOf: null,
+    resting: [],
+    lastWeek: null,
     checked: {},
     eatingOut: [],
     fitness: null,
@@ -169,7 +180,7 @@ function initial(): Omit<AppState, keyof Actions> {
     priceHistory: {},
   };
 }
-type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "toggleMacroLock" | "setOccasionMacros" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "setWish" | "toggleLock" | "setPantryAmount" | "addToPantry" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "planNextWeek" | "setTakeout" | "addDeal" | "removeDeal" | "reset">;
+type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "toggleMacroLock" | "setOccasionMacros" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "setWish" | "toggleLock" | "setPantryAmount" | "addToPantry" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "planNextWeek" | "startNextWeek" | "setTakeout" | "addDeal" | "removeDeal" | "reset">;
 
 const storage: StateStorage = {
   getItem: (k) => safeStorage.getItem(k),
@@ -288,6 +299,21 @@ export const useApp = create<AppState>()(
         });
       },
       planNextWeek: () => { set({ pantryForPlan: null }); track("plan_next_week"); },
+      startNextWeek: ({ startsOn, locked, resting, shopped }) => {
+        const st = get();
+        if (shopped && st.current && st.shoppedPlanId !== st.current.id) st.finishShopping();
+        const cur = get().current;
+        set({
+          // the week being eaten stays on Home until the new one starts
+          lastWeek: cur && startsOn > isoDay() ? cur : null,
+          weekOf: startsOn,
+          locked,
+          resting,
+          pantryForPlan: null,
+          checked: {},
+        });
+        track("next_week_planned", { kept: locked.length, swapped: resting.length, shopped });
+      },
       setTakeout: (day, occasionId, itemId) => {
         const rest = get().eatingOut.filter((e) => !(e.day === day && e.occasionId === occasionId));
         set({ eatingOut: itemId ? [...rest, { day, occasionId, itemId }] : rest });
