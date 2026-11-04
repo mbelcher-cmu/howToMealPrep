@@ -45,7 +45,7 @@ export default function Recipes() {
 
   return (
     <>
-      <PageHeader title="Recipes" lead={`${RECIPES.length} meal-prep recipes. Calories are worked out from the ingredients, per serving.`} action={<Link href="/recipes/import/" className="btn btn-primary"><Plus size={16} aria-hidden /> Add a recipe</Link>} />
+      <PageHeader title="Recipes" lead={`${RECIPES.length} meal-prep recipes. Calories are worked out from the ingredients, per serving.`} action={<div className="flex flex-wrap gap-2"><Link href="/preps/" className="btn">Meal preps</Link><Link href="/recipes/import/" className="btn btn-primary"><Plus size={16} aria-hidden /> Add a recipe</Link></div>} />
       <div className="mb-5 grid gap-3">
         <div className="relative">
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
