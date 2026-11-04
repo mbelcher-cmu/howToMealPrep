@@ -36,8 +36,9 @@ Sign up at sentry.io with GitHub, create a **Browser JavaScript** project and co
 
 ## PostHog (anonymous usage stats)
 
-Sign up at posthog.com (US cloud) and create two projects, production and staging. Copy each
-project API key (it starts with `phc_`).
+Sign up at posthog.com (US cloud). The free plan allows one project, which is enough: every event
+carries `app_env` (production or staging), so filter on it. Copy the project API key (it starts with
+`phc_`) into both variables below.
 
 | Name | Kind |
 | --- | --- |
