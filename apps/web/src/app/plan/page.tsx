@@ -27,6 +27,50 @@ function Panel({ title, children, open: initial = false }: { title: string; chil
   );
 }
 
+/** Phone layout of the week: days with the same food are grouped ("Mon to Wed"), so a rotation reads at a glance. */
+function WeekList() {
+  const { DAY_NAMES } = useDays();
+  const { plan } = usePlanner();
+  const occasions = useApp((s) => s.occasions);
+  if (!plan) return null;
+  const rows = plan.schedule.days.map((d) => ({
+    day: d.day,
+    items: occasions.map((o) => {
+      const out = d.takeout?.find((x) => x.occasionId === o.id);
+      const item = out ? MENU_BY_ID[out.itemId] : null;
+      if (item) return { occ: o.name, text: `${RESTAURANTS_BY_ID[item.restaurantId]?.name ?? "Takeout"}: ${item.name.split(" (")[0]}`, href: "/eat-out/", kind: "out" as const };
+      const m = d.meals.find((x) => x.occasionId === o.id);
+      const r = m ? RECIPES_BY_ID[m.recipeId] : null;
+      return r ? { occ: o.name, text: r.name, href: recipeHref(r.id), kind: "prep" as const } : { occ: o.name, text: o.prepped ? "—" : "Free", href: null, kind: "free" as const };
+    }),
+  }));
+  const groups: { from: number; to: number; items: (typeof rows)[number]["items"] }[] = [];
+  for (const r of rows) {
+    const last = groups[groups.length - 1];
+    if (last && JSON.stringify(last.items) === JSON.stringify(r.items)) last.to = r.day;
+    else groups.push({ from: r.day, to: r.day, items: r.items });
+  }
+  return (
+    <ol className="grid gap-3 sm:hidden">
+      {groups.map((g) => (
+        <li key={g.from} className="rounded-lg bg-sunk/60 p-3">
+          <p className="label">{g.from === g.to ? DAY_NAMES[g.from] : `${DAY_NAMES[g.from]} to ${DAY_NAMES[g.to]}`}</p>
+          <dl className="mt-1.5 grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-2 gap-y-1 text-sm">
+            {g.items.map((it) => (
+              <div key={it.occ} className="contents">
+                <dt className="text-xs leading-5 text-muted">{it.occ}</dt>
+                <dd className={cx("min-w-0", it.kind === "free" && "text-muted", it.kind === "out" && "text-warn")}>
+                  {it.href ? <Link href={it.href} className="hover:underline">{it.text}</Link> : it.text}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export default function PlanPage() {
   const { DAY_NAMES } = useDays();
   const hydrated = useHydrated();
@@ -127,7 +171,8 @@ export default function PlanPage() {
 
               <Card>
                 <SectionTitle>Week at a glance</SectionTitle>
-                <div className="overflow-x-auto">
+                <WeekList />
+                <div className="hidden overflow-x-auto sm:block">
                   <table className="w-full min-w-[560px] border-separate border-spacing-1 text-left text-sm">
                     <thead>
                       <tr>
