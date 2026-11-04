@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
-import { BookOpen, CalendarDays, ChefHat, Home, Package, Settings, ShoppingCart, Loader2, UtensilsCrossed } from "lucide-react";
+import { BookOpen, CalendarDays, ChefHat, Home, Package, Settings, ShoppingCart, Loader2, Sparkles, UtensilsCrossed } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner, usePlannerSync } from "@/lib/use-planner";
 import { cx } from "@/lib/format";
@@ -13,6 +13,7 @@ const NAV = [
   { href: "/groceries/", label: "Groceries", icon: ShoppingCart, primary: true },
   { href: "/prep/", label: "Prep day", icon: ChefHat, primary: false },
   { href: "/eat-out/", label: "Eat out", icon: UtensilsCrossed, primary: false },
+  { href: "/preps/", label: "Meal preps", icon: Sparkles, primary: false },
   { href: "/recipes/", label: "Recipes", icon: BookOpen, primary: true },
   { href: "/pantry/", label: "Pantry", icon: Package, primary: false },
   { href: "/settings/", label: "Settings", icon: Settings, primary: true },

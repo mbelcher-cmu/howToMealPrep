@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
 import { ArrowRight, ChefHat, ShoppingCart } from "lucide-react";
-import { INGREDIENTS, MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
+import { INGREDIENTS, MENU_BY_ID, PREP_PACKS, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
 import { usualPrice } from "@/components/deals";
 import { BudgetBar, PlanMacros, PlanStatus, SolvingNote, usePreppedTargets } from "@/components/plan-bits";
 import { ItemCard, RecipeCard, Rail } from "@/components/food";
+import { PrepPackCard, usePackCost } from "@/components/preps";
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
@@ -19,6 +20,7 @@ export default function Home() {
   const deals = useApp((s) => s.deals);
   const overrides = useApp((s) => s.priceOverrides);
   const t = usePreppedTargets();
+  const packCost = usePackCost();
   if (!hydrated) return null;
   if (!plan) {
     return (
@@ -79,6 +81,10 @@ export default function Home() {
 
         <Rail title="Your prep this week" href="/prep/" linkLabel="Prep plan" lead={nextSession ? <>Cook {nextSession.batches.length} recipes before {DAY_LONG[nextSession.beforeDay]}.{plan.schedule.sessions.length > 1 && <> A short top-up session before {DAY_LONG[plan.schedule.sessions[1]!.beforeDay]} keeps everything fresh.</>}</> : undefined}>
           {r.recipes.map((p) => <RecipeCard key={p.recipe.id} recipe={p.recipe} portion={p.portion} eyebrow={`${p.meals} meal${p.meals === 1 ? "" : "s"} · ${p.slot === "main" ? "lunch or dinner" : p.slot}`} />)}
+        </Rail>
+
+        <Rail title="Featured meal preps" href="/preps/" lead="Ready-made weeks with their macros. Use one and the plan builds around it.">
+          {PREP_PACKS.map((p) => <PrepPackCard key={p.id} pack={p} cost={packCost(p)} />)}
         </Rail>
 
         {todo.length > 0 && (
