@@ -19,7 +19,7 @@ export default {
         sans: ['"Public Sans Variable"', "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
       },
-      borderRadius: { card: "12px" },
+      borderRadius: { card: "16px" },
     },
   },
   plugins: [],

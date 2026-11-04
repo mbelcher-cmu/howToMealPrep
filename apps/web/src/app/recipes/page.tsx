@@ -4,11 +4,10 @@ import { useMemo, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { CUISINES, DIETS, MOODS, RECIPES, type Cuisine, type Diet, type MealType, type Mood } from "@prep-cart/catalog";
 import { hardRejection } from "@prep-cart/planner";
-import { PerServing, RecipeMeta, RecipeTile } from "@/components/plan-bits";
-import { Chip, PageHeader, Segmented } from "@/components/ui";
+import { RecipeCard } from "@/components/food";
+import { Chip, PageHeader } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
-import { recipeHref } from "@/lib/format";
 
 type Sort = "protein" | "fast" | "name";
 
@@ -18,6 +17,7 @@ export default function Recipes() {
   const ratings = useApp((s) => s.ratings);
   const custom = useApp((s) => s.customRecipes);
   const [mineOnly, setMineOnly] = useState(false);
+  const [moreFilters, setMoreFilters] = useState(false);
   const [q, setQ] = useState("");
   const [meal, setMeal] = useState<MealType | "all">("all");
   const [cuisine, setCuisine] = useState<Cuisine | "">("");
@@ -46,13 +46,18 @@ export default function Recipes() {
   return (
     <>
       <PageHeader title="Recipes" lead={`${RECIPES.length} meal-prep recipes. Calories are worked out from the ingredients, per serving.`} action={<Link href="/recipes/import/" className="btn btn-primary"><Plus size={16} aria-hidden /> Add a recipe</Link>} />
-      <div className="card mb-5 grid gap-3 p-4">
+      <div className="mb-5 grid gap-3">
         <div className="relative">
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
-          <input className="input pl-9" placeholder="Search by name or ingredient" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search recipes" />
+          <input className="input rounded-full bg-surface pl-9" placeholder="Search by name or ingredient" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search recipes" />
         </div>
-        <Segmented size="sm" label="Meal type" value={meal} onChange={setMeal} options={[{ value: "all", label: "All" }, { value: "breakfast", label: "Breakfast" }, { value: "main", label: "Lunch and dinner" }, { value: "snack", label: "Snacks" }]} />
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="rail" role="group" aria-label="Filters">
+          {([["all", "All"], ["breakfast", "Breakfast"], ["main", "Lunch and dinner"], ["snack", "Snacks"]] as const).map(([v, l]) => <Chip key={v} selected={meal === v} onClick={() => setMeal(v)}>{l}</Chip>)}
+          {hydrated && <Chip selected={fitsMe} onClick={() => setFitsMe(!fitsMe)}>Fits my rules</Chip>}
+          {hydrated && <Chip selected={mineOnly} onClick={() => setMineOnly(!mineOnly)}>Mine and favorites</Chip>}
+          <span className="sm:hidden"><Chip selected={moreFilters} onClick={() => setMoreFilters(!moreFilters)}>More filters</Chip></span>
+        </div>
+        <div id="more-filters" className={`${moreFilters ? "grid" : "hidden"} grid-cols-2 gap-2 sm:grid sm:grid-cols-4`}>
           <select className="input" aria-label="Cuisine" value={cuisine} onChange={(e) => setCuisine(e.target.value as Cuisine | "")}>
             <option value="">Any cuisine</option>
             {Object.entries(CUISINES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -71,20 +76,12 @@ export default function Recipes() {
             <option value="name">A to Z</option>
           </select>
         </div>
-        {hydrated && <div className="flex flex-wrap gap-2"><Chip selected={fitsMe} onClick={() => setFitsMe(!fitsMe)}>Only recipes that fit my rules</Chip><Chip selected={mineOnly} onClick={() => setMineOnly(!mineOnly)}>My recipes and favorites</Chip></div>}
       </div>
       <p className="mb-3 text-sm text-muted" aria-live="polite">{list.length} recipe{list.length === 1 ? "" : "s"}</p>
-      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
         {list.map((r) => (
-          <li key={r.id}>
-            <Link href={recipeHref(r.id)} className="card flex h-full gap-3 p-3 hover:border-accent">
-              <RecipeTile recipe={r} />
-              <span className="grid min-w-0 gap-1">
-                <span className="font-semibold leading-snug">{r.name}</span>
-                <PerServing recipe={r} />
-                <RecipeMeta recipe={r} />
-              </span>
-            </Link>
+          <li key={r.id} className="flex">
+            <RecipeCard wide recipe={r} eyebrow={<>{r.cuisines.map((c) => CUISINES[c]).join(", ")}{ratings[r.id] ? <span className="text-carbs"> · {"★".repeat(ratings[r.id]!)}</span> : null}</>} />
           </li>
         ))}
       </ul>

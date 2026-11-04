@@ -5,6 +5,7 @@ import { Check, Copy, ExternalLink, House, PackageCheck, Store } from "lucide-re
 import { CHAINS, formatAmount, INGREDIENTS, type Aisle, type ChainId } from "@prep-cart/catalog";
 import type { CartLine } from "@prep-cart/planner";
 import { BudgetBar, PlanStatus, SolvingNote } from "@/components/plan-bits";
+import { ItemArt } from "@/components/food";
 import { Card, EmptyState, PageHeader, SectionTitle, Tag } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
@@ -71,12 +72,13 @@ export default function Groceries() {
                           const k = lineKey(l);
                           const on = !!s.checked[k];
                           return (
-                            <li key={k} className="flex items-center gap-3 py-2">
-                              <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+                            <li key={k} className="flex items-center gap-2 py-2 sm:gap-3">
+                              <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 sm:gap-3">
                                 <input type="checkbox" checked={on} onChange={() => s.toggleChecked(k)} className="peer sr-only" />
                                 <span aria-hidden className={cx("grid h-6 w-6 shrink-0 place-items-center rounded-md border-2 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-accent", on ? "border-accent bg-accent text-accent-ink" : "border-line")}>
                                   {on && <Check size={14} strokeWidth={3} />}
                                 </span>
+                                <ItemArt ingredientId={ing.id} className={cx("h-11 w-11 sm:h-[52px] sm:w-[52px]", on && "opacity-50")} />
                                 <span className={cx("min-w-0", on && "text-muted line-through")}>
                                   <span className="block font-medium">{ing.name}</span>
                                   <span className="block text-xs text-muted">
@@ -87,13 +89,13 @@ export default function Groceries() {
                               </label>
                               <div className="shrink-0 text-right">
                                 <div className="num text-sm font-semibold">{money(l.cost)}</div>
-                                <div className="text-[11px] text-muted">{l.packages > 1 && `${money(l.unitPrice)} ea · `}{SOURCE_LABEL[l.priceSource]}</div>
+                                <div className="hidden text-[11px] text-muted sm:block">{l.packages > 1 && `${money(l.unitPrice)} ea · `}{SOURCE_LABEL[l.priceSource]}</div>
                               </div>
                               <button className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted hover:bg-sunk hover:text-ink" title="I already have this" aria-label={`I already have ${ing.name}`}
                                 onClick={() => s.addToPantry(ing.id, l.needGrams)}>
                                 <House size={16} aria-hidden />
                               </button>
-                              <a href={c.search(ing.name)} target="_blank" rel="noreferrer" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted hover:bg-sunk hover:text-ink" aria-label={`Look up ${ing.name} at ${c.name} (opens new tab)`}>
+                              <a href={c.search(ing.name)} target="_blank" rel="noreferrer" className="hidden h-9 w-9 shrink-0 place-items-center rounded-lg text-muted hover:bg-sunk hover:text-ink sm:grid" aria-label={`Look up ${ing.name} at ${c.name} (opens new tab)`}>
                                 <ExternalLink size={16} aria-hidden />
                               </a>
                             </li>

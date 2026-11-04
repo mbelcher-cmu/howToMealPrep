@@ -8,6 +8,7 @@ import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { AISLE_ORDER, aisleOrderFor } from "@/lib/aisles";
 import { chainName, cx, money } from "@/lib/format";
+import { ItemArt } from "@/components/food";
 
 const lineKey = (l: CartLine) => `${l.chain}:${l.ingredientId}`;
 
@@ -140,6 +141,7 @@ export default function Shop() {
                     <li key={lineKey(l)}>
                       <button className="flex min-h-[64px] w-full items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-left active:bg-sunk" onClick={() => tick(l)}>
                         <span aria-hidden className="grid h-7 w-7 shrink-0 place-items-center rounded-md border-2 border-line" />
+                        <ItemArt ingredientId={ing.id} size={56} />
                         <span className="min-w-0 flex-1">
                           <span className="block text-[17px] font-semibold">{ing.name}</span>
                           <span className="block text-sm text-muted">{l.packages} × {ing.pkg.label} · need {formatAmount(ing.id, l.needGrams, s.profile.units)}</span>

@@ -1,4 +1,5 @@
 "use client";
+import { RecipeArt } from "./food";
 import Link from "next/link";
 import { useMemo } from "react";
 import { AlertTriangle, Loader2, Lock, RefreshCw, Snowflake, Timer } from "lucide-react";
@@ -93,16 +94,9 @@ export function SolvingNote() {
   return <span className="inline-flex items-center gap-1.5 text-sm text-muted"><Loader2 size={14} className="animate-spin" aria-hidden /> Updating plan</span>;
 }
 
-const HUES = [150, 25, 205, 280, 45, 340, 95, 0, 180, 255];
 /** A simple colored monogram tile in place of photos. */
 export function RecipeTile({ recipe, size = 44 }: { recipe: Recipe; size?: number }) {
-  const h = HUES[[...recipe.id].reduce((a, c) => a + c.charCodeAt(0), 0) % HUES.length]!;
-  const letters = recipe.name.split(/\s+/).filter((w) => /^[A-Za-z]/.test(w)).slice(0, 2).map((w) => w[0]).join("");
-  return (
-    <span aria-hidden className="grid shrink-0 place-items-center rounded-lg font-display font-bold" style={{ width: size, height: size, fontSize: size * 0.36, background: `hsl(${h} 45% 88%)`, color: `hsl(${h} 45% 28%)` }}>
-      {letters.toUpperCase()}
-    </span>
-  );
+  return <span className="shrink-0 overflow-hidden rounded-xl" style={{ width: size, height: size }}><RecipeArt recipe={recipe} className="h-full w-full" badges={size >= 80} /></span>;
 }
 
 export function RecipeMeta({ recipe }: { recipe: Recipe }) {
