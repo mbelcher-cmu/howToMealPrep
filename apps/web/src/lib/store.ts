@@ -1,7 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
-import { INGREDIENTS, shelfLifeDays, type ChainId, type UnitSystem } from "@prep-cart/catalog";
+import { INGREDIENTS, shelfLifeDays, type Aisle, type ChainId, type UnitSystem } from "@prep-cart/catalog";
 import {
   defaultOccasions, editCaloriesWithLocks, editMacroFree, editMacroWithLocks, suggestTargets, targetsFromSplit,
   SPLIT_PRESETS, type ActivityLevel, type Balancer, type EatingOccasion, type Goal, type MacroGrams, type MacroKey, type Sex,
@@ -72,6 +72,8 @@ export interface AppState {
   fitness: { source: string; maintenanceKcal: number; days: number; on: string } | null;
   /** other people eating the same prepped meals */
   household: Member[];
+  /** aisle order per store, for in-store mode */
+  aisleOrder: Partial<Record<ChainId, Aisle[]>>;
   /** first day of the plan, 0 = Monday; prep day is the day before */
   weekStart: number;
   /** prep session start, HH:MM */
@@ -141,6 +143,7 @@ function initial(): Omit<AppState, keyof Actions> {
     eatingOut: [],
     fitness: null,
     household: [],
+    aisleOrder: {},
     weekStart: 0,
     prepTime: "15:00",
     deals: [],

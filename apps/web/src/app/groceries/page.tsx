@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Check, Copy, ExternalLink, House, PackageCheck } from "lucide-react";
+import { Check, Copy, ExternalLink, House, PackageCheck, Store } from "lucide-react";
 import { CHAINS, formatAmount, INGREDIENTS, type Aisle, type ChainId } from "@prep-cart/catalog";
 import type { CartLine } from "@prep-cart/planner";
 import { BudgetBar, PlanStatus, SolvingNote } from "@/components/plan-bits";
@@ -9,8 +9,8 @@ import { Card, EmptyState, PageHeader, SectionTitle, Tag } from "@/components/ui
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { chainName, cx, money } from "@/lib/format";
+import { aisleOrderFor } from "@/lib/aisles";
 
-const AISLE_ORDER: Aisle[] = ["Produce", "Meat and seafood", "Deli", "Dairy and eggs", "Bakery", "Grains and pasta", "Canned and jarred", "Sauces and condiments", "Oils and nuts", "Frozen"];
 const SOURCE_LABEL = { estimate: "Estimate", receipt: "Receipt", manual: "Your price", live: "Live", sale: "On sale" } as const;
 const lineKey = (l: CartLine) => `${l.chain}:${l.ingredientId}`;
 
@@ -45,7 +45,7 @@ export default function Groceries() {
 
   const copy = async () => {
     const text = [...byStore].map(([chain, aisles]) =>
-      [`${chainName(chain)}`, ...AISLE_ORDER.filter((a) => aisles.has(a)).flatMap((a) => [`  ${a}`, ...aisles.get(a)!.map((l) => `  [ ] ${INGREDIENTS[l.ingredientId]!.name}: ${l.packages} × ${INGREDIENTS[l.ingredientId]!.pkg.label} (${money(l.cost)})`)])].join("\n"),
+      [`${chainName(chain)}`, ...aisleOrderFor(chain, s.aisleOrder).filter((a) => aisles.has(a)).flatMap((a) => [`  ${a}`, ...aisles.get(a)!.map((l) => `  [ ] ${INGREDIENTS[l.ingredientId]!.name}: ${l.packages} × ${INGREDIENTS[l.ingredientId]!.pkg.label} (${money(l.cost)})`)])].join("\n"),
     ).join("\n\n") + `\n\nTotal about ${money(r.cost)}`;
     try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { setCopied(false); }
   };
@@ -62,7 +62,7 @@ export default function Groceries() {
               <Card key={chain}>
                 <SectionTitle aside={<span className="num text-sm text-muted">{money(r.cart.filter((l) => l.chain === chain).reduce((a, l) => a + l.cost, 0))}</span>}>{c.name}</SectionTitle>
                 <div className="grid gap-4">
-                  {AISLE_ORDER.filter((a) => aisles.has(a)).map((a) => (
+                  {aisleOrderFor(chain, s.aisleOrder).filter((a) => aisles.has(a)).map((a) => (
                     <div key={a}>
                       <h3 className="label mb-1">{a}</h3>
                       <ul className="divide-y divide-line">
@@ -123,8 +123,9 @@ export default function Groceries() {
             <p className="mt-3 text-sm text-muted">{got} of {total} in the cart</p>
             <div className="mt-1 h-1.5 rounded-full bg-sunk"><div className="h-full rounded-full bg-accent" style={{ width: `${total ? (got / total) * 100 : 0}%` }} /></div>
             <div className="mt-4 grid gap-2">
+              <Link href="/shop/" className="btn btn-primary"><Store size={16} aria-hidden /> Start in-store mode</Link>
               <button className="btn" onClick={copy}>{copied ? <><Check size={16} aria-hidden /> Copied</> : <><Copy size={16} aria-hidden /> Copy list</>}</button>
-              <button className="btn btn-primary" onClick={() => { s.finishShopping(); setDone(true); }} disabled={done}>
+              <button className="btn" onClick={() => { s.finishShopping(); setDone(true); }} disabled={done}>
                 <PackageCheck size={16} aria-hidden /> {done ? "Leftovers saved to pantry" : "Done shopping"}
               </button>
             </div>
