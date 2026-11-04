@@ -4,3 +4,4 @@ export * from "./energy-needs";
 export * from "./targets";
 export * from "./occasions";
 export * from "./adherence";
+export * from "./health-import";

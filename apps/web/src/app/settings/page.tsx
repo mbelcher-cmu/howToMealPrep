@@ -2,6 +2,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { Download, LocateFixed, MapPin, RotateCcw, Upload } from "lucide-react";
 import { BodyStatsEditor, MealStructureEditor, MoodEditor, RulesEditor, StoresEditor, TargetsEditor } from "@/components/editors";
+import { FitnessSync } from "@/components/fitness";
 import { Card, PageHeader, Segmented, SectionTitle, Tag } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
@@ -100,7 +101,7 @@ export default function Settings() {
     <>
       <PageHeader title="Settings" lead="Everything here is saved on this device only." />
       <nav aria-label="Settings sections" className="mb-4 flex flex-wrap gap-2 text-sm">
-        {[["you", "You"], ["targets", "Targets"], ["meals", "Meals"], ["rules", "Food rules"], ["moods", "Moods"], ["stores", "Stores"], ["data", "Data"]].map(([id, label]) => (
+        {[["you", "You"], ["targets", "Targets"], ["meals", "Meals"], ["rules", "Food rules"], ["moods", "Moods"], ["stores", "Stores"], ["fitness", "Fitness apps"], ["data", "Data"]].map(([id, label]) => (
           <a key={id} href={`#${id}`} className="rounded-full border border-line bg-surface px-3 py-1 hover:bg-sunk">{label}</a>
         ))}
       </nav>
@@ -132,6 +133,9 @@ export default function Settings() {
             <h3 className="label mb-2">Stores near me</h3>
             <NearbyFinder />
           </div>
+        </Section>
+        <Section id="fitness" title="Fitness apps" lead="Use what your watch or tracker measured instead of an estimate.">
+          <FitnessSync />
         </Section>
         <Section id="data" title="Your data" lead="There's no account yet. Back up your settings and plans to a file to move them to another device.">
           <div className="flex flex-wrap gap-2">
