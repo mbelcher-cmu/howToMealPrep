@@ -22,8 +22,8 @@ jobs:
           done
       - name: Database
         env:
-          URL: ${{ vars.SUPABASE_URL }}
-          KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          URL: ${{ vars.SUPABASE_URL || 'https://xfhxwkmeiktxvhedmfhj.supabase.co' }}
+          KEY: ${{ vars.SUPABASE_ANON_KEY || 'sb_publishable_QvER-hwBYT43Qa_88IDTWQ_TAGe5swU' }}
         run: |
           if [ -z "$URL" ]; then echo "No database configured yet; skipping."; exit 0; fi
-          curl -fsS --retry 3 --retry-delay 20 -X POST "$URL/rest/v1/rpc/ping" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d '{}'
+          curl -fsS --retry 3 --retry-delay 20 -X POST "$URL/rest/v1/rpc/ping" -H "apikey: $KEY" -H "Content-Type: application/json" -d '{}'
