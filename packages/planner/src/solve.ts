@@ -105,6 +105,8 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   const pantryGrams = new Map<string, number>();
   for (const p of req.pantry) pantryGrams.set(p.ingredientId, (pantryGrams.get(p.ingredientId) ?? 0) + p.grams);
   const freeIds = new Set([...pantryGrams].filter(([, g]) => g === Infinity).map(([id]) => id));
+  // pantry food that spoils during the plan: recipes that use it up get a bonus
+  const useSoon = new Map(req.pantry.filter((p) => p.grams !== Infinity && p.grams > 0 && p.daysLeft != null && p.daysLeft <= Math.max(days, 4)).map((p) => [p.ingredientId, p.grams]));
 
   // ── Candidate pools ──
   const pools: Record<MealType, { r: Recipe; fit: number; reasons: string[]; cost: number }[]> = { breakfast: [], main: [], snack: [] };
@@ -118,7 +120,11 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
       return wrap(empty("no_recipes", `No ${slot === "main" ? "lunch or dinner" : slot} recipes fit your rules (${top}). Loosen a diet, allergy or time limit.`));
     }
     const scored = ok.map((r) => {
-      const { fit, reasons } = preferenceFit(r, req.prefs);
+      const pf = preferenceFit(r, req.prefs);
+      let fit = pf.fit;
+      const reasons = [...pf.reasons];
+      const saves = r.lines.filter((l) => useSoon.has(l.ingredientId)).map((l) => INGREDIENTS[l.ingredientId]!.name.toLowerCase());
+      if (saves.length) { fit += Math.min(3, 1.5 * saves.length); reasons.unshift(`uses up your ${saves.slice(0, 2).join(" and ")}`); }
       const cost = servingCost(r, req.prices, stores, freeIds);
       const proteinShare = (r.perServing.protein * 4) / Math.max(1, r.perServing.kcal);
       const targetShare = (dayTarget.protein * 4) / Math.max(1, dayTarget.kcal);

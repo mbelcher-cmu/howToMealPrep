@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PlanResult, Schedule } from "@prep-cart/planner";
-import { periodBudget, useApp, type AppState } from "./store";
+import { daysUntil, periodBudget, useApp, type AppState } from "./store";
 
 export type PlannerStatus = "idle" | "solving" | "error";
 
@@ -15,7 +15,8 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
     variety: s.variety,
     stores: s.stores,
     storeMode: s.storeMode,
-    pantry: s.pantry,
+    // drop spoiled food; tell the planner what spoils soon
+    pantry: s.pantry.filter((p) => !p.useBy || daysUntil(p.useBy) >= 0).map(({ useBy, ...p }) => (useBy ? { ...p, daysLeft: daysUntil(useBy) } : p)),
     weights: { costVsMacros: s.costVsMacros },
     lockedRecipes: s.locked,
     avoidSets,

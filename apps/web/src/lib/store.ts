@@ -1,7 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
-import { INGREDIENTS, type ChainId, type UnitSystem } from "@prep-cart/catalog";
+import { INGREDIENTS, shelfLifeDays, type ChainId, type UnitSystem } from "@prep-cart/catalog";
 import {
   defaultOccasions, editCaloriesWithLocks, editMacroFree, editMacroWithLocks, suggestTargets, targetsFromSplit,
   SPLIT_PRESETS, type ActivityLevel, type Balancer, type EatingOccasion, type Goal, type MacroGrams, type MacroKey, type Sex,
@@ -28,6 +28,14 @@ export interface SavedPlan {
   schedule: Schedule;
 }
 
+/** A pantry row. useBy is a YYYY-MM-DD date; staples (Infinity grams) have none. */
+export type PantryRow = PantryItem & { useBy?: string };
+
+export const isoDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+export const addDays = (iso: string, n: number) => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + n); return isoDay(d); };
+export const daysUntil = (iso: string) => Math.round((new Date(`${iso}T12:00:00`).getTime() - new Date(`${isoDay()}T12:00:00`).getTime()) / 86400000);
+const defaultUseBy = (id: string) => addDays(isoDay(), shelfLifeDays(id));
+
 export interface NearbyStore { id: string; name: string; chain: ChainId | null; address: string; distanceMi: number }
 
 export interface AppState {
@@ -51,7 +59,7 @@ export interface AppState {
   storeMode: "one" | "any";
   costVsMacros: number;
   priceOverrides: Record<string, Partial<Record<ChainId, PriceQuote | null>>>;
-  pantry: PantryItem[];
+  pantry: PantryRow[];
   nearby: NearbyStore[];
   locked: string[];
   current: SavedPlan | null;
@@ -75,7 +83,8 @@ export interface AppState {
   set: (patch: Partial<AppState>) => void;
   setWish: (group: "cuisines" | "moods" | "flavors" | "proteins", key: string, wish: Wish | null) => void;
   toggleLock: (recipeId: string) => void;
-  setPantryAmount: (ingredientId: string, grams: number | null) => void;
+  setPantryAmount: (ingredientId: string, grams: number | null, useBy?: string | null) => void;
+  addToPantry: (ingredientId: string, grams: number) => void;
   setPrice: (ingredientId: string, chain: ChainId, price: number | null | undefined) => void;
   savePlan: (plan: SavedPlan) => void;
   toggleChecked: (key: string) => void;
@@ -115,7 +124,7 @@ function initial(): Omit<AppState, keyof Actions> {
     eatingOut: [],
   };
 }
-type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "toggleMacroLock" | "setOccasionMacros" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "setWish" | "toggleLock" | "setPantryAmount" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "setTakeout" | "reset">;
+type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "toggleMacroLock" | "setOccasionMacros" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "setWish" | "toggleLock" | "setPantryAmount" | "addToPantry" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "setTakeout" | "reset">;
 
 const storage: StateStorage = {
   getItem: (k) => safeStorage.getItem(k),
@@ -178,9 +187,17 @@ export const useApp = create<AppState>()(
         set({ prefs: { ...prefs, [group]: g } });
       },
       toggleLock: (id) => { const l = get().locked; set({ locked: l.includes(id) ? l.filter((x) => x !== id) : [...l, id] }); },
-      setPantryAmount: (id, grams) => {
+      setPantryAmount: (id, grams, useBy) => {
+        const old = get().pantry.find((p) => p.ingredientId === id);
         const rest = get().pantry.filter((p) => p.ingredientId !== id);
-        set({ pantry: grams == null || grams <= 0 ? rest : [...rest, { ingredientId: id, grams }] });
+        if (grams == null || grams <= 0) { set({ pantry: rest }); return; }
+        const keep = useBy === undefined ? (old?.useBy ?? (grams === Infinity ? undefined : defaultUseBy(id))) : useBy ?? undefined;
+        set({ pantry: [...rest, { ingredientId: id, grams, ...(keep && grams !== Infinity ? { useBy: keep } : {}) }] });
+      },
+      addToPantry: (id, grams) => {
+        const old = get().pantry.find((p) => p.ingredientId === id);
+        if (old?.grams === Infinity) return;
+        get().setPantryAmount(id, (old?.grams ?? 0) + grams);
       },
       setPrice: (id, chain, price) => {
         const o = { ...get().priceOverrides };
@@ -197,12 +214,23 @@ export const useApp = create<AppState>()(
         const cur = get().current;
         if (!cur) return;
         const pantry = new Map(get().pantry.map((p) => [p.ingredientId, p.grams]));
+        const useBy = new Map(get().pantry.map((p) => [p.ingredientId, p.useBy]));
         for (const u of cur.result.pantryUsed) {
           const g = pantry.get(u.ingredientId);
           if (g != null && g !== Infinity) pantry.set(u.ingredientId, Math.max(0, g - u.grams));
         }
-        for (const l of cur.result.cart) if (l.leftoverGrams > 0) pantry.set(l.ingredientId, (pantry.get(l.ingredientId) ?? 0) + l.leftoverGrams);
-        set({ pantry: [...pantry].filter(([, g]) => g > 0).map(([ingredientId, grams]) => ({ ingredientId, grams })), checked: {} });
+        for (const l of cur.result.cart) if (l.leftoverGrams > 0) {
+          pantry.set(l.ingredientId, (pantry.get(l.ingredientId) ?? 0) + l.leftoverGrams);
+          // what's left of a fresh package keeps about as long as the package
+          useBy.set(l.ingredientId, defaultUseBy(l.ingredientId));
+        }
+        set({
+          pantry: [...pantry].filter(([, g]) => g > 0).map(([ingredientId, grams]) => {
+            const u = useBy.get(ingredientId);
+            return grams !== Infinity && u ? { ingredientId, grams, useBy: u } : { ingredientId, grams };
+          }),
+          checked: {},
+        });
       },
       setTakeout: (day, occasionId, itemId) => {
         const rest = get().eatingOut.filter((e) => !(e.day === day && e.occasionId === occasionId));
