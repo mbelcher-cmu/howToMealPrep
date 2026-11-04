@@ -13,7 +13,7 @@ export const FLAG_DEFAULTS = {
   /** Plus page and smart swaps preview */
   plus: { production: true, staging: true, development: true },
   /** November 2026 visual redesign (skin v2). Mirrored in app/layout.tsx so the first paint is right. */
-  redesign: { production: false, staging: true, development: true },
+  redesign: { production: true, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */

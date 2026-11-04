@@ -18,17 +18,17 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#18201a" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f7f9" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
   ],
 };
 
 /**
  * The redesign flag's value for this build, so the server-rendered page already has the right look.
- * Mirrors FLAG_DEFAULTS.redesign in lib/flags.ts (on everywhere except production) and NEXT_PUBLIC_FLAGS.
+ * Mirrors FLAG_DEFAULTS.redesign in lib/flags.ts (on everywhere) and NEXT_PUBLIC_FLAGS.
  */
 const BUILD_FLAGS = process.env.NEXT_PUBLIC_FLAGS ?? "";
-const SKIN_V2 = /redesign=(on|true|1)/i.test(BUILD_FLAGS) ? true : /redesign=(off|false|0)/i.test(BUILD_FLAGS) ? false : process.env.NEXT_PUBLIC_APP_ENV !== "production";
+const SKIN_V2 = /redesign=(on|true|1)/i.test(BUILD_FLAGS) ? true : /redesign=(off|false|0)/i.test(BUILD_FLAGS) ? false : true;
 /** Applies this device's own redesign override (?flags=redesign=on|off) before the first paint. */
 const SKIN_SCRIPT = `try{var d=${SKIN_V2},q=new URLSearchParams(location.search).get("flags"),o=JSON.parse(localStorage.getItem("prep-cart-flags")||"{}");if(q==="reset")o={};else if(q){var m=/redesign=(on|true|1|off|false|0)/i.exec(q);if(m)o.redesign=/on|true|1/i.test(m[1])}if(typeof o.redesign==="boolean")d=o.redesign;if(d)document.documentElement.dataset.skin="v2";else delete document.documentElement.dataset.skin}catch(e){}`;
 
