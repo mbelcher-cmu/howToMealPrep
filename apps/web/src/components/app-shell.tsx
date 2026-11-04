@@ -6,6 +6,7 @@ import { BookOpen, CalendarDays, ChefHat, Home, Package, Settings, ShoppingCart,
 import { shoppedShare, useApp } from "@/lib/store";
 import { useHydrated, usePlanner, usePlannerSync } from "@/lib/use-planner";
 import { cx } from "@/lib/format";
+import { initTelemetry } from "@/lib/telemetry";
 
 const NAV = [
   { href: "/", label: "Home", icon: Home, primary: true },
@@ -34,6 +35,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { status } = usePlanner();
   const isOnboarding = path.startsWith("/welcome");
   const isShopping = path.startsWith("/shop");
+
+  useEffect(() => { void initTelemetry(); }, []);
 
   useEffect(() => {
     // offline support for the installed app; skipped in development so builds don't go stale

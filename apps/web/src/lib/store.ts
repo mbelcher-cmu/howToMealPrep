@@ -1,5 +1,7 @@
 "use client";
 import { create } from "zustand";
+import { STORE_KEY } from "./env";
+import { track } from "./telemetry";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import { buildRecipe, INGREDIENTS, registerRecipes, shelfLifeDays, type Aisle, type ChainId, type RecipeSeed, type UnitSystem } from "@prep-cart/catalog";
 import {
@@ -263,6 +265,7 @@ export const useApp = create<AppState>()(
         // leftovers from the packages bought go into the pantry for next week
         const cur = get().current;
         if (!cur || get().shoppedPlanId === cur.id) return;
+        track("done_shopping", { items: cur.result.cart.length, ticked: Math.round(shoppedShare(get()) * 100) });
         const pantry = new Map(get().pantry.map((p) => [p.ingredientId, p.grams]));
         const useBy = new Map(get().pantry.map((p) => [p.ingredientId, p.useBy]));
         for (const u of cur.result.pantryUsed) {
@@ -284,7 +287,7 @@ export const useApp = create<AppState>()(
           pantryForPlan: get().pantryForPlan ?? get().pantry,
         });
       },
-      planNextWeek: () => set({ pantryForPlan: null }),
+      planNextWeek: () => { set({ pantryForPlan: null }); track("plan_next_week"); },
       setTakeout: (day, occasionId, itemId) => {
         const rest = get().eatingOut.filter((e) => !(e.day === day && e.occasionId === occasionId));
         set({ eatingOut: itemId ? [...rest, { day, occasionId, itemId }] : rest });
@@ -299,7 +302,7 @@ export const useApp = create<AppState>()(
       reset: () => set({ ...initial() }),
     }),
     {
-      name: "prep-cart-v1",
+      name: STORE_KEY,
       version: 1,
       storage: createJSONStorage(() => storage, { replacer: (_k, v) => (v === Infinity ? "__inf" : v), reviver: (_k, v) => (v === "__inf" ? Infinity : v) }),
       partialize: (s) => Object.fromEntries(Object.entries(s).filter(([, v]) => typeof v !== "function")) as Partial<AppState>,

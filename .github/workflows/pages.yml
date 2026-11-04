@@ -31,10 +31,33 @@ jobs:
       - id: pages
         if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
-      - name: Build static site
+      # staging: the same commit, its own keys, served under /staging/
+      - name: Build staging site
+        if: github.event_name != 'pull_request'
+        run: npm run build -w @prep-cart/web && mv apps/web/out "$RUNNER_TEMP/staging"
+        env:
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}/staging
+          NEXT_PUBLIC_APP_ENV: staging
+          NEXT_PUBLIC_RELEASE: ${{ github.sha }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.SENTRY_DSN }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.STAGING_POSTHOG_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.STAGING_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.STAGING_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_FLAGS: ${{ vars.STAGING_FLAGS }}
+      - name: Build production site
         run: npm run build -w @prep-cart/web
         env:
           NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          NEXT_PUBLIC_APP_ENV: ${{ github.event_name == 'pull_request' && 'development' || 'production' }}
+          NEXT_PUBLIC_RELEASE: ${{ github.sha }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.SENTRY_DSN }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_FLAGS: ${{ vars.FLAGS }}
+      - name: Add staging under /staging/
+        if: github.event_name != 'pull_request'
+        run: mv "$RUNNER_TEMP/staging" apps/web/out/staging
       - if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:

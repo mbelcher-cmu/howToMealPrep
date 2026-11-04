@@ -1,0 +1,29 @@
+name: Uptime check
+
+# Every 30 minutes: the live site, the staging site and the database answer. A failed run
+# emails the repository owner (GitHub's default for failed scheduled workflows).
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Site
+        run: |
+          base="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          for path in "/" "/staging/" "/highs.wasm"; do
+            curl -fsS -o /dev/null --retry 3 --retry-delay 20 -w "%{http_code} %{time_total}s $path\n" "$base$path"
+          done
+      - name: Database
+        env:
+          URL: ${{ vars.SUPABASE_URL }}
+          KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$URL" ]; then echo "No database configured yet; skipping."; exit 0; fi
+          curl -fsS --retry 3 --retry-delay 20 -X POST "$URL/rest/v1/rpc/ping" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d '{}'

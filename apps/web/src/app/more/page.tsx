@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { MORE } from "@/components/app-shell";
 import { PageHeader } from "@/components/ui";
+import { useFlag } from "@/lib/flags";
 
 const LEADS: Record<string, string> = {
   "/recipes/": "Browse, rate and add your own",
@@ -14,11 +15,12 @@ const LEADS: Record<string, string> = {
 };
 
 export default function More() {
+  const plus = useFlag("plus");
   return (
     <>
       <PageHeader title="More" />
       <ul className="card divide-y divide-line">
-        {MORE.map(({ href, label, icon: Icon }) => (
+        {MORE.filter((m) => plus || m.href !== "/plus/").map(({ href, label, icon: Icon }) => (
           <li key={href}>
             <Link href={href} className="flex min-h-[60px] items-center gap-3 px-4 py-3 hover:bg-sunk">
               <Icon size={20} className="text-accent" aria-hidden />

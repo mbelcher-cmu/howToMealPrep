@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PlanResult, Schedule } from "@prep-cart/planner";
 import { daysUntil, isoDay, periodBudget, useApp, type AppState } from "./store";
 import { memberKcal } from "@/components/household";
+import { reportError, track } from "./telemetry";
 
 export type PlannerStatus = "idle" | "solving" | "error";
 
@@ -66,10 +67,11 @@ async function run(avoid: string[][] = []) {
   setShared({ status: "solving" });
   const r = await solve(requestFrom(useApp.getState(), avoid));
   if (ticket !== ticketSeq) return; // a newer request is on its way
-  if (!r.ok || !r.result || !r.schedule) { setShared({ status: "error", error: r.error ?? "The planner stopped unexpectedly." }); return; }
+  if (!r.ok || !r.result || !r.schedule) { setShared({ status: "error", error: r.error ?? "The planner stopped unexpectedly." }); reportError(new Error(r.error ?? "planner failed"), { where: "planner" }); return; }
   setShared({ status: "idle", error: null });
   const s = useApp.getState();
   s.savePlan({ id: `${Date.now()}`, key: keyOf(requestFrom(s)), createdAt: new Date().toISOString(), days: s.days, result: r.result, schedule: r.schedule });
+  track("plan_built", { status: r.result.status, recipes: r.result.recipes.length, days: s.days, under_budget: r.result.cost <= r.result.budget, people: r.result.household?.people ?? 1, solve_ms: r.result.solveMs, another: avoid.length > 0 });
 }
 
 /**

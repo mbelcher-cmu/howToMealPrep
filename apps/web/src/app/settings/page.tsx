@@ -1,4 +1,7 @@
 "use client";
+import { STORE_KEY } from "@/lib/env";
+import { useFlag } from "@/lib/flags";
+import { analyticsOptedOut, setAnalyticsOptOut } from "@/lib/telemetry";
 import Link from "next/link";
 import { useRef, useState, type ReactNode } from "react";
 import { Download, RotateCcw, Upload } from "lucide-react";
@@ -25,10 +28,12 @@ export default function Settings() {
   const s = useApp();
   const file = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState("");
+  const plus = useFlag("plus");
+  const [noAnalytics, setNoAnalytics] = useState(() => typeof window !== "undefined" && analyticsOptedOut());
   const [theme, setTheme] = useState<"system" | "light" | "dark">(() => (typeof document !== "undefined" ? (document.documentElement.dataset.theme as "light" | "dark" | undefined) ?? "system" : "system"));
   if (!hydrated) return null;
   const exportData = () => {
-    const raw = localStorage.getItem("prep-cart-v1") ?? "{}";
+    const raw = localStorage.getItem(STORE_KEY) ?? "{}";
     const url = URL.createObjectURL(new Blob([raw], { type: "application/json" }));
     const a = Object.assign(document.createElement("a"), { href: url, download: `prep-cart-${new Date().toISOString().slice(0, 10)}.json` });
     a.click();
@@ -39,7 +44,7 @@ export default function Settings() {
       const text = await f.text();
       const parsed = JSON.parse(text) as { state?: unknown };
       if (!parsed || typeof parsed !== "object" || !parsed.state) throw new Error();
-      localStorage.setItem("prep-cart-v1", text);
+      localStorage.setItem(STORE_KEY, text);
       await useApp.persist.rehydrate();
       setMsg("Imported.");
     } catch { setMsg("That file isn't a Prep Cart backup."); }
@@ -79,9 +84,9 @@ export default function Settings() {
         <Section id="fitness" title="Fitness apps" lead="Use what your watch or tracker measured instead of an estimate.">
           <FitnessSync />
         </Section>
-        <Section id="plus" title="Prep Cart Plus" lead="Smart swaps and more, coming later.">
+        {plus && <Section id="plus" title="Prep Cart Plus" lead="Smart swaps and more, coming later.">
           <Link href="/plus/" className="btn">See what's in Plus</Link>
-        </Section>
+        </Section>}
         <Section id="data" title="Your data" lead="There's no account yet. Back up your settings and plans to a file to move them to another device.">
           <div className="flex flex-wrap gap-2">
             <button className="btn" onClick={exportData}><Download size={16} aria-hidden /> Download backup</button>
@@ -92,6 +97,10 @@ export default function Settings() {
             </button>
           </div>
           {msg && <p role="status" className="mt-2 text-sm text-muted">{msg}</p>}
+          <label className="mt-4 flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-1" checked={!noAnalytics} onChange={(e) => { setAnalyticsOptOut(!e.target.checked); setNoAnalytics(!e.target.checked); }} />
+            <span>Share anonymous usage stats, like how many plans are built, to help improve Prep Cart. Never your body stats, food or prices.</span>
+          </label>
           <p className="mt-4 text-xs text-muted">Nutrition is estimated from USDA ingredient data and is not medical advice. Prices are estimates for the Pittsburgh area and change often.</p>
         </Section>
       </div>
