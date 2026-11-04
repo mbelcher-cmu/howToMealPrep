@@ -36,7 +36,8 @@ export function PlanMacros({ result }: { result: PlanResult }) {
   );
 }
 
-export function BudgetBar({ cost, budget }: { cost: number; budget: number }) {
+export function BudgetBar({ cost: groceries, budget, takeout = 0 }: { cost: number; budget: number; takeout?: number }) {
+  const cost = groceries + takeout;
   const over = cost > budget + 0.005;
   const pct = budget > 0 ? Math.min(100, (cost / budget) * 100) : 100;
   return (
@@ -50,6 +51,7 @@ export function BudgetBar({ cost, budget }: { cost: number; budget: number }) {
       <div className="mt-1.5 h-2 rounded-full bg-sunk" role="img" aria-label={`Spent ${money(cost)} of ${money(budget)}`}>
         <div className={cx("h-full rounded-full", over ? "bg-warn" : "bg-accent")} style={{ width: `${pct}%` }} />
       </div>
+      {takeout > 0 && <p className="mt-1.5 text-xs text-muted">{money(groceries)} groceries + {money(takeout)} takeout</p>}
     </div>
   );
 }

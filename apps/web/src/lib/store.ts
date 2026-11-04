@@ -7,7 +7,7 @@ import {
   SPLIT_PRESETS, type ActivityLevel, type Balancer, type EatingOccasion, type Goal, type MacroGrams, type MacroKey, type Sex,
   type SplitPreset, type Targets,
 } from "@prep-cart/nutrition";
-import type { PantryItem, PlanResult, Preferences, PriceQuote, Schedule, Variety, Wish } from "@prep-cart/planner";
+import type { EatOut, PantryItem, PlanResult, Preferences, PriceQuote, Schedule, Variety, Wish } from "@prep-cart/planner";
 import { decode, encode, safeStorage } from "./storage";
 
 export interface Profile {
@@ -57,6 +57,8 @@ export interface AppState {
   current: SavedPlan | null;
   history: SavedPlan[];
   checked: Record<string, boolean>;
+  /** takeout meals placed on the week */
+  eatingOut: EatOut[];
 
   // actions
   setProfile: (p: Partial<Profile>) => void;
@@ -78,6 +80,7 @@ export interface AppState {
   savePlan: (plan: SavedPlan) => void;
   toggleChecked: (key: string) => void;
   finishShopping: () => void;
+  setTakeout: (day: number, occasionId: string, itemId: string | null) => void;
   reset: () => void;
 }
 
@@ -109,9 +112,10 @@ function initial(): Omit<AppState, keyof Actions> {
     current: null,
     history: [],
     checked: {},
+    eatingOut: [],
   };
 }
-type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "toggleMacroLock" | "setOccasionMacros" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "setWish" | "toggleLock" | "setPantryAmount" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "reset">;
+type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "toggleMacroLock" | "setOccasionMacros" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "setWish" | "toggleLock" | "setPantryAmount" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "setTakeout" | "reset">;
 
 const storage: StateStorage = {
   getItem: (k) => safeStorage.getItem(k),
@@ -199,6 +203,10 @@ export const useApp = create<AppState>()(
         }
         for (const l of cur.result.cart) if (l.leftoverGrams > 0) pantry.set(l.ingredientId, (pantry.get(l.ingredientId) ?? 0) + l.leftoverGrams);
         set({ pantry: [...pantry].filter(([, g]) => g > 0).map(([ingredientId, grams]) => ({ ingredientId, grams })), checked: {} });
+      },
+      setTakeout: (day, occasionId, itemId) => {
+        const rest = get().eatingOut.filter((e) => !(e.day === day && e.occasionId === occasionId));
+        set({ eatingOut: itemId ? [...rest, { day, occasionId, itemId }] : rest });
       },
       reset: () => set({ ...initial() }),
     }),
