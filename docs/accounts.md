@@ -20,9 +20,12 @@ Until a value is set, its feature stays off and the app works as before.
 | `STAGING_SUPABASE_DB_URL` | the same, for the staging project | secret |
 | `BACKUP_PASSPHRASE` | any long random phrase; keep a copy outside GitHub, since it is the only way to open a backup | secret |
 
-3. In each project, Authentication → URL Configuration: set Site URL to the production address
+3. Sign-in emails: Authentication → Emails → **Magic Link** template, add `Your code: {{ .Token }}` so
+   people can type a code as well as tap the link. Supabase's built-in mailer sends only a few emails
+   an hour; before the pilot, connect a free SMTP sender (Resend) under Authentication → Emails → SMTP.
+4. In each project, Authentication → URL Configuration: set Site URL to the production address
    below and add the staging address as a redirect URL.
-4. The **Database schema** workflow applies `supabase/migrations` to staging, then production, using
+5. The **Database schema** workflow applies `supabase/migrations` to staging, then production, using
    the secrets above. It runs whenever a migration changes on main, or by hand from the Actions tab.
    The privacy rules are tested in `apps/web/test/rls.test.ts`.
 

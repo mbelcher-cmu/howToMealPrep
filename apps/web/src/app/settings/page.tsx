@@ -5,10 +5,12 @@ import { analyticsOptedOut, setAnalyticsOptOut } from "@/lib/telemetry";
 import Link from "next/link";
 import { useRef, useState, type ReactNode } from "react";
 import { Download, RotateCcw, Upload } from "lucide-react";
+import { AccountPanel } from "@/components/account";
 import { BodyStatsEditor } from "@/components/editors";
 import { FitnessSync } from "@/components/fitness";
 import { HouseholdEditor } from "@/components/household";
 import { Card, PageHeader, Segmented, SectionTitle } from "@/components/ui";
+import { useAccount } from "@/lib/account";
 import { useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
 
@@ -29,6 +31,9 @@ export default function Settings() {
   const file = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState("");
   const plus = useFlag("plus");
+  const accounts = useFlag("accounts");
+  const account = useAccount();
+  const signedIn = account.status === "signedIn";
   const [noAnalytics, setNoAnalytics] = useState(() => typeof window !== "undefined" && analyticsOptedOut());
   const [theme, setTheme] = useState<"system" | "light" | "dark">(() => (typeof document !== "undefined" ? (document.documentElement.dataset.theme as "light" | "dark" | undefined) ?? "system" : "system"));
   if (!hydrated) return null;
@@ -51,13 +56,16 @@ export default function Settings() {
   };
   return (
     <>
-      <PageHeader title="Settings" lead="Everything here is saved on this device only." />
+      <PageHeader title="Settings" lead={signedIn ? "Saved on this device and synced to your account." : "Everything here is saved on this device only."} />
       <nav aria-label="Settings sections" className="mb-4 flex flex-wrap gap-2 text-sm">
-        {[["you", "You"], ["household", "Household"], ["fitness", "Fitness apps"], ["plus", "MacroAisle Plus"], ["data", "Data"]].map(([id, label]) => (
+        {[...(accounts && account.status !== "off" ? [["account", "Account"]] : []), ["you", "You"], ["household", "Household"], ["fitness", "Fitness apps"], ["plus", "MacroAisle Plus"], ["data", "Data"]].map(([id, label]) => (
           <a key={id} href={`#${id}`} className="rounded-full border border-line bg-surface px-3 py-1 hover:bg-sunk">{label}</a>
         ))}
       </nav>
       <div className="grid max-w-[760px] gap-4">
+        {accounts && account.status !== "off" && <Section id="account" title="Account" lead={signedIn ? undefined : "Sign in to keep your plan, pantry and settings on all your devices. Optional."}>
+          <AccountPanel />
+        </Section>}
         <Section id="you" title="You">
           <BodyStatsEditor />
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -87,7 +95,7 @@ export default function Settings() {
         {plus && <Section id="plus" title="MacroAisle Plus" lead="Smart swaps and more, coming later.">
           <Link href="/plus/" className="btn">See what's in Plus</Link>
         </Section>}
-        <Section id="data" title="Your data" lead="There's no account yet. Back up your settings and plans to a file to move them to another device.">
+        <Section id="data" title="Your data" lead={signedIn ? "Your data syncs to your account. You can also keep a backup file." : "Back up your settings and plans to a file to move them to another device."}>
           <div className="flex flex-wrap gap-2">
             <button className="btn" onClick={exportData}><Download size={16} aria-hidden /> Download backup</button>
             <button className="btn" onClick={() => file.current?.click()}><Upload size={16} aria-hidden /> Restore backup</button>
