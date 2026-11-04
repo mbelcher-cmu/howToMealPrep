@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { adherence, defaultOccasions } from "@prep-cart/nutrition";
-import { plan, schedule } from "../src";
+import { applyDeals, buildPriceTable, plan, schedule } from "../src";
 import { baseRequest, highsPromise } from "./fixtures";
 
 describe("planner features", async () => {
@@ -53,5 +53,17 @@ describe("planner features", async () => {
     const r = plan(baseRequest({ pantry }), highs);
     expect(usesSpinach(r.recipes), `before: ${usesSpinach(without.recipes)}`).toBe(true);
     expect(r.recipes.some((p) => p.reasons.some((x) => x.includes("uses up your"))) || usesSpinach(without.recipes)).toBe(true);
+  });
+
+  it("plans around a big sale", () => {
+    const deals = [{ ingredientId: "salmon", chain: "aldi" as const, price: 3.49, endsOn: "2099-01-01" }, { ingredientId: "tofu", chain: "aldi" as const, price: 9, endsOn: "2099-01-01" }];
+    const prices = applyDeals(buildPriceTable(), deals, "2026-11-04");
+    expect(prices.salmon!.aldi).toMatchObject({ price: 3.49, source: "sale", regular: 7.49 });
+    expect(prices.tofu!.aldi!.source).toBe("estimate"); // not cheaper, so not a deal
+    expect(applyDeals(buildPriceTable(), [{ ...deals[0]!, endsOn: "2026-11-01" }], "2026-11-04").salmon!.aldi!.source).toBe("estimate");
+    const r = plan(baseRequest({ prices, stores: ["aldi"], costVsMacros: undefined } as never), highs);
+    const reasons = r.recipes.flatMap((p) => p.reasons);
+    const usesSalmon = r.recipes.some((p) => p.recipe.lines.some((l) => l.ingredientId === "salmon"));
+    if (usesSalmon) expect(reasons.some((x) => x.includes("on sale"))).toBe(true);
   });
 });

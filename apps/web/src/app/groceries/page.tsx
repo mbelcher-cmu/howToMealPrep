@@ -11,7 +11,7 @@ import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { chainName, cx, money } from "@/lib/format";
 
 const AISLE_ORDER: Aisle[] = ["Produce", "Meat and seafood", "Deli", "Dairy and eggs", "Bakery", "Grains and pasta", "Canned and jarred", "Sauces and condiments", "Oils and nuts", "Frozen"];
-const SOURCE_LABEL = { estimate: "Estimate", receipt: "Receipt", manual: "Your price", live: "Live" } as const;
+const SOURCE_LABEL = { estimate: "Estimate", receipt: "Receipt", manual: "Your price", live: "Live", sale: "On sale" } as const;
 const lineKey = (l: CartLine) => `${l.chain}:${l.ingredientId}`;
 
 export default function Groceries() {

@@ -29,7 +29,9 @@ export interface Variety {
 
 export interface PriceQuote {
   price: number;
-  source: "estimate" | "receipt" | "manual" | "live";
+  source: "estimate" | "receipt" | "manual" | "live" | "sale";
+  /** for a sale: the price it is usually */
+  regular?: number;
   observedAt?: string;
 }
 /** ingredientId -> chain -> quote (null when the chain doesn't carry it) */

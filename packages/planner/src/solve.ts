@@ -125,6 +125,8 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
       const reasons = [...pf.reasons];
       const saves = r.lines.filter((l) => useSoon.has(l.ingredientId)).map((l) => INGREDIENTS[l.ingredientId]!.name.toLowerCase());
       if (saves.length) { fit += Math.min(3, 1.5 * saves.length); reasons.unshift(`uses up your ${saves.slice(0, 2).join(" and ")}`); }
+      const onSale = [...new Set(r.lines.filter((l) => stores.some((c) => req.prices[l.ingredientId]?.[c]?.source === "sale")).map((l) => INGREDIENTS[l.ingredientId]!.name.toLowerCase()))];
+      if (onSale.length) reasons.unshift(`${onSale.slice(0, 2).join(" and ")} on sale`);
       const cost = servingCost(r, req.prices, stores, freeIds);
       const proteinShare = (r.perServing.protein * 4) / Math.max(1, r.perServing.kcal);
       const targetShare = (dayTarget.protein * 4) / Math.max(1, dayTarget.kcal);
