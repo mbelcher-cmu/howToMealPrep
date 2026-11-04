@@ -8,7 +8,7 @@ import { BudgetBar, LockedTag, PerServing, PlanMacros, PlanStatus, RecipeMeta, R
 import { Card, EmptyState, PageHeader, SectionTitle, Tag } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
-import { chainName, cx, fmtServings, money } from "@/lib/format";
+import { chainName, cx, fmtServings, money, recipeHref } from "@/lib/format";
 import { useDays } from "@/lib/days";
 
 function Panel({ title, children, open: initial = false }: { title: string; children: ReactNode; open?: boolean }) {
@@ -93,7 +93,7 @@ export default function PlanPage() {
                               <Tag>{p.slot}</Tag>
                               {locked && <LockedTag />}
                             </div>
-                            <Link href={`/recipes/${p.recipe.id}/`} className="mt-0.5 block font-semibold hover:underline">{p.recipe.name}</Link>
+                            <Link href={recipeHref(p.recipe.id)} className="mt-0.5 block font-semibold hover:underline">{p.recipe.name}</Link>
                             <div className="text-sm">
                               {p.meals} meal{p.meals === 1 ? "" : "s"} · cook {fmtServings(p.servings)} · {fmtServings(p.portion)} {(plan.result.household?.members.length ?? 0) > 0 ? "a meal for you" : "each"} · <PerServing recipe={p.recipe} portion={p.portion} />
                             </div>
@@ -147,7 +147,7 @@ export default function PlanPage() {
                             );
                             return (
                               <td key={d.day} className={cx("rounded-md px-1.5 py-1 align-top text-xs leading-snug", r ? "bg-accent-soft" : "bg-sunk text-muted")}>
-                                {r ? <Link href={`/recipes/${r.id}/`} className="hover:underline">{r.name}</Link> : o.prepped ? "—" : "Free"}
+                                {r ? <Link href={recipeHref(r.id)} className="hover:underline">{r.name}</Link> : o.prepped ? "—" : "Free"}
                               </td>
                             );
                           })}

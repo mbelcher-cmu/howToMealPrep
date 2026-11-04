@@ -19,6 +19,8 @@ export interface Preferences {
   maxActiveMinutes: number;
   /** recipe ids to skip this week */
   excludeRecipes?: string[];
+  /** the person's own star ratings, 1 to 5. 1 star means never plan it */
+  ratings?: Record<string, number>;
 }
 
 export interface Variety {

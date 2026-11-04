@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { ArrowLeft, Lock, LockOpen } from "lucide-react";
+import { ArrowLeft, Lock, LockOpen, Trash2 } from "lucide-react";
 import { ALLERGENS, CHAINS, DIETS, EQUIPMENT, formatAmount, INGREDIENTS, MOODS, RECIPES_BY_ID } from "@prep-cart/catalog";
 import { macroShares } from "@prep-cart/nutrition";
 import { buildPriceTable, hardRejection, servingCost } from "@prep-cart/planner";
 import { RecipeMeta, RecipeTile } from "@/components/plan-bits";
-import { Card, SectionTitle, Stepper, Tag } from "@/components/ui";
+import { Card, SectionTitle, Stars, Stepper, Tag } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
 import { money } from "@/lib/format";
@@ -23,6 +24,9 @@ export function RecipeDetail({ id }: { id: string }) {
   const rejected = hydrated ? hardRejection(r, s.prefs) : null;
   const locked = s.locked.includes(r.id);
   const inPlan = s.current?.result.recipes.some((p) => p.recipe.id === r.id);
+  const router = useRouter();
+  const mine = r.id.startsWith("custom_");
+  const source = mine ? s.customRecipes.find((c) => c.id === r.id) : undefined;
 
   return (
     <article>
@@ -33,6 +37,13 @@ export function RecipeDetail({ id }: { id: string }) {
           <div className="flex flex-wrap gap-1.5"><Tag>{r.mealType}</Tag>{r.moods.map((m) => <Tag key={m}>{MOODS[m]}</Tag>)}</div>
           <h1 className="mt-1 font-display text-[28px] font-bold leading-tight sm:text-[32px]">{r.name}</h1>
           <div className="mt-1"><RecipeMeta recipe={r} /></div>
+          {hydrated && (
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <Stars value={s.ratings[r.id]} onChange={(v) => { const { [r.id]: _old, ...rest } = s.ratings; void _old; s.set({ ratings: v ? { ...rest, [r.id]: v } : rest }); }} />
+              {mine && <button className="btn btn-sm text-warn" onClick={() => { if (window.confirm(`Delete ${r.name}?`)) { s.set({ customRecipes: s.customRecipes.filter((c) => c.id !== r.id), locked: s.locked.filter((x) => x !== r.id) }); router.push("/recipes/"); } }}><Trash2 size={14} aria-hidden /> Delete my recipe</button>}
+              {source?.source && <a className="text-xs text-muted underline" href={source.source} target="_blank" rel="noreferrer">Original recipe</a>}
+            </div>
+          )}
         </div>
         {hydrated && (
           <button className={locked ? "btn btn-primary" : "btn"} onClick={() => s.toggleLock(r.id)} aria-pressed={locked} disabled={!!rejected && !locked}>

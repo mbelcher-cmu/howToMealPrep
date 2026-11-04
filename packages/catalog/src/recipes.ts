@@ -72,3 +72,9 @@ export function buildRecipe(s: RecipeSeed): Recipe {
 
 export const RECIPES: Recipe[] = RECIPE_SEEDS.map(buildRecipe);
 export const RECIPES_BY_ID: Record<string, Recipe> = Object.fromEntries(RECIPES.map((r) => [r.id, r]));
+
+/** Add the person's own recipes (ids start with "custom_") to the library, replacing earlier ones. */
+export function registerRecipes(list: Recipe[]): void {
+  for (let i = RECIPES.length - 1; i >= 0; i--) if (RECIPES[i]!.id.startsWith("custom_")) { delete RECIPES_BY_ID[RECIPES[i]!.id]; RECIPES.splice(i, 1); }
+  for (const r of list) { if (!r.id.startsWith("custom_")) continue; RECIPES.push(r); RECIPES_BY_ID[r.id] = r; }
+}

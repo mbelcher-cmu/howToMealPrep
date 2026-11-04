@@ -11,3 +11,6 @@ export const fmtServings = (n: number) => {
 export function cx(...parts: (string | false | null | undefined)[]) {
   return parts.filter(Boolean).join(" ");
 }
+
+/** Link to a recipe. The person's own recipes have no prebuilt page, so they share one page. */
+export const recipeHref = (id: string) => (id.startsWith("custom_") ? `/recipes/mine/?id=${encodeURIComponent(id)}` : `/recipes/${id}/`);

@@ -5,6 +5,8 @@ export interface RecipeSeed {
   meta: { serv: number; active: number; total: number; fridge: number; freezer?: boolean; skill?: Skill; reheat?: string };
   items: [string, number][];
   steps: string[];
+  /** where an imported recipe came from */
+  source?: string;
 }
 
 export interface Nutrition {

@@ -1,19 +1,23 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { CUISINES, DIETS, MOODS, RECIPES, type Cuisine, type Diet, type MealType, type Mood } from "@prep-cart/catalog";
 import { hardRejection } from "@prep-cart/planner";
 import { PerServing, RecipeMeta, RecipeTile } from "@/components/plan-bits";
 import { Chip, PageHeader, Segmented } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
+import { recipeHref } from "@/lib/format";
 
 type Sort = "protein" | "fast" | "name";
 
 export default function Recipes() {
   const hydrated = useHydrated();
   const prefs = useApp((s) => s.prefs);
+  const ratings = useApp((s) => s.ratings);
+  const custom = useApp((s) => s.customRecipes);
+  const [mineOnly, setMineOnly] = useState(false);
   const [q, setQ] = useState("");
   const [meal, setMeal] = useState<MealType | "all">("all");
   const [cuisine, setCuisine] = useState<Cuisine | "">("");
@@ -30,16 +34,18 @@ export default function Recipes() {
       (!mood || r.moods.includes(mood)) &&
       (!diet || r.diets.includes(diet)) &&
       (!fitsMe || !hardRejection(r, prefs)) &&
+      (!mineOnly || r.id.startsWith("custom_") || (ratings[r.id] ?? 0) >= 4) &&
       words.every((w) => r.name.toLowerCase().includes(w) || r.lines.some((l) => l.ingredientId.includes(w))),
     ).sort((a, b) =>
       sort === "name" ? a.name.localeCompare(b.name)
         : sort === "fast" ? a.activeMinutes - b.activeMinutes
           : b.perServing.protein / b.perServing.kcal - a.perServing.protein / a.perServing.kcal);
-  }, [q, meal, cuisine, mood, diet, fitsMe, prefs, sort]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, meal, cuisine, mood, diet, fitsMe, prefs, sort, mineOnly, ratings, custom]);
 
   return (
     <>
-      <PageHeader title="Recipes" lead={`${RECIPES.length} meal-prep recipes. Calories are worked out from the ingredients, per serving.`} />
+      <PageHeader title="Recipes" lead={`${RECIPES.length} meal-prep recipes. Calories are worked out from the ingredients, per serving.`} action={<Link href="/recipes/import/" className="btn btn-primary"><Plus size={16} aria-hidden /> Add a recipe</Link>} />
       <div className="card mb-5 grid gap-3 p-4">
         <div className="relative">
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
@@ -65,13 +71,13 @@ export default function Recipes() {
             <option value="name">A to Z</option>
           </select>
         </div>
-        {hydrated && <div><Chip selected={fitsMe} onClick={() => setFitsMe(!fitsMe)}>Only recipes that fit my rules</Chip></div>}
+        {hydrated && <div className="flex flex-wrap gap-2"><Chip selected={fitsMe} onClick={() => setFitsMe(!fitsMe)}>Only recipes that fit my rules</Chip><Chip selected={mineOnly} onClick={() => setMineOnly(!mineOnly)}>My recipes and favorites</Chip></div>}
       </div>
       <p className="mb-3 text-sm text-muted" aria-live="polite">{list.length} recipe{list.length === 1 ? "" : "s"}</p>
       <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {list.map((r) => (
           <li key={r.id}>
-            <Link href={`/recipes/${r.id}/`} className="card flex h-full gap-3 p-3 hover:border-accent">
+            <Link href={recipeHref(r.id)} className="card flex h-full gap-3 p-3 hover:border-accent">
               <RecipeTile recipe={r} />
               <span className="grid min-w-0 gap-1">
                 <span className="font-semibold leading-snug">{r.name}</span>

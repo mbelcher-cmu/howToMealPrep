@@ -1,7 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
-import { INGREDIENTS, shelfLifeDays, type Aisle, type ChainId, type UnitSystem } from "@prep-cart/catalog";
+import { buildRecipe, INGREDIENTS, registerRecipes, shelfLifeDays, type Aisle, type ChainId, type RecipeSeed, type UnitSystem } from "@prep-cart/catalog";
 import {
   defaultOccasions, editCaloriesWithLocks, editMacroFree, editMacroWithLocks, suggestTargets, targetsFromSplit,
   SPLIT_PRESETS, type ActivityLevel, type Balancer, type EatingOccasion, type Goal, type MacroGrams, type MacroKey, type Sex,
@@ -74,6 +74,10 @@ export interface AppState {
   household: Member[];
   /** aisle order per store, for in-store mode */
   aisleOrder: Partial<Record<ChainId, Aisle[]>>;
+  /** recipes the person imported or wrote (ids start with custom_) */
+  customRecipes: RecipeSeed[];
+  /** the person's star ratings by recipe id */
+  ratings: Record<string, number>;
   /** first day of the plan, 0 = Monday; prep day is the day before */
   weekStart: number;
   /** prep session start, HH:MM */
@@ -144,6 +148,8 @@ function initial(): Omit<AppState, keyof Actions> {
     fitness: null,
     household: [],
     aisleOrder: {},
+    customRecipes: [],
+    ratings: {},
     weekStart: 0,
     prepTime: "15:00",
     deals: [],
@@ -289,3 +295,15 @@ export function periodBudget(s: Pick<AppState, "budget" | "days">): number {
 }
 
 export { encode, decode };
+
+/** Keep the shared recipe library in step with the person's own recipes. */
+let syncedRecipes: RecipeSeed[] | null = null;
+function syncCustomRecipes(list: RecipeSeed[] | undefined) {
+  if (!list || list === syncedRecipes) return;
+  syncedRecipes = list;
+  registerRecipes(list.flatMap((sd) => { try { return [buildRecipe(sd)]; } catch { return []; } }));
+}
+if (typeof window !== "undefined") {
+  syncCustomRecipes(useApp.getState().customRecipes);
+  useApp.subscribe((st) => syncCustomRecipes(st.customRecipes));
+}

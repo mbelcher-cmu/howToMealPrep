@@ -222,3 +222,19 @@ export function EmptyState({ title, children, action }: { title: string; childre
 export function Tag({ children }: { children: ReactNode }) {
   return <span className="rounded bg-sunk px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted">{children}</span>;
 }
+
+/** Your own 1 to 5 star rating. Tap the current rating again to clear it. */
+export function Stars({ value, onChange, label = "Your rating" }: { value: number | undefined; onChange: (v: number | null) => void; label?: string }) {
+  const words = ["", "Never plan it", "Not for me", "It's fine", "Like it", "Love it"];
+  return (
+    <div className="flex items-center gap-2">
+      <div role="radiogroup" aria-label={label} className="flex">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button key={n} role="radio" aria-checked={value === n} aria-label={`${n} star${n === 1 ? "" : "s"}: ${words[n]}`} onClick={() => onChange(value === n ? null : n)}
+            className={`grid h-9 w-8 place-items-center text-xl leading-none ${value && n <= value ? "text-carbs" : "text-line hover:text-muted"}`}>★</button>
+        ))}
+      </div>
+      <span className="text-xs text-muted">{value ? words[value] : label}</span>
+    </div>
+  );
+}
