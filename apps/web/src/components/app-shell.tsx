@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
-import { BookOpen, CalendarDays, ChefHat, Home, Package, Settings, ShoppingCart, Loader2, Menu, Sparkles, UtensilsCrossed } from "lucide-react";
+import { BookOpen, CalendarDays, ChefHat, Home, Package, Settings, ShoppingCart, Loader2, Menu, UtensilsCrossed } from "lucide-react";
 import { shoppedShare, useApp } from "@/lib/store";
 import { useHydrated, usePlanner, usePlannerSync } from "@/lib/use-planner";
 import { cx } from "@/lib/format";
@@ -21,7 +21,9 @@ const NAV = [
   { href: "/settings/", label: "Settings", icon: Settings, primary: false },
 ];
 /** Pages reached from the phone's More tab. */
-export const MORE = [...NAV.filter((n) => !n.primary), { href: "/preps/", label: "Meal preps", icon: Sparkles, primary: false }, { href: "/plus/", label: "MacroAisle Plus", icon: Sparkles, primary: false }];
+export const MORE = NAV.filter((n) => !n.primary);
+/** Pages with no menu entry for the pilot: Meal preps is reached from Home, Plus returns in sprint 7. They still light up the More tab. */
+const MORE_ROUTES = [...MORE.map((m) => m.href), "/preps/", "/plus/"];
 
 function active(path: string, href: string) {
   if (href === "/") return path === "/";
@@ -101,7 +103,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Phone tab bar */}
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface md:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         {[...NAV.filter((n) => n.primary), { href: "/more/", label: "More", icon: Menu, primary: true }].map(({ href, label, icon: Icon }) => {
-          const on = href === "/more/" ? active(path, href) || MORE.some((m) => active(path, m.href)) : active(path, href);
+          const on = href === "/more/" ? active(path, href) || MORE_ROUTES.some((h) => active(path, h)) : active(path, href);
           return (
             <Link key={href} href={href} aria-current={on ? "page" : undefined}
               className={cx("press flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium", on ? "text-accent" : "text-muted")}>
@@ -160,7 +162,7 @@ function ShellV2({ path, solving, children }: { path: string; solving: boolean; 
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 px-4 md:hidden" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
         <nav aria-label="Main" className="pointer-events-auto grid flex-1 grid-cols-4 gap-1 rounded-full bg-surface/95 p-1.5 shadow-[var(--shadow-float)] backdrop-blur-xl">
           {tabs.map(({ href, label, icon: Icon }) => {
-            const on = href === "/more/" ? active(path, href) || MORE.some((m) => active(path, m.href)) : active(path, href);
+            const on = href === "/more/" ? active(path, href) || MORE_ROUTES.some((h) => active(path, h)) : active(path, href);
             return (
               <Link key={href} href={href} aria-current={on ? "page" : undefined}
                 className={cx("press flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-full text-[11px]", on ? "bg-sunk font-semibold text-ink" : "font-medium text-muted")}>
