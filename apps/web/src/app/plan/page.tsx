@@ -10,7 +10,7 @@ import { SwapButton } from "@/components/swap";
 import { NearbyFinder } from "@/components/nearby";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
-import { chainName, cx, fmtServings, money, recipeHref } from "@/lib/format";
+import { chainName, cx, fmtServings, recipeHref } from "@/lib/format";
 import { useDays } from "@/lib/days";
 
 function Panel({ title, children, open: initial = false }: { title: string; children: ReactNode; open?: boolean }) {
@@ -162,7 +162,6 @@ export default function PlanPage() {
                 </div>
                 <p className="mt-2 text-xs text-muted">"Free" meals aren't prepped. Their calories are left open for eating out or cooking fresh. <Link href="/eat-out/" className="underline">Add takeout</Link> to any meal and the plan cooks around it.</p>
               </Card>
-              <p className="text-xs text-muted">Solved in {(plan.result.solveMs / 1000).toFixed(1)} s · {money(plan.result.cost)} total</p>
             </>
           )}
         </div>

@@ -6,7 +6,8 @@ import { ArrowLeft, Lock, LockOpen, Trash2 } from "lucide-react";
 import { ALLERGENS, CHAINS, DIETS, EQUIPMENT, formatAmount, INGREDIENTS, MOODS, RECIPES_BY_ID } from "@prep-cart/catalog";
 import { macroShares } from "@prep-cart/nutrition";
 import { buildPriceTable, hardRejection, servingCost } from "@prep-cart/planner";
-import { RecipeMeta, RecipeTile } from "@/components/plan-bits";
+import { RecipeMeta } from "@/components/plan-bits";
+import { RecipeArt } from "@/components/food";
 import { Card, SectionTitle, Stars, Stepper, Tag } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
@@ -31,9 +32,9 @@ export function RecipeDetail({ id }: { id: string }) {
   return (
     <article>
       <Link href="/recipes/" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"><ArrowLeft size={16} aria-hidden /> All recipes</Link>
-      <header className="mb-5 flex flex-wrap items-start gap-4">
-        <RecipeTile recipe={r} size={64} />
-        <div className="min-w-0 flex-1">
+      <RecipeArt recipe={r} className="mb-4 aspect-[16/9] w-full rounded-card sm:aspect-[5/2]" />
+      <header className="mb-5 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+        <div className="min-w-0">
           <div className="flex flex-wrap gap-1.5"><Tag>{r.mealType}</Tag>{r.moods.map((m) => <Tag key={m}>{MOODS[m]}</Tag>)}</div>
           <h1 className="mt-1 font-display text-[28px] font-bold leading-tight sm:text-[32px]">{r.name}</h1>
           <div className="mt-1"><RecipeMeta recipe={r} /></div>
@@ -46,7 +47,7 @@ export function RecipeDetail({ id }: { id: string }) {
           )}
         </div>
         {hydrated && (
-          <button className={locked ? "btn btn-primary" : "btn"} onClick={() => s.toggleLock(r.id)} aria-pressed={locked} disabled={!!rejected && !locked}>
+          <button className={locked ? "btn btn-primary w-full sm:w-auto" : "btn w-full sm:w-auto"} onClick={() => s.toggleLock(r.id)} aria-pressed={locked} disabled={!!rejected && !locked}>
             {locked ? <><Lock size={16} aria-hidden /> In every plan</> : <><LockOpen size={16} aria-hidden /> Add to my plan</>}
           </button>
         )}
