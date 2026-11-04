@@ -65,6 +65,10 @@ export interface AppState {
   current: SavedPlan | null;
   history: SavedPlan[];
   checked: Record<string, boolean>;
+  /** first day of the plan, 0 = Monday; prep day is the day before */
+  weekStart: number;
+  /** prep session start, HH:MM */
+  prepTime: string;
   /** takeout meals placed on the week */
   eatingOut: EatOut[];
   /** sales the person entered from a weekly ad or the shelf */
@@ -128,6 +132,8 @@ function initial(): Omit<AppState, keyof Actions> {
     history: [],
     checked: {},
     eatingOut: [],
+    weekStart: 0,
+    prepTime: "15:00",
     deals: [],
     priceHistory: {},
   };

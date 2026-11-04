@@ -7,9 +7,11 @@ import { BudgetBar, PlanMacros, PlanStatus, RecipeTile, SolvingNote, usePreppedT
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
-import { chainName, DAY_LONG, money } from "@/lib/format";
+import { chainName, money } from "@/lib/format";
+import { useDays } from "@/lib/days";
 
 export default function Home() {
+  const { DAY_LONG, weekStart } = useDays();
   const hydrated = useHydrated();
   const { plan, status } = usePlanner();
   const checked = useApp((s) => s.checked);
@@ -28,7 +30,7 @@ export default function Home() {
     );
   }
   const r = plan.result;
-  const today = (new Date().getDay() + 6) % 7; // Monday = 0
+  const today = ((new Date().getDay() + 6) % 7 - weekStart + 7) % 7; // plan day for today
   const dayIdx = Math.min(today, plan.days - 1);
   const day = plan.schedule.days[dayIdx];
   const bought = r.cart.filter((l) => checked[`${l.chain}:${l.ingredientId}`]).length;
