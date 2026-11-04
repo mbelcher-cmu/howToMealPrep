@@ -87,9 +87,9 @@ export function Stepper({ label, value, onChange, min, max, format }: { label: s
     <div className="grid gap-1">
       <span id={id} className="text-[13px] text-muted">{label}</span>
       <div role="group" aria-labelledby={id} className="flex items-center overflow-hidden rounded-lg border border-line bg-bg">
-        <button type="button" className="h-10 w-11 text-lg font-semibold hover:bg-sunk disabled:opacity-40" onClick={() => onChange(Math.max(min, value - 1))} disabled={value <= min} aria-label={`Fewer ${label.toLowerCase()}`}>−</button>
+        <button type="button" className="press h-10 w-11 text-lg font-semibold hover:bg-sunk active:bg-sunk disabled:opacity-40" onClick={() => onChange(Math.max(min, value - 1))} disabled={value <= min} aria-label={`Fewer ${label.toLowerCase()}`}>−</button>
         <output className="num flex-1 text-center font-semibold" aria-live="polite">{format ? format(value) : value}</output>
-        <button type="button" className="h-10 w-11 text-lg font-semibold hover:bg-sunk disabled:opacity-40" onClick={() => onChange(Math.min(max, value + 1))} disabled={value >= max} aria-label={`More ${label.toLowerCase()}`}>+</button>
+        <button type="button" className="press h-10 w-11 text-lg font-semibold hover:bg-sunk active:bg-sunk disabled:opacity-40" onClick={() => onChange(Math.min(max, value + 1))} disabled={value >= max} aria-label={`More ${label.toLowerCase()}`}>+</button>
       </div>
     </div>
   );
@@ -106,7 +106,7 @@ export function Segmented<T extends string>({ label, value, options, onChange, s
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
           className={cx(
-            "px-2 text-center transition-colors",
+            "px-2 text-center transition-colors active:bg-sunk",
             size === "sm" ? "min-h-[34px] text-[13px]" : "min-h-[40px] text-sm",
             i > 0 && "border-l border-line",
             value === o.value ? "bg-accent-soft font-semibold text-ink" : "bg-bg text-muted hover:bg-sunk",
@@ -127,7 +127,7 @@ export function Chip({ selected, onClick, children, tone = "accent", title }: { 
       title={title}
       onClick={onClick}
       className={cx(
-        "min-h-[36px] shrink-0 whitespace-nowrap rounded-full border px-3.5 text-[13px] transition-colors",
+        "press min-h-[36px] shrink-0 whitespace-nowrap rounded-full border px-3.5 text-[13px]",
         selected ? (tone === "warn" ? "border-warn bg-warn-soft font-semibold text-warn" : "border-accent bg-accent font-semibold text-accent-ink") : "border-line bg-surface text-ink hover:bg-sunk",
       )}
     >
@@ -146,7 +146,7 @@ export function WishChip({ label, wish, onChange }: { label: string; wish: "must
       onClick={() => onChange(next[String(wish) as keyof typeof next] as never)}
       aria-label={`${label}: ${text ?? "no preference"}. Tap to change.`}
       className={cx(
-        "inline-flex min-h-[34px] items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors",
+        "press inline-flex min-h-[34px] items-center gap-1.5 rounded-full border px-3 text-[13px]",
         wish === "must" && "border-accent bg-accent font-semibold text-accent-ink",
         wish === "nice" && "border-accent bg-accent-soft font-semibold text-ink",
         wish === "avoid" && "border-warn bg-warn-soft text-warn line-through decoration-1",

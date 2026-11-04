@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeftRight, Sparkles } from "lucide-react";
 import { RECIPES_BY_ID } from "@prep-cart/catalog";
 import { useApp } from "@/lib/store";
@@ -12,6 +12,16 @@ import { MacroChips } from "./food";
 export function SwapButton({ recipeId }: { recipeId: string }) {
   const s = useApp();
   const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // close on Escape or a tap anywhere outside, like every other popover
+    if (!open) return;
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const down = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("keydown", key);
+    document.addEventListener("pointerdown", down);
+    return () => { document.removeEventListener("keydown", key); document.removeEventListener("pointerdown", down); };
+  }, [open]);
   const r = RECIPES_BY_ID[recipeId];
   if (!r) return null;
   if (!s.plusPreview) {
@@ -24,10 +34,10 @@ export function SwapButton({ recipeId }: { recipeId: string }) {
     setOpen(false);
   };
   return (
-    <div className="relative">
+    <div ref={box} className="relative">
       <button className="btn btn-sm" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`Swap ${r.name}`}><ArrowLeftRight size={14} aria-hidden /><span className="hidden sm:inline">Swap</span></button>
       {open && (
-        <div role="dialog" aria-label={`Swaps for ${r.name}`} className="card absolute right-0 top-full z-30 mt-1 grid w-[300px] gap-2 p-3 shadow-lg">
+        <div role="dialog" aria-label={`Swaps for ${r.name}`} className="card pop absolute right-0 top-full z-30 mt-1 grid w-[min(300px,calc(100vw-2rem))] gap-2 p-3 shadow-lg">
           <p className="label">Similar macros</p>
           {options.length === 0 && <p className="text-sm text-muted">No other recipe fits your rules for this meal.</p>}
           {options.map((o) => (
