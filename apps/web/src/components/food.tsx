@@ -57,7 +57,7 @@ export function RecipeCard({ recipe, portion = 1, eyebrow, footer, wide }: { rec
       <RecipeArt recipe={recipe} className="aspect-[4/3] w-full" />
       <div className="flex flex-1 flex-col gap-1.5 p-3">
         {eyebrow && <p className="label">{eyebrow}</p>}
-        <h3 className="font-display text-[16px] font-bold leading-snug">
+        <h3 className="line-clamp-2 font-display text-[16px] font-bold leading-snug" title={recipe.name}>
           <Link href={recipeHref(recipe.id)} className="after:absolute after:inset-0 hover:underline">{recipe.name}</Link>
         </h3>
         <MacroChips recipe={recipe} portion={portion} />

@@ -15,6 +15,8 @@ export const fmtServings = (n: number) => {
   const s = fmtQty(n);
   return `${s} serving${s === "1" ? "" : "s"}`;
 };
+/** "1 item", "3 items". Pass the plural when it isn't just an added s. */
+export const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 export function cx(...parts: (string | false | null | undefined)[]) {
   return parts.filter(Boolean).join(" ");
 }
