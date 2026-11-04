@@ -1,6 +1,6 @@
 # Accounts and keys
 
-Everything here is free. Values marked **variable** are public by design and go in
+Everything here is free. Public keys we already have are written into `pages.yml` as defaults, so a variable is only needed to change them. Values marked **variable** are public by design and go in
 GitHub: Settings → Secrets and variables → Actions → **Variables**. Values marked
 **secret** go in the **Secrets** tab and are never shown in the browser.
 
