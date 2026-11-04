@@ -106,11 +106,11 @@ export function FitnessSync() {
         <h3 className="flex items-center gap-2 font-semibold"><Activity size={16} aria-hidden /> Fitbit</h3>
         {FITBIT_CLIENT_ID ? (
           <>
-            <p className="text-sm text-muted">Reads your last two weeks of calories burned. Prep Cart only asks to read activity and weight.</p>
+            <p className="text-sm text-muted">Reads your last two weeks of calories burned. MacroAisle only asks to read activity and weight.</p>
             <div><button className="btn" onClick={() => void startFitbit()} disabled={busy}><Link2 size={16} aria-hidden /> Connect Fitbit</button></div>
           </>
         ) : (
-          <p className="text-sm text-muted">Coming soon. Fitbit needs a free developer app registered for Prep Cart before it can connect.</p>
+          <p className="text-sm text-muted">Coming soon. Fitbit needs a free developer app registered for MacroAisle before it can connect.</p>
         )}
       </div>
 

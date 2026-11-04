@@ -153,7 +153,7 @@ export default function Welcome() {
   return (
     <div className="mx-auto grid min-h-dvh w-full max-w-[640px] grid-rows-[auto_1fr_auto] px-4 pb-6 pt-6 sm:px-6">
       <header>
-        <div className="font-display text-xl font-bold">Prep <span className="text-accent">Cart</span></div>
+        <div className="font-display text-xl font-bold">Macro<span className="text-accent">Aisle</span></div>
         <ol className="mt-4 flex gap-1.5" aria-label="Setup progress">
           {TITLES.map((st, n) => (
             <li key={st.title} className={cx("h-1.5 flex-1 rounded-full", n <= i ? "bg-accent" : "bg-line")} aria-current={n === i ? "step" : undefined}>

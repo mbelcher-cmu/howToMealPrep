@@ -1,4 +1,4 @@
-/* Prep Cart offline support: pages are network-first with a cached fallback, build assets are cache-first. */
+/* MacroAisle offline support: pages are network-first with a cached fallback, build assets are cache-first. */
 const scope = self.registration.scope;
 // one cache per scope, so the staging build under /staging/ never clears production's cache
 const CACHE = "prep-cart-v1:" + scope;

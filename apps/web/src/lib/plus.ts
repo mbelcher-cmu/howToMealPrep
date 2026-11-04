@@ -2,7 +2,7 @@ import { RECIPES, type Recipe } from "@prep-cart/catalog";
 import { hardRejection, type Preferences } from "@prep-cart/planner";
 
 /**
- * Prep Cart Plus, the planned paid tier. Nothing is charged yet: the person can preview Plus on their
+ * MacroAisle Plus, the planned paid tier. Nothing is charged yet: the person can preview Plus on their
  * own device. Each feature says what it runs on today and what it needs before it can launch for real.
  */
 export interface PlusFeature { id: string; title: string; body: string; today: string; needs: string }
