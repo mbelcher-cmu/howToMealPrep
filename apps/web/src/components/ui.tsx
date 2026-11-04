@@ -2,8 +2,8 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { cx } from "@/lib/format";
 
-export function Card({ children, className, as: As = "section" }: { children: ReactNode; className?: string; as?: "section" | "div" | "article" }) {
-  return <As className={cx("card p-4 sm:p-5", className)}>{children}</As>;
+export function Card({ children, className, id, as: As = "section" }: { children: ReactNode; className?: string; id?: string; as?: "section" | "div" | "article" }) {
+  return <As id={id} className={cx("card p-4 sm:p-5", className)}>{children}</As>;
 }
 
 export function PageHeader({ title, lead, action }: { title: string; lead?: ReactNode; action?: ReactNode }) {
