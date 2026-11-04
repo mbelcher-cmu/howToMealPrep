@@ -2,8 +2,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
-import { BookOpen, CalendarDays, ChefHat, Home, Package, Settings, ShoppingCart, Loader2, Sparkles, UtensilsCrossed } from "lucide-react";
-import { useApp } from "@/lib/store";
+import { BookOpen, CalendarDays, ChefHat, Home, Package, Settings, ShoppingCart, Loader2, Menu, Sparkles, UtensilsCrossed } from "lucide-react";
+import { shoppedShare, useApp } from "@/lib/store";
 import { useHydrated, usePlanner, usePlannerSync } from "@/lib/use-planner";
 import { cx } from "@/lib/format";
 
@@ -11,14 +11,14 @@ const NAV = [
   { href: "/", label: "Home", icon: Home, primary: true },
   { href: "/plan/", label: "Plan", icon: CalendarDays, primary: true },
   { href: "/groceries/", label: "Groceries", icon: ShoppingCart, primary: true },
-  { href: "/prep/", label: "Prep day", icon: ChefHat, primary: false },
-  { href: "/eat-out/", label: "Eat out", icon: UtensilsCrossed, primary: false },
-  { href: "/preps/", label: "Meal preps", icon: Sparkles, primary: false },
-  { href: "/recipes/", label: "Recipes", icon: BookOpen, primary: true },
+  { href: "/prep/", label: "Prep", icon: ChefHat, primary: true },
+  { href: "/recipes/", label: "Recipes", icon: BookOpen, primary: false },
   { href: "/pantry/", label: "Pantry", icon: Package, primary: false },
-  { href: "/plus/", label: "Plus", icon: Sparkles, primary: false },
-  { href: "/settings/", label: "Settings", icon: Settings, primary: true },
+  { href: "/eat-out/", label: "Eat out", icon: UtensilsCrossed, primary: false },
+  { href: "/settings/", label: "Settings", icon: Settings, primary: false },
 ];
+/** Pages reached from the phone's More tab. */
+export const MORE = [...NAV.filter((n) => !n.primary), { href: "/preps/", label: "Meal preps", icon: Sparkles, primary: false }, { href: "/plus/", label: "Prep Cart Plus", icon: Sparkles, primary: false }];
 
 function active(path: string, href: string) {
   if (href === "/") return path === "/";
@@ -40,6 +40,19 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) return;
     navigator.serviceWorker.register(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/sw.js`).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    // a plan whose days are over and that was mostly shopped: its leftovers go to the pantry without a tap
+    if (!hydrated) return;
+    const st = useApp.getState();
+    const cur = st.current;
+    if (!cur) return;
+    const ended = Date.now() - new Date(cur.createdAt).getTime() > cur.days * 86400000;
+    if (!ended) return;
+    if (st.shoppedPlanId !== cur.id && shoppedShare(st) >= 0.5) st.finishShopping();
+    // the week is over: next week's plan uses what's left in the pantry
+    if (useApp.getState().pantryForPlan) st.planNextWeek();
+  }, [hydrated]);
 
   useEffect(() => {
     if (hydrated && !onboarded && !isOnboarding) router.replace("/welcome/");
@@ -79,12 +92,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Phone tab bar */}
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface md:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
-        {NAV.filter((n) => n.primary).map(({ href, label, icon: Icon }) => (
-          <Link key={href} href={href} aria-current={active(path, href) ? "page" : undefined}
-            className={cx("flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium", active(path, href) ? "text-accent" : "text-muted")}>
-            <Icon size={20} aria-hidden /> {label}
-          </Link>
-        ))}
+        {[...NAV.filter((n) => n.primary), { href: "/more/", label: "More", icon: Menu, primary: true }].map(({ href, label, icon: Icon }) => {
+          const on = href === "/more/" ? active(path, href) || MORE.some((m) => active(path, m.href)) : active(path, href);
+          return (
+            <Link key={href} href={href} aria-current={on ? "page" : undefined}
+              className={cx("flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium", on ? "text-accent" : "text-muted")}>
+              <Icon size={20} aria-hidden /> {label}
+            </Link>
+          );
+        })}
       </nav>
     </div>
   );

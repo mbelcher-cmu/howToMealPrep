@@ -3,10 +3,11 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { ChevronDown, Lock, LockOpen, Shuffle, X } from "lucide-react";
 import { MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
-import { BudgetEditor, MealStructureEditor, MoodEditor, StoresEditor, TargetsEditor } from "@/components/editors";
+import { BudgetEditor, MealStructureEditor, MoodEditor, RulesEditor, StoresEditor, TargetsEditor } from "@/components/editors";
 import { BudgetBar, LockedTag, PerServing, PlanMacros, PlanStatus, RecipeMeta, RecipeTile, SolvingNote } from "@/components/plan-bits";
 import { Card, EmptyState, PageHeader, SectionTitle, Tag } from "@/components/ui";
 import { SwapButton } from "@/components/swap";
+import { NearbyFinder } from "@/components/nearby";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { chainName, cx, fmtServings, money, recipeHref } from "@/lib/format";
@@ -38,16 +39,17 @@ export default function PlanPage() {
     <>
       <PageHeader title="Plan" lead="Every change re-plans on its own. Lock recipes you want to keep, skip the ones you don't." action={<SolvingNote />} />
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
-        <div className="grid min-w-0 grid-cols-1 content-start gap-3">
-          <Panel title="Calories and macros" open><TargetsEditor showSuggest /></Panel>
-          <Panel title="Meals and snacks"><MealStructureEditor /></Panel>
+        <div className="order-2 grid min-w-0 grid-cols-1 content-start gap-3 lg:order-1">
+          <h2 className="px-1 font-display text-lg font-bold lg:sr-only">Change your week</h2>
+          <Panel title="Calories and macros"><TargetsEditor showSuggest /></Panel>
+          <Panel title="Meals and rotation"><MealStructureEditor /></Panel>
           <Panel title="Budget and days"><BudgetEditor /></Panel>
           <Panel title="In the mood for"><MoodEditor /></Panel>
-          <Panel title="Stores"><StoresEditor /></Panel>
-          <p className="px-1 text-xs text-muted">Diet, allergies and dislikes are in <Link href="/settings/" className="underline">Settings</Link>.</p>
+          <Panel title="Diet, allergies and dislikes"><RulesEditor /></Panel>
+          <Panel title="Stores"><div className="grid gap-5"><NearbyFinder /><div className="border-t border-line pt-4"><StoresEditor /></div></div></Panel>
         </div>
 
-        <div className="grid min-w-0 grid-cols-1 content-start gap-4">
+        <div className="order-1 grid min-w-0 grid-cols-1 content-start gap-4 lg:order-2">
           <PlanStatus />
           {!plan ? (
             <EmptyState title={status === "solving" ? "Building your plan" : "No plan yet"}>{status === "solving" ? "This takes a few seconds." : "Change any setting to build one."}</EmptyState>
@@ -96,7 +98,7 @@ export default function PlanPage() {
                             </div>
                             <Link href={recipeHref(p.recipe.id)} className="mt-0.5 block font-semibold hover:underline">{p.recipe.name}</Link>
                             <div className="text-sm">
-                              {p.meals} meal{p.meals === 1 ? "" : "s"} · cook {fmtServings(p.servings)} · {fmtServings(p.portion)} {(plan.result.household?.members.length ?? 0) > 0 ? "a meal for you" : "each"} · <PerServing recipe={p.recipe} portion={p.portion} />
+                              {p.meals} meal{p.meals === 1 ? "" : "s"} · {fmtServings(p.portion)} {(plan.result.household?.members.length ?? 0) > 0 ? "a meal for you" : "each"} · <PerServing recipe={p.recipe} portion={p.portion} />
                             </div>
                             <RecipeMeta recipe={p.recipe} />
                             {p.reasons.length > 0 && <p className="mt-1 text-xs text-muted">Why: {p.reasons.join(" · ")}</p>}

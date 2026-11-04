@@ -66,6 +66,10 @@ export interface AppState {
   nearby: NearbyStore[];
   locked: string[];
   current: SavedPlan | null;
+  /** id of the plan whose leftovers already went to the pantry */
+  shoppedPlanId: string | null;
+  /** the pantry this week's plan was built from; set after shopping so the leftovers wait for next week's plan */
+  pantryForPlan: PantryRow[] | null;
   history: SavedPlan[];
   checked: Record<string, boolean>;
   /** last energy reading synced from a fitness app */
@@ -112,13 +116,15 @@ export interface AppState {
   savePlan: (plan: SavedPlan) => void;
   toggleChecked: (key: string) => void;
   finishShopping: () => void;
+  /** start next week: the planner now counts the leftovers in the pantry */
+  planNextWeek: () => void;
   setTakeout: (day: number, occasionId: string, itemId: string | null) => void;
   addDeal: (d: Deal) => void;
   removeDeal: (id: string) => void;
   reset: () => void;
 }
 
-const DEFAULT_PROFILE: Profile = { sex: "male", ageYears: 30, heightCm: 178, weightKg: 82, activity: "moderate", goal: "maintain", units: "us", zip: "15213" };
+const DEFAULT_PROFILE: Profile = { sex: "male", ageYears: 30, heightCm: 178, weightKg: 82, activity: "moderate", goal: "maintain", units: "us", zip: "" };
 
 export const DEFAULT_PREFS: Preferences = {
   diets: [], allergens: [], dislikes: [], missingEquipment: [],
@@ -144,6 +150,8 @@ function initial(): Omit<AppState, keyof Actions> {
     nearby: [],
     locked: [],
     current: null,
+    shoppedPlanId: null,
+    pantryForPlan: null,
     history: [],
     checked: {},
     eatingOut: [],
@@ -159,7 +167,7 @@ function initial(): Omit<AppState, keyof Actions> {
     priceHistory: {},
   };
 }
-type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "toggleMacroLock" | "setOccasionMacros" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "setWish" | "toggleLock" | "setPantryAmount" | "addToPantry" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "setTakeout" | "addDeal" | "removeDeal" | "reset">;
+type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "toggleMacroLock" | "setOccasionMacros" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "setWish" | "toggleLock" | "setPantryAmount" | "addToPantry" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "planNextWeek" | "setTakeout" | "addDeal" | "removeDeal" | "reset">;
 
 const storage: StateStorage = {
   getItem: (k) => safeStorage.getItem(k),
@@ -225,9 +233,9 @@ export const useApp = create<AppState>()(
       setPantryAmount: (id, grams, useBy) => {
         const old = get().pantry.find((p) => p.ingredientId === id);
         const rest = get().pantry.filter((p) => p.ingredientId !== id);
-        if (grams == null || grams <= 0) { set({ pantry: rest }); return; }
+        if (grams == null || grams <= 0) { set({ pantry: rest, pantryForPlan: null }); return; }
         const keep = useBy === undefined ? (old?.useBy ?? (grams === Infinity ? undefined : defaultUseBy(id))) : useBy ?? undefined;
-        set({ pantry: [...rest, { ingredientId: id, grams, ...(keep && grams !== Infinity ? { useBy: keep } : {}) }] });
+        set({ pantry: [...rest, { ingredientId: id, grams, ...(keep && grams !== Infinity ? { useBy: keep } : {}) }], pantryForPlan: null });
       },
       addToPantry: (id, grams) => {
         const old = get().pantry.find((p) => p.ingredientId === id);
@@ -244,12 +252,17 @@ export const useApp = create<AppState>()(
         if (typeof price === "number") history[id] = [...(history[id] ?? []), { chain, price, on: isoDay(), source: "manual" as const }].slice(-30);
         set({ priceOverrides: o, priceHistory: history });
       },
-      savePlan: (plan) => set({ current: plan, history: [plan, ...get().history.filter((h) => h.id !== plan.id)].slice(0, 20), checked: {} }),
+      savePlan: (plan) => {
+        // a new plan replacing one that was mostly shopped: the food is already home, so its leftovers go to the pantry first
+        const cur = get().current;
+        if (cur && cur.id !== plan.id && shoppedShare(get()) >= 0.5) get().finishShopping();
+        set({ current: plan, history: [plan, ...get().history.filter((h) => h.id !== plan.id)].slice(0, 20), checked: {} });
+      },
       toggleChecked: (key) => set({ checked: { ...get().checked, [key]: !get().checked[key] } }),
       finishShopping: () => {
         // leftovers from the packages bought go into the pantry for next week
         const cur = get().current;
-        if (!cur) return;
+        if (!cur || get().shoppedPlanId === cur.id) return;
         const pantry = new Map(get().pantry.map((p) => [p.ingredientId, p.grams]));
         const useBy = new Map(get().pantry.map((p) => [p.ingredientId, p.useBy]));
         for (const u of cur.result.pantryUsed) {
@@ -266,9 +279,12 @@ export const useApp = create<AppState>()(
             const u = useBy.get(ingredientId);
             return grams !== Infinity && u ? { ingredientId, grams, useBy: u } : { ingredientId, grams };
           }),
-          checked: {},
+          shoppedPlanId: cur.id,
+          // keep this week's plan as it is; the leftovers count from next week's plan on
+          pantryForPlan: get().pantryForPlan ?? get().pantry,
         });
       },
+      planNextWeek: () => set({ pantryForPlan: null }),
       setTakeout: (day, occasionId, itemId) => {
         const rest = get().eatingOut.filter((e) => !(e.day === day && e.occasionId === occasionId));
         set({ eatingOut: itemId ? [...rest, { day, occasionId, itemId }] : rest });
@@ -290,6 +306,13 @@ export const useApp = create<AppState>()(
     },
   ),
 );
+
+/** Share of the current plan's grocery lines ticked off as in the cart. */
+export function shoppedShare(s: Pick<AppState, "current" | "checked">): number {
+  const cart = s.current?.result.cart ?? [];
+  if (!cart.length) return 0;
+  return cart.filter((l) => s.checked[`${l.chain}:${l.ingredientId}`]).length / cart.length;
+}
 
 /** Weekly budget scaled to the planned days. */
 export function periodBudget(s: Pick<AppState, "budget" | "days">): number {

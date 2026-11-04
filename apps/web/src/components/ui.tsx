@@ -199,7 +199,7 @@ export function MacroMeter({ label, actual, target, unit, color }: { label: stri
       </div>
       <div className="text-xs text-muted">
         target {Math.round(target).toLocaleString()}{unit}
-        {Math.abs(off) >= 0.01 && <span className={cx("ml-1", Math.abs(off) > 0.1 ? "text-warn" : "")}>({off > 0 ? "+" : ""}{Math.round(off * 100)}%)</span>}
+        {Math.abs(off) >= 0.01 && <span className={cx("ml-1", (label === "Protein" ? off < -0.1 : Math.abs(off) > 0.15) ? "text-warn" : "")}>({off > 0 ? "+" : ""}{Math.round(off * 100)}%)</span>}
       </div>
       <div className="relative mt-1.5 h-1.5 rounded-full bg-sunk" role="img" aria-label={`${label} ${Math.round(actual)} of ${Math.round(target)} ${unit}`}>
         <div className="h-full rounded-full transition-[width]" style={{ width: `${(actual / max) * 100}%`, background: color }} />

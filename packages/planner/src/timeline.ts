@@ -47,8 +47,10 @@ export function prepTimeline(batches: Batch[]): Timeline {
 }
 
 const batchWord = (it: { recipe: Recipe; servings: number }) => {
-  const scale = Math.round((it.servings / it.recipe.servings) * 100) / 100;
-  return scale === 1 ? "as written" : `${scale}× batch`;
+  const scale = Math.round((it.servings / it.recipe.servings) * 4) / 4;
+  const whole = Math.floor(scale);
+  const frac = ["", "\u00bc", "\u00bd", "\u00be"][Math.round((scale - whole) * 4)]!;
+  return scale === 1 ? "as written" : `${whole === 0 && frac ? frac : `${whole}${frac}`}× batch`;
 };
 
 /** Containers needed for a whole plan, split by fridge and freezer. */

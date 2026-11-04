@@ -27,6 +27,8 @@ export interface Variety {
   breakfast: number;
   main: number;
   snack: number;
+  /** how lunch and dinner recipes spread over the days: mixed through the week, or one block then the next */
+  rotation?: "mix" | "blocks";
 }
 
 export interface PriceQuote {

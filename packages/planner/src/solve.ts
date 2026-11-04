@@ -178,7 +178,28 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
       // preference fit is a reward for choosing the recipe
       m.addObjective(`y_${a.key}`, -1.0 * a.fit);
       // food safety: recipes that don't keep the whole period and can't be frozen are less attractive
-      if (a.r.fridgeDays < days && !a.r.freezerFriendly) m.addObjective(`y_${a.key}`, 1.5 * (days - a.r.fridgeDays));
+      // (in blocks, a lunch-and-dinner recipe only has to last its own block, since it's cooked fresh for it)
+      const horizon = slot === "main" && req.variety.rotation === "blocks" ? Math.ceil(days / variety.main) + 1 : days;
+      if (a.r.fridgeDays < horizon && !a.r.freezerFriendly) m.addObjective(`y_${a.key}`, 1.5 * (horizon - a.r.fridgeDays));
+    }
+    if (slot === "main" && variety.main >= 2) {
+      // every chosen main gets a fair share of the meals (blocks: an even split), so no recipe is a 2-meal afterthought
+      const minN = req.variety.rotation === "blocks" ? Math.floor(N / variety.main) : Math.ceil(N / (2 * variety.main));
+      for (const a of members) m.addRow([[1, `n_${a.key}`], [-minN, `y_${a.key}`]], ">=", 0);
+      // and they differ in main protein when the pool allows it (two lentil dishes is not variety)
+      const groups = new Map<string, typeof members>();
+      for (const a of members) { const k = a.r.proteins[0] ?? a.r.id; groups.set(k, [...(groups.get(k) ?? []), a]); }
+      // a soft rule: worth about a recipe's preference fit, so a tight budget can still pick two cheap lentil dishes
+      if (groups.size >= variety.main) {
+        let gi = 0;
+        for (const g of groups.values()) {
+          if (g.length < 2) continue;
+          const e = `dup_${gi++}`;
+          m.bound(e, 0, g.length);
+          m.addRow([...g.map((a): [number, string] => [1, `y_${a.key}`]), [-1, e]], "<=", 1);
+          m.addObjective(e, 2);
+        }
+      }
     }
     // calories per slot type (keeps breakfast breakfast-sized)
     const tk = slotKcal[slot] * days - replacedSlot[slot].kcal;
@@ -291,10 +312,12 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
     if (!n) continue;
     const servings = q / 4;
     const cook = Math.round(servings * factor * 4) / 4;
+    const portion = Math.round((servings / n) * 100) / 100;
     const reasons = [...a.reasons];
-    reasons.push(`${Math.round(a.r.perServing.protein)} g protein a serving`);
-    reasons.push(`about $${a.cost.toFixed(2)} a serving`);
-    recipes.push({ recipe: a.r, slot: a.slot, meals: n, servings: cook, portion: Math.round((servings / n) * 100) / 100, reasons });
+    // per meal as you eat it (your portion), matching the numbers shown next to it
+    reasons.push(`${Math.round(a.r.perServing.protein * portion)} g protein a meal`);
+    reasons.push(`about $${(a.cost * portion).toFixed(2)} a meal`);
+    recipes.push({ recipe: a.r, slot: a.slot, meals: n, servings: cook, portion, reasons });
   }
   const daily: DayNutrition = { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sodiumMg: 0 };
   // nutrition is the main person's share of what's cooked

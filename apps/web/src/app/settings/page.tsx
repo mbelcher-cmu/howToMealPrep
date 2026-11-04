@@ -1,10 +1,10 @@
 "use client";
+import Link from "next/link";
 import { useRef, useState, type ReactNode } from "react";
 import { Download, RotateCcw, Upload } from "lucide-react";
-import { BodyStatsEditor, MealStructureEditor, MoodEditor, RulesEditor, StoresEditor, TargetsEditor } from "@/components/editors";
+import { BodyStatsEditor } from "@/components/editors";
 import { FitnessSync } from "@/components/fitness";
 import { HouseholdEditor } from "@/components/household";
-import { NearbyFinder } from "@/components/nearby";
 import { Card, PageHeader, Segmented, SectionTitle } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
@@ -48,7 +48,7 @@ export default function Settings() {
     <>
       <PageHeader title="Settings" lead="Everything here is saved on this device only." />
       <nav aria-label="Settings sections" className="mb-4 flex flex-wrap gap-2 text-sm">
-        {[["you", "You"], ["household", "Household"], ["targets", "Targets"], ["meals", "Meals"], ["rules", "Food rules"], ["moods", "Moods"], ["stores", "Stores"], ["fitness", "Fitness apps"], ["data", "Data"]].map(([id, label]) => (
+        {[["you", "You"], ["household", "Household"], ["fitness", "Fitness apps"], ["plus", "Prep Cart Plus"], ["data", "Data"]].map(([id, label]) => (
           <a key={id} href={`#${id}`} className="rounded-full border border-line bg-surface px-3 py-1 hover:bg-sunk">{label}</a>
         ))}
       </nav>
@@ -73,19 +73,14 @@ export default function Settings() {
         <Section id="household" title="Household" lead="Cook once for everyone. Each person gets portions sized to their own calories.">
           <HouseholdEditor />
         </Section>
-        <Section id="targets" title="Calories and macros"><TargetsEditor /></Section>
-        <Section id="meals" title="Meals and snacks"><MealStructureEditor /></Section>
-        <Section id="rules" title="Food rules" lead="The planner never breaks these."><RulesEditor /></Section>
-        <Section id="moods" title="In the mood for"><MoodEditor /></Section>
-        <Section id="stores" title="Stores">
-          <StoresEditor />
-          <div className="mt-5 border-t border-line pt-4">
-            <h3 className="label mb-2">Stores near me</h3>
-            <NearbyFinder />
-          </div>
-        </Section>
+        <Card>
+          <p className="text-sm">Calories, meals, diet, moods and stores are on the <Link href="/plan/" className="font-semibold text-accent underline">Plan page</Link>, next to the plan they change.</p>
+        </Card>
         <Section id="fitness" title="Fitness apps" lead="Use what your watch or tracker measured instead of an estimate.">
           <FitnessSync />
+        </Section>
+        <Section id="plus" title="Prep Cart Plus" lead="Smart swaps and more, coming later.">
+          <Link href="/plus/" className="btn">See what's in Plus</Link>
         </Section>
         <Section id="data" title="Your data" lead="There's no account yet. Back up your settings and plans to a file to move them to another device.">
           <div className="flex flex-wrap gap-2">

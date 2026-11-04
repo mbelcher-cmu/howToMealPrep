@@ -2,52 +2,176 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { ALLERGENS, DIETS, type Allergen, type Diet } from "@prep-cart/catalog";
+import { ACTIVITY_LEVELS, feetInchesToCm, lbToKg, suggestTargets, type ActivityLevel, type Goal } from "@prep-cart/nutrition";
 import { NearbyFinder } from "@/components/nearby";
-import { BodyStatsEditor, BudgetEditor, MealStructureEditor, MoodEditor, RulesEditor, StoresEditor, TargetsEditor } from "@/components/editors";
+import { BudgetEditor, RotationPicker, StoresEditor } from "@/components/editors";
+import { Chip, Segmented, Stepper } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { cx } from "@/lib/format";
 
-const STEPS = [
-  { title: "About you", lead: "We use this to estimate how much energy you burn. It stays on this device.", body: <BodyStatsEditor /> },
-  { title: "Calories and macros", lead: "Start from the suggestion or set your own numbers. Changing a macro keeps your calories in step.", body: <TargetsEditor /> },
-  { title: "Meals and snacks", lead: "How many times you eat a day, and which of those come from your meal prep.", body: <MealStructureEditor /> },
-  { title: "Food rules", lead: "Hard rules. The planner never breaks these.", body: <RulesEditor /> },
-  { title: "What you're in the mood for", lead: "Soft preferences that steer this week's recipes. You can change them every week.", body: <MoodEditor /> },
-  { title: "Budget", lead: "How much you want to spend on groceries.", body: <BudgetEditor /> },
-  { title: "Stores near you", lead: "Enter your ZIP code to find grocery stores around you. Prices are estimates until you correct them.", body: <div className="grid gap-5"><NearbyFinder /><div className="border-t border-line pt-4"><StoresEditor /></div></div> },
+type Draft = { sex: "male" | "female" | null; age: string; ft: string; inch: string; cm: string; lb: string; kg: string; activity: ActivityLevel | ""; goal: Goal | null };
+
+/** Reads the draft into body stats, or null while something is missing or out of range. */
+function statsOf(d: Draft, us: boolean) {
+  const n = (x: string) => (x.trim() === "" ? NaN : Number(x));
+  const age = n(d.age);
+  const heightCm = us ? feetInchesToCm(n(d.ft), d.inch.trim() === "" ? 0 : n(d.inch)) : n(d.cm);
+  const weightKg = us ? lbToKg(n(d.lb)) : n(d.kg);
+  if (!d.sex || !d.activity || !d.goal) return null;
+  if (!(age >= 13 && age <= 100) || !(heightCm >= 120 && heightCm <= 230) || !(weightKg >= 30 && weightKg <= 300)) return null;
+  return { sex: d.sex, ageYears: age, heightCm: Math.round(heightCm), weightKg: Math.round(weightKg * 10) / 10, activity: d.activity, goal: d.goal };
+}
+
+function Field({ label, value, onChange, suffix, id }: { label: string; value: string; onChange: (v: string) => void; suffix: string; id: string }) {
+  return (
+    <div className="grid min-w-0 gap-1">
+      <label htmlFor={id} className="text-[13px] text-muted">{label}</label>
+      <div className="relative flex items-center">
+        <input id={id} inputMode="decimal" className="input num pr-9" value={value} onChange={(e) => onChange(e.target.value.replace(/[^\d.]/g, ""))} />
+        <span className="pointer-events-none absolute right-3 text-sm text-muted">{suffix}</span>
+      </div>
+    </div>
+  );
+}
+
+function AboutYou({ d, setD }: { d: Draft; setD: (d: Draft) => void }) {
+  const s = useApp();
+  const us = s.profile.units === "us";
+  const stats = statsOf(d, us);
+  let kcal: number | null = null;
+  let protein = 0;
+  if (stats) try { const r = suggestTargets({ stats, activity: stats.activity, goal: stats.goal }); kcal = r.targets.kcal; protein = r.targets.protein; } catch { kcal = null; }
+  const up = (p: Partial<Draft>) => setD({ ...d, ...p });
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-1">
+        <span className="text-[13px] text-muted">Goal</span>
+        <Segmented label="Goal" value={d.goal ?? ("" as Goal)} onChange={(goal: Goal) => up({ goal })} options={[{ value: "lose", label: "Lose fat" }, { value: "maintain", label: "Maintain" }, { value: "gain", label: "Build muscle" }]} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-1">
+          <span className="text-[13px] text-muted">Sex (for the calorie formula)</span>
+          <Segmented label="Sex" value={d.sex ?? ("" as "male")} onChange={(sex) => up({ sex })} options={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }]} />
+        </div>
+        <Field id="age" label="Age" value={d.age} onChange={(age) => up({ age })} suffix="yr" />
+      </div>
+      {us ? (
+        <div className="grid grid-cols-3 gap-3">
+          <Field id="ft" label="Height" value={d.ft} onChange={(ft) => up({ ft })} suffix="ft" />
+          <Field id="in" label="Inches" value={d.inch} onChange={(inch) => up({ inch })} suffix="in" />
+          <Field id="lb" label="Weight" value={d.lb} onChange={(lb) => up({ lb })} suffix="lb" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <Field id="cm" label="Height" value={d.cm} onChange={(cm) => up({ cm })} suffix="cm" />
+          <Field id="kg" label="Weight" value={d.kg} onChange={(kg) => up({ kg })} suffix="kg" />
+        </div>
+      )}
+      <div className="grid gap-1">
+        <label htmlFor="activity" className="text-[13px] text-muted">How active are you?</label>
+        <select id="activity" className="input" value={d.activity} onChange={(e) => up({ activity: e.target.value as ActivityLevel })}>
+          <option value="" disabled>Choose one</option>
+          {Object.entries(ACTIVITY_LEVELS).map(([k, v]) => <option key={k} value={k}>{v.label}: {v.detail}</option>)}
+        </select>
+      </div>
+      <button type="button" className="justify-self-start text-sm text-muted underline" onClick={() => s.setProfile({ units: us ? "metric" : "us" })}>{us ? "Use kg and cm" : "Use lb and inches"}</button>
+      <p className="min-h-[40px] text-sm text-muted" role="status">
+        {kcal ? <>We'll plan about <b className="num text-ink">{kcal.toLocaleString()} kcal</b> a day with <b className="num text-ink">{protein} g</b> protein. You can change this any time.</> : "Fill these in and we'll work out your calories and protein."}
+      </p>
+    </div>
+  );
+}
+
+function YourWeek() {
+  const s = useApp();
+  const p = s.prefs;
+  const toggle = <T extends string>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+  const diets = (["vegetarian", "vegan", "pescatarian", "glutenFree", "dairyFree"] as Diet[]).filter((d) => DIETS[d]);
+  return (
+    <div className="grid gap-5">
+      <BudgetEditor />
+      <div className="grid grid-cols-2 gap-3 border-t border-line pt-4">
+        <Stepper label="Meals a day" value={s.meals} min={1} max={6} onChange={(m) => s.setStructure(m, s.snacks)} />
+        <Stepper label="Snacks a day" value={s.snacks} min={0} max={3} onChange={(n) => s.setStructure(s.meals, n)} />
+      </div>
+      <RotationPicker />
+      <div className="grid gap-2 border-t border-line pt-4">
+        <span className="text-[13px] text-muted">Any diet? (optional)</span>
+        <div className="flex flex-wrap gap-2">
+          {diets.map((d) => (
+            <Chip key={d} selected={p.diets.includes(d)} onClick={() => s.set({ prefs: { ...p, diets: toggle(p.diets, d) } })}>{DIETS[d].label}</Chip>
+          ))}
+        </div>
+        <details open={p.allergens.length > 0 || undefined}>
+          <summary className="cursor-pointer text-sm font-semibold text-accent">Allergies</summary>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {(Object.keys(ALLERGENS) as Allergen[]).map((a) => (
+              <Chip key={a} tone="warn" selected={p.allergens.includes(a)} onClick={() => s.set({ prefs: { ...p, allergens: toggle(p.allergens, a) } })}>{ALLERGENS[a]}</Chip>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted">Allergy filtering is a convenience. Always check product labels.</p>
+        </details>
+        <p className="text-xs text-muted">Cuisines, moods, foods you won't eat and kitchen equipment are on the Plan page whenever you want them.</p>
+      </div>
+    </div>
+  );
+}
+
+function Stores() {
+  return (
+    <div className="grid gap-4">
+      <NearbyFinder />
+      <details className="border-t border-line pt-4">
+        <summary className="cursor-pointer text-sm font-semibold text-accent">Choose stores yourself</summary>
+        <div className="mt-3"><StoresEditor /></div>
+      </details>
+    </div>
+  );
+}
+
+const TITLES = [
+  { title: "About you", lead: "So we can size your meals. It stays on this device." },
+  { title: "Your week", lead: "Your budget and how you like to eat. Everything else can wait." },
+  { title: "Stores near you", lead: "Enter your ZIP code and we'll shop the closest store we have prices for." },
 ];
 
 export default function Welcome() {
   const [i, setI] = useState(0);
   const router = useRouter();
   const s = useApp();
-  const step = STEPS[i]!;
-  const last = i === STEPS.length - 1;
-  const finish = () => { s.set({ onboarded: true }); router.push("/plan/"); };
+  const [d, setD] = useState<Draft>({ sex: null, age: "", ft: "", inch: "", cm: "", lb: "", kg: "", activity: "", goal: null });
+  const step = TITLES[i]!;
+  const last = i === TITLES.length - 1;
+  const stats = statsOf(d, s.profile.units === "us");
+  const finish = () => { s.set({ onboarded: true }); router.push("/"); };
+  const next = () => {
+    if (i === 0 && stats) { s.setProfile(stats); s.applySuggestedTargets(); }
+    setI(i + 1);
+  };
   return (
     <div className="mx-auto grid min-h-dvh w-full max-w-[640px] grid-rows-[auto_1fr_auto] px-4 pb-6 pt-6 sm:px-6">
       <header>
         <div className="font-display text-xl font-bold">Prep <span className="text-accent">Cart</span></div>
         <ol className="mt-4 flex gap-1.5" aria-label="Setup progress">
-          {STEPS.map((st, n) => (
+          {TITLES.map((st, n) => (
             <li key={st.title} className={cx("h-1.5 flex-1 rounded-full", n <= i ? "bg-accent" : "bg-line")} aria-current={n === i ? "step" : undefined}>
               <span className="sr-only">{st.title}{n < i ? " (done)" : ""}</span>
             </li>
           ))}
         </ol>
-        <p className="label mt-4">Step {i + 1} of {STEPS.length}</p>
+        <p className="label mt-4">Step {i + 1} of {TITLES.length}</p>
         <h1 className="mt-1 font-display text-[28px] font-bold leading-tight">{step.title}</h1>
         <p className="mt-1 text-muted">{step.lead}</p>
       </header>
-      <section className="card mt-5 self-start p-4 sm:p-5" aria-label={step.title}>{step.body}</section>
-      <footer className="sticky bottom-0 mt-6 flex items-center justify-between gap-3 bg-bg py-3" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
+      <section className="card mt-5 self-start p-4 sm:p-5" aria-label={step.title}>
+        {i === 0 ? <AboutYou d={d} setD={setD} /> : i === 1 ? <YourWeek /> : <Stores />}
+      </section>
+      <footer className="sticky bottom-0 z-10 mt-6 flex items-center justify-between gap-3 border-t border-line bg-bg py-3" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
         <button className="btn" onClick={() => setI(i - 1)} disabled={i === 0}><ArrowLeft size={16} aria-hidden /> Back</button>
-        <div className="flex gap-2">
-          {!last && i >= 3 && <button className="btn" onClick={finish}>Skip the rest</button>}
-          {last
-            ? <button className="btn btn-primary" onClick={finish} disabled={s.stores.length === 0}><Check size={16} aria-hidden /> Build my plan</button>
-            : <button className="btn btn-primary" onClick={() => { if (i === 0) s.applySuggestedTargets(); setI(i + 1); }}>Next <ArrowRight size={16} aria-hidden /></button>}
-        </div>
+        {last
+          ? <button className="btn btn-primary" onClick={finish} disabled={s.stores.length === 0}><Check size={16} aria-hidden /> Build my plan</button>
+          : <button className="btn btn-primary" onClick={next} disabled={i === 0 && !stats}>Next <ArrowRight size={16} aria-hidden /></button>}
       </footer>
     </div>
   );
