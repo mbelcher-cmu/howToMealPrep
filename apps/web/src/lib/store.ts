@@ -65,6 +65,8 @@ export interface AppState {
   current: SavedPlan | null;
   history: SavedPlan[];
   checked: Record<string, boolean>;
+  /** last energy reading synced from a fitness app */
+  fitness: { source: string; maintenanceKcal: number; days: number; on: string } | null;
   /** first day of the plan, 0 = Monday; prep day is the day before */
   weekStart: number;
   /** prep session start, HH:MM */
@@ -132,6 +134,7 @@ function initial(): Omit<AppState, keyof Actions> {
     history: [],
     checked: {},
     eatingOut: [],
+    fitness: null,
     weekStart: 0,
     prepTime: "15:00",
     deals: [],
