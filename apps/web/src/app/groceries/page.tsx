@@ -6,6 +6,7 @@ import { CHAINS, formatAmount, INGREDIENTS, type Aisle, type ChainId } from "@pr
 import type { CartLine } from "@prep-cart/planner";
 import { BudgetBar, PlanStatus, SolvingNote } from "@/components/plan-bits";
 import { ItemArt } from "@/components/food";
+import { NearbyFinder } from "@/components/nearby";
 import { Card, EmptyState, PageHeader, SectionTitle, Tag } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
@@ -133,6 +134,12 @@ export default function Groceries() {
             </div>
             <p className="mt-3 text-xs text-muted">Done shopping moves what's left of each package into your pantry, so next week's plan uses it first.</p>
           </Card>
+          {s.nearby.length === 0 && (
+            <Card>
+              <SectionTitle>Stores near you</SectionTitle>
+              <NearbyFinder />
+            </Card>
+          )}
           <p className="px-1 text-xs text-muted">Prices are Pittsburgh-area estimates. Correct any price in <Link href="/pantry/" className="underline">Pantry → Prices</Link> and the plan updates.</p>
         </aside>
       </div>
