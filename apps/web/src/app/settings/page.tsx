@@ -1,14 +1,13 @@
 "use client";
 import { useRef, useState, type ReactNode } from "react";
-import { Download, LocateFixed, MapPin, RotateCcw, Upload } from "lucide-react";
+import { Download, RotateCcw, Upload } from "lucide-react";
 import { BodyStatsEditor, MealStructureEditor, MoodEditor, RulesEditor, StoresEditor, TargetsEditor } from "@/components/editors";
 import { FitnessSync } from "@/components/fitness";
 import { HouseholdEditor } from "@/components/household";
-import { Card, PageHeader, Segmented, SectionTitle, Tag } from "@/components/ui";
+import { NearbyFinder } from "@/components/nearby";
+import { Card, PageHeader, Segmented, SectionTitle } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
-import { currentPosition, pointForZip, storesNear } from "@/lib/nearby";
-import { chainName } from "@/lib/format";
 
 function Section({ id, title, lead, children }: { id: string; title: string; lead?: string; children: ReactNode }) {
   return (
@@ -18,59 +17,6 @@ function Section({ id, title, lead, children }: { id: string; title: string; lea
       {lead && <p className="-mt-1 mb-4 text-sm text-muted">{lead}</p>}
       {children}
     </Card>
-  );
-}
-
-function NearbyFinder() {
-  const s = useApp();
-  const [state, setState] = useState<"idle" | "busy" | "error">("idle");
-  const [err, setErr] = useState("");
-  const [zip, setZip] = useState(s.profile.zip);
-  const find = async (how: "zip" | "gps") => {
-    setState("busy"); setErr("");
-    try {
-      const p = how === "gps" ? await currentPosition() : await pointForZip(zip);
-      if (how === "zip") s.setProfile({ zip });
-      const list = await storesNear(p);
-      s.set({ nearby: list });
-      setState("idle");
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Something went wrong.");
-      setState("error");
-    }
-  };
-  const known = s.nearby.filter((n) => n.chain);
-  const other = s.nearby.filter((n) => !n.chain);
-  return (
-    <div className="grid gap-3">
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="grid gap-1">
-          <label htmlFor="zip" className="text-[13px] text-muted">ZIP code</label>
-          <input id="zip" className="input w-28" inputMode="numeric" maxLength={5} value={zip} onChange={(e) => setZip(e.target.value.replace(/\D/g, ""))} />
-        </div>
-        <button className="btn" onClick={() => find("zip")} disabled={state === "busy" || zip.length !== 5}><MapPin size={16} aria-hidden /> Find stores</button>
-        <button className="btn" onClick={() => find("gps")} disabled={state === "busy"}><LocateFixed size={16} aria-hidden /> Use my location</button>
-      </div>
-      {state === "busy" && <p role="status" className="text-sm text-muted">Looking up stores from OpenStreetMap…</p>}
-      {state === "error" && <p role="alert" className="text-sm text-warn">{err}</p>}
-      {s.nearby.length > 0 && (
-        <div className="grid gap-3">
-          <ul className="divide-y divide-line rounded-lg border border-line">
-            {known.slice(0, 12).map((n) => {
-              const on = !!n.chain && s.stores.includes(n.chain);
-              return (
-                <li key={n.id} className="flex items-center gap-3 px-3 py-2 text-sm">
-                  <span className="min-w-0 flex-1"><span className="block font-medium">{n.name}</span><span className="block text-xs text-muted">{n.address || "Address not listed"} · {n.distanceMi} mi</span></span>
-                  {n.chain && <Tag>{on ? "Planning with" : chainName(n.chain)}</Tag>}
-                </li>
-              );
-            })}
-          </ul>
-          {other.length > 0 && <p className="text-xs text-muted">Also nearby, without prices yet: {other.slice(0, 8).map((o) => o.name).join(", ")}{other.length > 8 ? ` and ${other.length - 8} more` : ""}.</p>}
-        </div>
-      )}
-      <p className="text-xs text-muted">Store locations come from OpenStreetMap. Prices are only available for the four chains above for now.</p>
-    </div>
   );
 }
 

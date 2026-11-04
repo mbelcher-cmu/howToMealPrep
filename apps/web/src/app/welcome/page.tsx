@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { NearbyFinder } from "@/components/nearby";
 import { BodyStatsEditor, BudgetEditor, MealStructureEditor, MoodEditor, RulesEditor, StoresEditor, TargetsEditor } from "@/components/editors";
 import { useApp } from "@/lib/store";
 import { cx } from "@/lib/format";
@@ -13,7 +14,7 @@ const STEPS = [
   { title: "Food rules", lead: "Hard rules. The planner never breaks these.", body: <RulesEditor /> },
   { title: "What you're in the mood for", lead: "Soft preferences that steer this week's recipes. You can change them every week.", body: <MoodEditor /> },
   { title: "Budget", lead: "How much you want to spend on groceries.", body: <BudgetEditor /> },
-  { title: "Stores", lead: "Where you'll shop in person. Prices are Pittsburgh-area estimates until you correct them.", body: <StoresEditor /> },
+  { title: "Stores near you", lead: "Enter your ZIP code to find grocery stores around you. Prices are estimates until you correct them.", body: <div className="grid gap-5"><NearbyFinder /><div className="border-t border-line pt-4"><StoresEditor /></div></div> },
 ];
 
 export default function Welcome() {
