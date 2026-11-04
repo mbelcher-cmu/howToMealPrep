@@ -1,0 +1,33 @@
+name: Database schema
+
+# Applies supabase/migrations to staging first, then production, using the connection strings in
+# repo secrets (the database password never leaves GitHub). Runs when a migration changes on main,
+# or by hand from the Actions tab. Each project is skipped until its secret is set.
+on:
+  push:
+    branches: [main]
+    paths: ["supabase/migrations/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        env: [staging, production]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply migrations to ${{ matrix.env }}
+        env:
+          DB_URL: ${{ matrix.env == 'production' && secrets.SUPABASE_DB_URL || secrets.STAGING_SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DB_URL" ]; then echo "No ${{ matrix.env }} database secret yet; skipping."; exit 0; fi
+          npx --yes supabase@2.58.5 db push --db-url "$DB_URL" --include-all
