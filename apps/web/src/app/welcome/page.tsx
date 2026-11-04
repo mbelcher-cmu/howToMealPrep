@@ -9,6 +9,7 @@ import { BudgetEditor, RotationPicker, StoresEditor } from "@/components/editors
 import { Chip, Segmented, Stepper } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { cx } from "@/lib/format";
+import { track } from "@/lib/telemetry";
 
 type Draft = { sex: "male" | "female" | null; age: string; ft: string; inch: string; cm: string; lb: string; kg: string; activity: ActivityLevel | ""; goal: Goal | null };
 
@@ -144,7 +145,7 @@ export default function Welcome() {
   const step = TITLES[i]!;
   const last = i === TITLES.length - 1;
   const stats = statsOf(d, s.profile.units === "us");
-  const finish = () => { s.set({ onboarded: true }); router.push("/"); };
+  const finish = () => { s.set({ onboarded: true }); track("onboarding_done", { rotation: s.variety.rotation ?? "mix", diets: s.prefs.diets.length, nearby: s.nearby.length > 0 }); router.push("/"); };
   const next = () => {
     if (i === 0 && stats) { s.setProfile(stats); s.applySuggestedTargets(); }
     setI(i + 1);

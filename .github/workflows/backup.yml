@@ -1,0 +1,36 @@
+name: Nightly database backup
+
+# Free Supabase projects have no backups. Each night this dumps the production database,
+# encrypts it with BACKUP_PASSPHRASE (the repo is public, so a plain dump must never be
+# uploaded) and keeps it as a workflow artifact for 30 days.
+# Restore: download the artifact, then
+#   gpg --batch --passphrase "$BACKUP_PASSPHRASE" -d backup.sql.gz.gpg | gunzip | psql "$DATABASE_URL"
+on:
+  schedule:
+    - cron: "41 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump and encrypt
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$DB_URL" ] || [ -z "$PASSPHRASE" ]; then echo "Backups not configured yet (SUPABASE_DB_URL, BACKUP_PASSPHRASE); skipping."; echo "SKIP=1" >> "$GITHUB_ENV"; exit 0; fi
+          docker run --rm -e DB_URL postgres:17 sh -c 'pg_dump "$DB_URL" --no-owner --no-privileges --schema=public --schema=auth' \
+            | gzip -9 | gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase "$PASSPHRASE" -o backup.sql.gz.gpg
+          test -s backup.sql.gz.gpg
+          ls -l backup.sql.gz.gpg
+      - if: env.SKIP != '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup.sql.gz.gpg
+          retention-days: 30
+          if-no-files-found: error

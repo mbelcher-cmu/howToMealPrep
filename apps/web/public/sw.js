@@ -1,12 +1,13 @@
 /* Prep Cart offline support: pages are network-first with a cached fallback, build assets are cache-first. */
-const CACHE = "prep-cart-v1";
 const scope = self.registration.scope;
+// one cache per scope, so the staging build under /staging/ never clears production's cache
+const CACHE = "prep-cart-v1:" + scope;
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll([scope, scope + "groceries/", scope + "shop/", scope + "prep/", scope + "highs.js", scope + "highs.wasm"]).catch(() => {})));
   self.skipWaiting();
 });
 self.addEventListener("activate", (e) => {
-  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE && (k === "prep-cart-v1" || k.endsWith(":" + scope))).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener("fetch", (e) => {
   const req = e.request;

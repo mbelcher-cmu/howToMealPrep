@@ -1,0 +1,27 @@
+name: Keep the database awake
+
+# Free Supabase projects pause after a week with no requests. This calls a tiny public
+# function (public.ping, no user data) on both projects every three days.
+on:
+  schedule:
+    - cron: "17 9 */3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [production, staging]
+    steps:
+      - name: Ping ${{ matrix.env }}
+        env:
+          URL: ${{ matrix.env == 'production' && vars.SUPABASE_URL || vars.STAGING_SUPABASE_URL }}
+          KEY: ${{ matrix.env == 'production' && vars.SUPABASE_ANON_KEY || vars.STAGING_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then echo "No ${{ matrix.env }} project configured yet; skipping."; exit 0; fi
+          curl -fsS --retry 3 --retry-delay 10 -X POST "$URL/rest/v1/rpc/ping" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d '{}'
