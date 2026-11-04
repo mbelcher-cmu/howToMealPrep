@@ -143,7 +143,7 @@ export default function Groceries() {
               <NearbyFinder />
             </Card>
           )}
-          <p className="px-1 text-xs text-muted">Prices are Pittsburgh-area estimates. Correct any price in <Link href="/pantry/" className="underline">Pantry → Prices</Link> and the plan updates.</p>
+          <p className="px-1 text-xs text-muted">Prices are estimates from Pittsburgh-area stores; Walmart and Aldi prices are similar across the US. Correct any price in <Link href="/pantry/" className="underline">Pantry → Prices</Link> and the plan updates.</p>
         </aside>
       </div>
     </>

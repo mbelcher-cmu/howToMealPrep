@@ -7,7 +7,7 @@ import { BudgetBar, PlanMacros, PlanStatus, SolvingNote } from "@/components/pla
 import { Card, Chip, PageHeader, SectionTitle, Tag } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
-import { cx, money } from "@/lib/format";
+import { cx, isPittsburghZip, money, PITTSBURGH_ONLY } from "@/lib/format";
 import { useDays } from "@/lib/days";
 
 const fitLabel = (f: number) => (f < 0.35 ? { text: "Great fit", cls: "pill" } : f < 0.8 ? { text: "Good fit", cls: "pill bg-sunk" } : { text: "Far off", cls: "pill pill-warn" });
@@ -30,13 +30,15 @@ export default function EatOut() {
   const target = occ ? parts[s.occasions.indexOf(occ)]! : null;
   const kind = occ ? (occ.kind === "snack" ? "snack" : /breakfast/i.test(occ.name) ? "breakfast" : "main") : null;
 
+  const local = isPittsburghZip(s.profile.zip);
+  const restaurants = RESTAURANTS.filter((r) => local || !PITTSBURGH_ONLY.has(r.id));
   const options = useMemo(() => {
     if (!target) return [];
     return MENU_ITEMS
-      .filter((m) => (!restaurant || m.restaurantId === restaurant) && (!vegetarian || m.vegetarian) && (!vegan || m.vegan) && (!glutenFree || m.glutenFree))
+      .filter((m) => (local || !PITTSBURGH_ONLY.has(m.restaurantId)) && (!restaurant || m.restaurantId === restaurant) && (!vegetarian || m.vegetarian) && (!vegan || m.vegan) && (!glutenFree || m.glutenFree))
       .map((m) => ({ m, fit: menuFit(m, target), sameKind: m.mealType === kind }))
       .sort((a, b) => Number(b.sameKind) - Number(a.sameKind) || a.fit - b.fit);
-  }, [target, restaurant, vegetarian, vegan, glutenFree, kind]);
+  }, [target, restaurant, vegetarian, vegan, glutenFree, kind, local]);
 
   if (!hydrated) return null;
   const days = Array.from({ length: s.days }, (_, d) => d);
@@ -130,7 +132,7 @@ export default function EatOut() {
               </p>
               <div className="mb-3 flex flex-wrap gap-2">
                 <Chip selected={!restaurant} onClick={() => setRestaurant("")}>All</Chip>
-                {RESTAURANTS.map((r) => <Chip key={r.id} selected={restaurant === r.id} onClick={() => setRestaurant(restaurant === r.id ? "" : r.id)}>{r.name}</Chip>)}
+                {restaurants.map((r) => <Chip key={r.id} selected={restaurant === r.id} onClick={() => setRestaurant(restaurant === r.id ? "" : r.id)}>{r.name}</Chip>)}
               </div>
               {options.length === 0 ? <p className="text-sm text-muted">Nothing here fits your diet. Try another restaurant.</p> : (
                 <ul className="divide-y divide-line">
@@ -171,9 +173,9 @@ export default function EatOut() {
           )}
           <Card>
             <SectionTitle>About these numbers</SectionTitle>
-            <p className="text-xs text-muted">Nutrition follows each chain's published values for the standard build, with calories worked out from the macros. Prices are Pittsburgh-area estimates before tax and tip. Check the chain's own calculator for your exact order:</p>
+            <p className="text-xs text-muted">Nutrition follows each chain's published values for the standard build, with calories worked out from the macros. Prices are typical US estimates before tax and tip. Check the chain's own calculator for your exact order:</p>
             <ul className="mt-2 grid gap-1 text-xs">
-              {RESTAURANTS.map((r) => (
+              {restaurants.map((r) => (
                 <li key={r.id}><a href={r.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline">{r.name} <ExternalLink size={11} aria-hidden /></a> <span className="text-muted">· {r.note}</span></li>
               ))}
             </ul>

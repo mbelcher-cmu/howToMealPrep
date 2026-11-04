@@ -9,13 +9,14 @@ import { PrepPackCard, usePackCost } from "@/components/preps";
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
-import { chainName, money, plural, recipeHref } from "@/lib/format";
+import { chainName, isPittsburghZip, money, plural, recipeHref, PITTSBURGH_ONLY } from "@/lib/format";
 import { useDays } from "@/lib/days";
 
 export default function Home() {
   const { DAY_LONG, weekStart } = useDays();
   const hydrated = useHydrated();
   const { plan, status } = usePlanner();
+  const zip = useApp((s) => s.profile.zip);
   const checked = useApp((s) => s.checked);
   const deals = useApp((s) => s.deals);
   const overrides = useApp((s) => s.priceOverrides);
@@ -118,7 +119,7 @@ export default function Home() {
 
 
         <Rail title="Featured meal preps" href="/preps/" lead="Ready-made weeks with their macros. Use one and the plan builds around it.">
-          {PREP_PACKS.map((p) => <PrepPackCard key={p.id} pack={p} cost={packCost(p)} />)}
+          {PREP_PACKS.filter((p) => isPittsburghZip(zip) || !PITTSBURGH_ONLY.has(p.id)).map((p) => <PrepPackCard key={p.id} pack={p} cost={packCost(p)} />)}
         </Rail>
       </div>
     </>

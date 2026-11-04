@@ -24,6 +24,7 @@ export function NearbyFinder() {
       setNote(priced.length
         ? `Planning with ${priced.map(chainName).join(priced.length > 2 ? ", " : " and ").replace(/, ([^,]*)$/, ", and $1")} near you.`
         : list.length ? "None of the chains with prices yet are near you, so plans use their price estimates for now." : "No grocery stores were found nearby on OpenStreetMap.");
+      if (list.some((n) => /commissary/i.test(n.name))) setNote((t) => `${t} The commissary is nearby too. Its prices aren't in the app yet and are usually a little lower than these.`);
       setState("idle");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Something went wrong.");
