@@ -8,6 +8,7 @@ import { useHydrated, usePlanner, usePlannerSync } from "@/lib/use-planner";
 import { cx } from "@/lib/format";
 import { initTelemetry } from "@/lib/telemetry";
 import { initAccount } from "@/lib/account";
+import { useFlag } from "@/lib/flags";
 
 const NAV = [
   { href: "/", label: "Home", icon: Home, primary: true },
@@ -63,7 +64,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (hydrated && !onboarded && !isOnboarding) router.replace("/welcome/");
   }, [hydrated, onboarded, isOnboarding, router]);
 
+  const v2 = useFlag("redesign");
   if (isOnboarding || isShopping) return <main id="main" className="min-h-dvh">{children}</main>;
+  if (v2) return <ShellV2 path={path} solving={status === "solving"}>{children}</ShellV2>;
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[232px_minmax(0,1fr)]">
@@ -107,6 +110,70 @@ export function AppShell({ children }: { children: ReactNode }) {
           );
         })}
       </nav>
+    </div>
+  );
+}
+
+/** The wordmark: wide, heavy, uppercase. */
+function Wordmark({ className }: { className?: string }) {
+  return <span className={cx("wide text-[17px] font-extrabold uppercase leading-none tracking-[-0.01em]", className)}>Macro<span className="text-muted">Aisle</span></span>;
+}
+
+/**
+ * Redesigned shell: a quiet sidebar on desktop; on phones a floating pill tab bar with the
+ * grocery list as the round action button beside it.
+ */
+function ShellV2({ path, solving, children }: { path: string; solving: boolean; children: ReactNode }) {
+  const tabs = [...NAV.filter((n) => n.primary && n.href !== "/groceries/"), { href: "/more/", label: "More", icon: Menu, primary: true }];
+  const groceriesOn = active(path, "/groceries/");
+  return (
+    <div className="min-h-dvh md:grid md:grid-cols-[248px_minmax(0,1fr)]">
+      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-surface focus:p-2">Skip to content</a>
+      <aside className="sticky top-0 hidden h-dvh flex-col px-4 py-6 md:flex">
+        <Link href="/" className="mb-8 px-3"><Wordmark className="text-[19px]" /></Link>
+        <nav aria-label="Main" className="grid gap-1">
+          {NAV.map(({ href, label, icon: Icon }) => {
+            const on = active(path, href);
+            return (
+              <Link key={href} href={href} aria-current={on ? "page" : undefined}
+                className={cx("press flex min-h-[44px] items-center gap-3 rounded-full px-4 text-[14px]", on ? "bg-surface font-semibold text-ink shadow-[var(--shadow-card)]" : "font-medium text-muted hover:bg-surface/60 hover:text-ink")}>
+                <Icon size={18} strokeWidth={on ? 2.4 : 2} aria-hidden /> {label}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="mt-auto px-4 text-xs text-muted">
+          {solving ? <span className="inline-flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" aria-hidden /> Updating your plan</span> : "Prices are estimates until you add receipts."}
+        </div>
+      </aside>
+
+      <div className="min-w-0">
+        <header className="sticky top-0 z-20 flex items-center justify-between bg-bg/85 px-4 pb-3 backdrop-blur-xl md:hidden" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 14px)" }}>
+          <Link href="/"><Wordmark /></Link>
+          {solving
+            ? <span className="inline-flex items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-xs font-medium text-muted shadow-[var(--shadow-card)]"><Loader2 size={13} className="animate-spin" aria-hidden /> Updating</span>
+            : <Link href="/settings/" aria-label="Settings" className="press grid h-10 w-10 place-items-center rounded-full bg-surface text-ink shadow-[var(--shadow-card)]"><Settings size={18} aria-hidden /></Link>}
+        </header>
+        <main id="main" className="mx-auto w-full max-w-[1120px] px-4 pb-36 pt-3 sm:px-6 md:pb-12 md:pt-10">{children}</main>
+      </div>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 px-4 md:hidden" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
+        <nav aria-label="Main" className="pointer-events-auto grid flex-1 grid-cols-4 gap-1 rounded-full bg-surface/95 p-1.5 shadow-[var(--shadow-float)] backdrop-blur-xl">
+          {tabs.map(({ href, label, icon: Icon }) => {
+            const on = href === "/more/" ? active(path, href) || MORE.some((m) => active(path, m.href)) : active(path, href);
+            return (
+              <Link key={href} href={href} aria-current={on ? "page" : undefined}
+                className={cx("press flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-full text-[11px]", on ? "bg-sunk font-semibold text-ink" : "font-medium text-muted")}>
+                <Icon size={20} strokeWidth={on ? 2.4 : 2} aria-hidden /> {label}
+              </Link>
+            );
+          })}
+        </nav>
+        <Link href="/groceries/" aria-label="Groceries" aria-current={groceriesOn ? "page" : undefined}
+          className={cx("press pointer-events-auto grid h-16 w-16 shrink-0 place-items-center rounded-full bg-accent text-accent-ink shadow-[var(--shadow-float)]", groceriesOn && "ring-4 ring-ink/15")}>
+          <ShoppingCart size={24} aria-hidden />
+        </Link>
+      </div>
     </div>
   );
 }

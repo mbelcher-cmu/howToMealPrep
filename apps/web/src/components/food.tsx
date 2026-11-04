@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
-import { ChevronRight, Snowflake, Timer } from "lucide-react";
+import { ChevronRight, Droplet, Drumstick, Flame, Snowflake, Timer, Wheat } from "lucide-react";
+import { useFlag } from "@/lib/flags";
 import { INGREDIENTS, type Recipe } from "@prep-cart/catalog";
 import { itemImage, recipeImage } from "@/lib/images";
 import { cx, money, recipeHref } from "@/lib/format";
@@ -40,6 +41,19 @@ export function ItemArt({ ingredientId, size, className }: { ingredientId: strin
 
 export function MacroChips({ recipe, portion = 1 }: { recipe: Recipe; portion?: number }) {
   const n = recipe.perServing;
+  const v2 = useFlag("redesign");
+  if (v2) {
+    return (
+      <span className="num grid gap-1">
+        <span className="inline-flex items-center gap-1 text-[15px] font-bold"><Flame size={15} aria-hidden /> {Math.round(n.kcal * portion)} kcal</span>
+        <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12.5px] font-medium text-muted">
+          <span className="inline-flex items-center gap-1"><Drumstick size={13} className="text-protein" aria-hidden /><span className="sr-only">Protein</span>{Math.round(n.protein * portion)}g</span>
+          <span className="inline-flex items-center gap-1"><Wheat size={13} className="text-carbs" aria-hidden /><span className="sr-only">Carbs</span>{Math.round(n.carbs * portion)}g</span>
+          <span className="inline-flex items-center gap-1"><Droplet size={13} className="text-fat" aria-hidden /><span className="sr-only">Fat</span>{Math.round(n.fat * portion)}g</span>
+        </span>
+      </span>
+    );
+  }
   return (
     <span className="num flex flex-wrap gap-1">
       <span className="chip-macro bg-sunk text-ink">{Math.round(n.kcal * portion)} kcal</span>

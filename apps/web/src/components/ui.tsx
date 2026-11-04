@@ -6,11 +6,12 @@ export function Card({ children, className, id, as: As = "section" }: { children
   return <As id={id} className={cx("card p-4 sm:p-5", className)}>{children}</As>;
 }
 
-export function PageHeader({ title, lead, action }: { title: string; lead?: ReactNode; action?: ReactNode }) {
+export function PageHeader({ title, lead, action, eyebrow }: { title: string; lead?: ReactNode; action?: ReactNode; eyebrow?: ReactNode }) {
   return (
     <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="font-display text-[28px] font-bold leading-tight tracking-tight sm:text-[32px]">{title}</h1>
+        {eyebrow && <p className="label mb-1.5">{eyebrow}</p>}
+        <h1 className="page-title font-display text-[28px] font-bold leading-tight tracking-tight sm:text-[32px]">{title}</h1>
         {lead && <p className="mt-1 max-w-[62ch] text-muted">{lead}</p>}
       </div>
       {action}
@@ -86,7 +87,7 @@ export function Stepper({ label, value, onChange, min, max, format }: { label: s
   return (
     <div className="grid gap-1">
       <span id={id} className="text-[13px] text-muted">{label}</span>
-      <div role="group" aria-labelledby={id} className="flex items-center overflow-hidden rounded-lg border border-line bg-bg">
+      <div role="group" aria-labelledby={id} className="stepper flex items-center overflow-hidden rounded-lg border border-line bg-bg">
         <button type="button" className="press h-10 w-11 text-lg font-semibold hover:bg-sunk active:bg-sunk disabled:opacity-40" onClick={() => onChange(Math.max(min, value - 1))} disabled={value <= min} aria-label={`Fewer ${label.toLowerCase()}`}>−</button>
         <output className="num flex-1 text-center font-semibold" aria-live="polite">{format ? format(value) : value}</output>
         <button type="button" className="press h-10 w-11 text-lg font-semibold hover:bg-sunk active:bg-sunk disabled:opacity-40" onClick={() => onChange(Math.min(max, value + 1))} disabled={value >= max} aria-label={`More ${label.toLowerCase()}`}>+</button>
@@ -97,7 +98,7 @@ export function Stepper({ label, value, onChange, min, max, format }: { label: s
 
 export function Segmented<T extends string>({ label, value, options, onChange, size = "md" }: { label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; size?: "sm" | "md" }) {
   return (
-    <div role="radiogroup" aria-label={label} className="grid auto-cols-fr grid-flow-col overflow-hidden rounded-lg border border-line">
+    <div role="radiogroup" aria-label={label} className="seg grid auto-cols-fr grid-flow-col overflow-hidden rounded-lg border border-line">
       {options.map((o, i) => (
         <button
           key={o.value}
@@ -236,5 +237,22 @@ export function Stars({ value, onChange, label = "Your rating" }: { value: numbe
       </div>
       <span className="text-xs text-muted">{value ? words[value] : label}</span>
     </div>
+  );
+}
+
+/** A progress ring with an optional icon in the middle. value/target, capped at a full ring. */
+export function Ring({ value, target, size = 64, stroke = 6, color, children, label }: { value: number; target: number; size?: number; stroke?: number; color: string; children?: ReactNode; label: string }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const share = target > 0 ? Math.min(1, Math.max(0, value / target)) : 0;
+  return (
+    <span className="relative inline-grid shrink-0 place-items-center" style={{ width: size, height: size }} role="img" aria-label={label}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="absolute inset-0 -rotate-90" aria-hidden>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(var(--sunk))" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={c * (1 - share)} style={{ transition: "stroke-dashoffset 600ms var(--ease-out)" }} />
+      </svg>
+      {children && <span className="relative grid place-items-center" aria-hidden>{children}</span>}
+    </span>
   );
 }

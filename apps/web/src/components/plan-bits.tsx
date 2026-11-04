@@ -2,14 +2,15 @@
 import { RecipeArt } from "./food";
 import Link from "next/link";
 import { useMemo } from "react";
-import { AlertTriangle, Loader2, Lock, RefreshCw, Snowflake, Timer } from "lucide-react";
+import { AlertTriangle, Droplet, Drumstick, Flame, Loader2, Lock, RefreshCw, Snowflake, Timer, Wheat } from "lucide-react";
 import { CUISINES, type Recipe } from "@prep-cart/catalog";
 import { preppedShare } from "@prep-cart/nutrition";
 import type { PlanResult } from "@prep-cart/planner";
 import { useApp } from "@/lib/store";
 import { usePlanner } from "@/lib/use-planner";
 import { cx, money } from "@/lib/format";
-import { MacroMeter, Tag } from "./ui";
+import { MacroMeter, Ring, Tag } from "./ui";
+import { useFlag } from "@/lib/flags";
 
 export const MACRO_COLORS = { kcal: "rgb(var(--ink) / 0.75)", protein: "rgb(var(--protein))", carbs: "rgb(var(--carbs))", fat: "rgb(var(--fat))" };
 
@@ -24,9 +25,59 @@ export function usePreppedTargets() {
   }, [targets, occasions]);
 }
 
+const MACROS = [
+  { key: "protein", label: "Protein", icon: Drumstick },
+  { key: "carbs", label: "Carbs", icon: Wheat },
+  { key: "fat", label: "Fat", icon: Droplet },
+] as const;
+
+/** "+8%" or "on target" (within 5%) */
+function offBy(actual: number, target: number) {
+  const off = target > 0 ? (actual - target) / target : 0;
+  return Math.abs(off) < 0.05 ? "on target" : `${off > 0 ? "+" : ""}${Math.round(off * 100)}%`;
+}
+
+function MacroRingTile({ k, label, icon: Icon, actual, target, flat }: { k: "protein" | "carbs" | "fat"; label: string; icon: typeof Flame; actual: number; target: number; flat?: boolean }) {
+  return (
+    <div className={cx("flex min-w-0 flex-col gap-3 p-3.5", flat ? "rounded-2xl bg-sunk/60" : "card")}>
+      <div className="min-w-0">
+        <p className="num text-[19px] font-bold leading-none">{Math.round(actual)}<span className="text-[13px] font-medium text-muted">/{Math.round(target)}g</span></p>
+        <p className="mt-1 truncate text-[12px] text-muted">{label}</p>
+      </div>
+      <Ring value={actual} target={target} size={60} stroke={6} color={MACRO_COLORS[k]} label={`${label} ${Math.round(actual)} of ${Math.round(target)} grams a day`}>
+        <Icon size={18} style={{ color: MACRO_COLORS[k] }} />
+      </Ring>
+    </div>
+  );
+}
+
+/** Calories and macros as rings: one wide calorie card and three macro cards. */
+export function MacroRings({ result, flat }: { result: PlanResult; flat?: boolean }) {
+  const t = usePreppedTargets();
+  const d = result.daily;
+  return (
+    <div className="grid gap-3">
+      <div className={cx("flex items-center justify-between gap-4", flat ? "rounded-2xl bg-sunk/60 p-4" : "card p-5")}>
+        <div className="min-w-0">
+          <p className="num text-[40px] font-bold leading-none tracking-tight sm:text-[44px]">{Math.round(d.kcal).toLocaleString()}<span className="text-[17px] font-medium text-muted">/{Math.round(t.kcal).toLocaleString()}</span></p>
+          <p className="mt-1.5 text-[14px] text-muted">Calories a day from your prep · {offBy(d.kcal, t.kcal)}</p>
+        </div>
+        <Ring value={d.kcal} target={t.kcal} size={flat ? 76 : 92} stroke={8} color="rgb(var(--ink))" label={`${Math.round(d.kcal)} of ${Math.round(t.kcal)} calories a day`}>
+          <Flame size={flat ? 20 : 24} className="text-ink" />
+        </Ring>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {MACROS.map((m) => <MacroRingTile key={m.key} k={m.key} label={m.label} icon={m.icon} actual={d[m.key]} target={t[m.key]} flat={flat} />)}
+      </div>
+    </div>
+  );
+}
+
 export function PlanMacros({ result }: { result: PlanResult }) {
   const t = usePreppedTargets();
   const d = result.daily;
+  const v2 = useFlag("redesign");
+  if (v2) return <MacroRings result={result} flat />;
   return (
     <div className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4">
       <MacroMeter label="Calories / day" actual={d.kcal} target={t.kcal} unit="" color={MACRO_COLORS.kcal} />

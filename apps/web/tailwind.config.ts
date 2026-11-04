@@ -13,12 +13,14 @@ export default {
         bg: v("bg"), surface: v("surface"), sunk: v("sunk"), line: v("line"),
         ink: v("ink"), muted: v("muted"),
         accent: v("accent"), "accent-ink": v("accent-ink"), "accent-soft": v("accent-soft"),
-        warn: v("warn"), "warn-soft": v("warn-soft"), caution: v("caution"),
+        good: v("good"), warn: v("warn"), "warn-soft": v("warn-soft"), caution: v("caution"),
         protein: v("protein"), carbs: v("carbs"), fat: v("fat"),
       },
       fontFamily: {
-        display: ['"Bricolage Grotesque Variable"', "system-ui", "sans-serif"],
-        sans: ['"Public Sans Variable"', "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+        // set per skin in globals.css / skin-v2.css
+        display: ["var(--font-display)", "system-ui", "sans-serif"],
+        sans: ["var(--font-sans)", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+        wide: ["var(--font-wide)", "system-ui", "sans-serif"],
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
       },
       borderRadius: { card: "16px" },

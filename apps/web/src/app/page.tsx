@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 import { INGREDIENTS, MENU_BY_ID, PREP_PACKS, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
 import { usualPrice } from "@/components/deals";
-import { BudgetBar, PlanMacros, PlanStatus, SolvingNote, usePreppedTargets } from "@/components/plan-bits";
+import { BudgetBar, MacroRings, PlanMacros, PlanStatus, SolvingNote, usePreppedTargets } from "@/components/plan-bits";
 import { ItemCard, RecipeArt, RecipeCard, Rail } from "@/components/food";
 import { PrepPackCard, usePackCost } from "@/components/preps";
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
@@ -11,6 +11,7 @@ import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { chainName, isPittsburghZip, money, plural, recipeHref, PITTSBURGH_ONLY } from "@/lib/format";
 import { useDays } from "@/lib/days";
+import { useFlag } from "@/lib/flags";
 
 export default function Home() {
   const { DAY_LONG, weekStart } = useDays();
@@ -22,6 +23,7 @@ export default function Home() {
   const overrides = useApp((s) => s.priceOverrides);
   const t = usePreppedTargets();
   const packCost = usePackCost();
+  const v2 = useFlag("redesign");
   if (!hydrated) return null;
   if (!plan) {
     return (
@@ -44,7 +46,7 @@ export default function Home() {
   const todo = r.cart.filter((l) => !checked[`${l.chain}:${l.ingredientId}`]);
   return (
     <>
-      <PageHeader title="This week" lead={<>Your {plan.days}-day plan: {plural(r.recipes.length, "recipe")} from {r.stores.map(chainName).join(" and ") || "your stores"}.</>} action={<SolvingNote />} />
+      <PageHeader title="This week" eyebrow={v2 ? new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) : undefined} lead={<>Your {plan.days}-day plan: {plural(r.recipes.length, "recipe")} from {r.stores.map(chainName).join(" and ") || "your stores"}.</>} action={<SolvingNote />} />
       <PlanStatus />
       <div className="grid gap-7">
         <Rail title={day ? `${DAY_LONG[dayIdx]}'s food` : "Today"} href="/plan/" linkLabel="Whole week">
@@ -66,11 +68,21 @@ export default function Home() {
         </Rail>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {v2 ? (
+            <section className="lg:col-span-2" aria-label="Average day from your prep">
+              <MacroRings result={r} />
+              <p className="mt-2.5 flex flex-wrap justify-between gap-x-3 px-1 text-xs text-muted">
+                <span>{t.allowanceKcal > 0 ? `Plus about ${t.allowanceKcal.toLocaleString()} kcal a day kept free for meals you don't prep.` : "Average day from your prep."}</span>
+                <Link href="/plan/" className="font-semibold text-ink underline-offset-2 hover:underline">Adjust targets</Link>
+              </p>
+            </section>
+          ) : (
           <Card className="lg:col-span-2">
             <SectionTitle aside={<Link href="/plan/" className="text-sm text-accent underline-offset-2 hover:underline">Adjust</Link>}>Average day from your prep</SectionTitle>
             <PlanMacros result={r} />
             {t.allowanceKcal > 0 && <p className="mt-3 text-xs text-muted">Plus about {t.allowanceKcal.toLocaleString()} kcal a day you've kept free for meals you don't prep.</p>}
           </Card>
+          )}
           <Card>
             <SectionTitle>Groceries</SectionTitle>
             <BudgetBar cost={r.cost} budget={r.budget} takeout={r.takeout?.cost ?? 0} />
