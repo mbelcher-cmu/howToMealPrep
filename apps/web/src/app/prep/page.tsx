@@ -54,7 +54,7 @@ export default function Prep() {
       const day = sess.index === 0 ? prepDate : at(prepDate, "00:00", sess.beforeDay);
       events.push({
         uid: `prep-${plan.id}-${i}`, start: at(day, s.prepTime), minutes: Math.max(30, t.totalMinutes),
-        title: sess.index === 0 ? "Meal prep" : "Top-up meal prep",
+        title: sess.index === 0 ? "Meal prep" : "Mid-week cook",
         description: t.steps.map((st) => `${clock(s.prepTime, st.at)} ${st.text}`).join("\n"),
         alarmMinutesBefore: 60,
       });
@@ -70,10 +70,20 @@ export default function Prep() {
     <>
       <PageHeader title="Prep day" lead="What to cook, in what order, and how much. Amounts are already scaled to your plan." action={<SolvingNote />} />
 
-      <div className="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card>
-          <SectionTitle>When you cook</SectionTitle>
-          <div className="grid grid-cols-2 gap-3">
+      <Card className="mb-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="grid gap-0.5 text-sm">
+            <p className="font-semibold">{PREP_DAY} at {clock(s.prepTime, 0)}{sessions.length > 1 && <span className="font-normal text-muted"> · then {sessions.slice(1).map((x) => DAY_LONG[(x.beforeDay + 6) % 7]).join(" and ")}</span>}</p>
+            <p className="flex flex-wrap items-center gap-x-3 text-muted">
+              <span className="inline-flex items-center gap-1.5"><Package size={15} className="text-accent" aria-hidden /> <b className="num text-ink">{containers}</b> containers</span>
+              {frozen > 0 && <span className="inline-flex items-center gap-1.5"><Snowflake size={15} className="text-accent" aria-hidden /> <b className="num text-ink">{frozen}</b> go in the freezer</span>}
+            </p>
+          </div>
+          <button className="btn btn-primary" onClick={reminders}><BellRing size={16} aria-hidden /> Add to my calendar</button>
+        </div>
+        <details className="mt-3 border-t border-line pt-3">
+          <summary className="cursor-pointer text-sm font-semibold text-accent">Change prep day or time</summary>
+          <div className="mt-3 grid max-w-[420px] grid-cols-2 gap-3">
             <div className="grid gap-1">
               <label htmlFor="prep-day" className="text-[13px] text-muted">Prep day</label>
               <select id="prep-day" className="input" value={(s.weekStart + 6) % 7} onChange={(e) => s.set({ weekStart: (Number(e.target.value) + 1) % 7 })}>
@@ -85,21 +95,9 @@ export default function Prep() {
               <input id="prep-time" type="time" className="input" value={s.prepTime} onChange={(e) => e.target.value && s.set({ prepTime: e.target.value })} />
             </div>
           </div>
-          <p className="mt-2 text-xs text-muted">Your week runs {DAY_LONG[0]} to {DAY_LONG[Math.min(6, plan.days - 1)]}.</p>
-        </Card>
-        <Card>
-          <SectionTitle>Containers</SectionTitle>
-          <p className="flex items-center gap-2 text-sm"><Package size={16} className="text-accent" aria-hidden /> <b className="num">{containers}</b> containers in all</p>
-          {frozen > 0 && <p className="mt-1 flex items-center gap-2 text-sm"><Snowflake size={16} className="text-accent" aria-hidden /> <b className="num">{frozen}</b> of them freezer-safe</p>}
-          <p className="mt-2 text-xs text-muted">One per meal or snack portion. Glass containers with snap lids reheat and freeze best.</p>
-        </Card>
-        <Card>
-          <SectionTitle>Reminders</SectionTitle>
-          <p className="text-sm text-muted">Add the grocery run, each cook session with its timeline, and thaw reminders to your calendar.</p>
-          <button className="btn btn-primary mt-3 w-full" onClick={reminders}><BellRing size={16} aria-hidden /> Add to my calendar</button>
-          <p className="mt-2 text-xs text-muted">Downloads a calendar file that Apple, Google and Outlook calendars can open.</p>
-        </Card>
-      </div>
+          <p className="mt-2 text-xs text-muted">Your week runs {DAY_LONG[0]} to {DAY_LONG[Math.min(6, plan.days - 1)]}. The calendar file works with Apple, Google and Outlook. Glass containers with snap lids reheat and freeze best.</p>
+        </details>
+      </Card>
 
       {freezer.length > 0 && (
         <Card className="mb-5">
@@ -160,7 +158,9 @@ export default function Prep() {
                           <p className="text-sm text-muted">Make {fmtServings(b.servings)} ({scale === 1 ? "as written" : `${fmtQty(scale)}× the recipe`})</p>
                         </div>
                       </div>
-                      <div className="mt-4 grid gap-5 md:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">
+                      <details className="group mt-3">
+                      <summary className="cursor-pointer text-sm font-semibold text-accent">Ingredients and steps</summary>
+                      <div className="mt-3 grid gap-5 md:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">
                         <div>
                           <h4 className="label mb-1.5">Ingredients</h4>
                           <ul className="grid gap-1 text-sm">
@@ -186,6 +186,7 @@ export default function Prep() {
                           </p>
                         </div>
                       </div>
+                      </details>
                     </Card>
                   );
                 })}

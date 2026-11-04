@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Plus, X } from "lucide-react";
 import { MENU_BY_ID, MENU_ITEMS, menuFit, RESTAURANTS, RESTAURANTS_BY_ID, type MenuItem } from "@prep-cart/catalog";
 import { splitTargets } from "@prep-cart/nutrition";
@@ -20,6 +20,8 @@ export default function EatOut() {
   const [cell, setCell] = useState<{ day: number; occasionId: string } | null>(null);
   const [restaurant, setRestaurant] = useState<string>("");
   const parts = useMemo(() => splitTargets(s.targets, s.occasions), [s.targets, s.occasions]);
+  // on a phone the picker sits below the week, so bring it into view
+  useEffect(() => { if (cell) document.getElementById("takeout-picker")?.scrollIntoView({ behavior: "smooth", block: "start" }); }, [cell]);
 
   const vegetarian = s.prefs.diets.some((d) => d === "vegetarian" || d === "vegan");
   const vegan = s.prefs.diets.includes("vegan");
@@ -52,7 +54,34 @@ export default function EatOut() {
           <Card>
             <SectionTitle aside={placed.length > 0 && <button className="btn btn-sm" onClick={() => s.set({ eatingOut: [] })}>Clear all</button>}>Your week</SectionTitle>
             <p className="-mt-1 mb-3 text-sm text-muted">Tap a meal to add takeout.</p>
-            <div className="overflow-x-auto">
+            {/* phone: one row per day */}
+            <ul className="grid gap-2 md:hidden">
+              {days.map((d) => (
+                <li key={d} className="rounded-lg border border-line p-2.5">
+                  <p className="mb-1.5 text-sm font-semibold">{DAY_LONG[d]}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {s.occasions.map((o) => {
+                      const e = at(d, o.id);
+                      const item = e ? MENU_BY_ID[e.itemId]! : null;
+                      const selected = cell?.day === d && cell.occasionId === o.id;
+                      return item ? (
+                        <span key={o.id} className="inline-flex min-h-[40px] items-center gap-1 rounded-full bg-warn-soft pl-3 pr-1 text-sm">
+                          <span className="max-w-[200px] truncate"><b>{o.name}:</b> {RESTAURANTS_BY_ID[item.restaurantId]?.name}</span>
+                          <button className="grid h-8 w-8 place-items-center rounded-full hover:bg-surface" onClick={() => s.setTakeout(d, o.id, null)} aria-label={`Remove takeout on ${DAY_LONG[d]} ${o.name}`}><X size={14} aria-hidden /></button>
+                        </span>
+                      ) : (
+                        <button key={o.id} onClick={() => setCell(selected ? null : { day: d, occasionId: o.id })} aria-pressed={selected}
+                          className={cx("inline-flex min-h-[40px] items-center gap-1 rounded-full border border-dashed px-3 text-sm", selected ? "border-accent bg-accent-soft text-ink" : "border-line text-muted")}
+                          aria-label={`Add takeout for ${DAY_LONG[d]} ${o.name}`}>
+                          <Plus size={14} aria-hidden /> {o.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[560px] table-fixed border-separate border-spacing-1 text-left text-sm">
                 <thead>
                   <tr>
@@ -93,7 +122,7 @@ export default function EatOut() {
           </Card>
 
           {cell && occ && target && (
-            <Card>
+            <Card className="scroll-mt-20" id="takeout-picker">
               <SectionTitle aside={<button className="btn btn-sm" onClick={() => setCell(null)}>Close</button>}>{DAY_LONG[cell.day]} {occ.name.toLowerCase()}</SectionTitle>
               <p className="-mt-1 mb-3 text-sm text-muted">
                 This meal's target is <span className="num">{target.kcal} kcal · {target.protein}P · {target.carbs}C · {target.fat}F</span>. Best matches first.
