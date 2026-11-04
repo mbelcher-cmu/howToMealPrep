@@ -1,0 +1,87 @@
+"use client";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import { Search } from "lucide-react";
+import { CUISINES, DIETS, MOODS, RECIPES, type Cuisine, type Diet, type MealType, type Mood } from "@prep-cart/catalog";
+import { hardRejection } from "@prep-cart/planner";
+import { PerServing, RecipeMeta, RecipeTile } from "@/components/plan-bits";
+import { Chip, PageHeader, Segmented } from "@/components/ui";
+import { useApp } from "@/lib/store";
+import { useHydrated } from "@/lib/use-planner";
+
+type Sort = "protein" | "fast" | "name";
+
+export default function Recipes() {
+  const hydrated = useHydrated();
+  const prefs = useApp((s) => s.prefs);
+  const [q, setQ] = useState("");
+  const [meal, setMeal] = useState<MealType | "all">("all");
+  const [cuisine, setCuisine] = useState<Cuisine | "">("");
+  const [mood, setMood] = useState<Mood | "">("");
+  const [diet, setDiet] = useState<Diet | "">("");
+  const [fitsMe, setFitsMe] = useState(false);
+  const [sort, setSort] = useState<Sort>("protein");
+
+  const list = useMemo(() => {
+    const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+    return RECIPES.filter((r) =>
+      (meal === "all" || r.mealType === meal) &&
+      (!cuisine || r.cuisines.includes(cuisine)) &&
+      (!mood || r.moods.includes(mood)) &&
+      (!diet || r.diets.includes(diet)) &&
+      (!fitsMe || !hardRejection(r, prefs)) &&
+      words.every((w) => r.name.toLowerCase().includes(w) || r.lines.some((l) => l.ingredientId.includes(w))),
+    ).sort((a, b) =>
+      sort === "name" ? a.name.localeCompare(b.name)
+        : sort === "fast" ? a.activeMinutes - b.activeMinutes
+          : b.perServing.protein / b.perServing.kcal - a.perServing.protein / a.perServing.kcal);
+  }, [q, meal, cuisine, mood, diet, fitsMe, prefs, sort]);
+
+  return (
+    <>
+      <PageHeader title="Recipes" lead={`${RECIPES.length} meal-prep recipes. Calories are worked out from the ingredients, per serving.`} />
+      <div className="card mb-5 grid gap-3 p-4">
+        <div className="relative">
+          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
+          <input className="input pl-9" placeholder="Search by name or ingredient" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search recipes" />
+        </div>
+        <Segmented size="sm" label="Meal type" value={meal} onChange={setMeal} options={[{ value: "all", label: "All" }, { value: "breakfast", label: "Breakfast" }, { value: "main", label: "Lunch and dinner" }, { value: "snack", label: "Snacks" }]} />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <select className="input" aria-label="Cuisine" value={cuisine} onChange={(e) => setCuisine(e.target.value as Cuisine | "")}>
+            <option value="">Any cuisine</option>
+            {Object.entries(CUISINES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+          <select className="input" aria-label="Mood" value={mood} onChange={(e) => setMood(e.target.value as Mood | "")}>
+            <option value="">Any mood</option>
+            {Object.entries(MOODS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+          <select className="input" aria-label="Diet" value={diet} onChange={(e) => setDiet(e.target.value as Diet | "")}>
+            <option value="">Any diet</option>
+            {Object.entries(DIETS).filter(([k]) => k !== "omnivore").map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+          <select className="input" aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+            <option value="protein">Most protein per calorie</option>
+            <option value="fast">Least hands-on time</option>
+            <option value="name">A to Z</option>
+          </select>
+        </div>
+        {hydrated && <div><Chip selected={fitsMe} onClick={() => setFitsMe(!fitsMe)}>Only recipes that fit my rules</Chip></div>}
+      </div>
+      <p className="mb-3 text-sm text-muted" aria-live="polite">{list.length} recipe{list.length === 1 ? "" : "s"}</p>
+      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {list.map((r) => (
+          <li key={r.id}>
+            <Link href={`/recipes/${r.id}/`} className="card flex h-full gap-3 p-3 hover:border-accent">
+              <RecipeTile recipe={r} />
+              <span className="grid min-w-0 gap-1">
+                <span className="font-semibold leading-snug">{r.name}</span>
+                <PerServing recipe={r} />
+                <RecipeMeta recipe={r} />
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}

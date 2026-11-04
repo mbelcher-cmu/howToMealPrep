@@ -1,0 +1,87 @@
+"use client";
+import Link from "next/link";
+import { ArrowRight, ChefHat, ShoppingCart } from "lucide-react";
+import { RECIPES_BY_ID } from "@prep-cart/catalog";
+import { BudgetBar, PlanMacros, PlanStatus, RecipeTile, SolvingNote, usePreppedTargets } from "@/components/plan-bits";
+import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
+import { useApp } from "@/lib/store";
+import { useHydrated, usePlanner } from "@/lib/use-planner";
+import { chainName, DAY_LONG, money } from "@/lib/format";
+
+export default function Home() {
+  const hydrated = useHydrated();
+  const { plan, status } = usePlanner();
+  const checked = useApp((s) => s.checked);
+  const t = usePreppedTargets();
+  if (!hydrated) return null;
+  if (!plan) {
+    return (
+      <>
+        <PageHeader title="This week" />
+        <EmptyState title={status === "solving" ? "Building your first plan" : "No plan yet"}>
+          {status === "solving" ? "Picking recipes that hit your macros within budget. This takes a few seconds." : <Link className="underline" href="/plan/">Open Plan to build one.</Link>}
+        </EmptyState>
+      </>
+    );
+  }
+  const r = plan.result;
+  const today = (new Date().getDay() + 6) % 7; // Monday = 0
+  const dayIdx = Math.min(today, plan.days - 1);
+  const day = plan.schedule.days[dayIdx];
+  const bought = r.cart.filter((l) => checked[`${l.chain}:${l.ingredientId}`]).length;
+  const nextSession = plan.schedule.sessions[0];
+  return (
+    <>
+      <PageHeader title="This week" lead={<>Your {plan.days}-day plan: {r.recipes.length} recipes from {r.stores.map(chainName).join(" and ") || "your stores"}.</>} action={<SolvingNote />} />
+      <PlanStatus />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <SectionTitle aside={<Link href="/plan/" className="text-sm text-accent underline-offset-2 hover:underline">Adjust</Link>}>Average day from your prep</SectionTitle>
+          <PlanMacros result={r} />
+          {t.allowanceKcal > 0 && <p className="mt-3 text-xs text-muted">Plus about {t.allowanceKcal.toLocaleString()} kcal a day you've kept free for meals you don't prep.</p>}
+        </Card>
+        <Card>
+          <SectionTitle>Groceries</SectionTitle>
+          <BudgetBar cost={r.cost} budget={r.budget} />
+          <p className="mt-3 text-sm text-muted">{bought} of {r.cart.length} items in the cart</p>
+          <Link href="/groceries/" className="btn btn-primary mt-3 w-full"><ShoppingCart size={16} aria-hidden /> Shopping list</Link>
+        </Card>
+        <Card className="lg:col-span-2">
+          <SectionTitle aside={<Link href="/plan/" className="text-sm text-accent underline-offset-2 hover:underline">Whole week</Link>}>{day ? `${DAY_LONG[dayIdx]}'s food` : "Today"}</SectionTitle>
+          {day && day.meals.length ? (
+            <ul className="grid grid-cols-1 gap-2">
+              {day.meals.map((m) => {
+                const rec = RECIPES_BY_ID[m.recipeId];
+                if (!rec) return null;
+                return (
+                  <li key={m.occasionId}>
+                    <Link href={`/recipes/${rec.id}/`} className="flex min-w-0 items-center gap-3 rounded-lg p-1.5 hover:bg-sunk">
+                      <RecipeTile recipe={rec} size={40} />
+                      <span className="min-w-0 flex-1">
+                        <span className="label block">{m.occasionName}</span>
+                        <span className="block truncate font-medium">{rec.name}</span>
+                      </span>
+                      <span className="num text-sm text-muted">{Math.round(rec.perServing.kcal * m.portion)} kcal</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : <p className="text-sm text-muted">Nothing prepped is planned for today.</p>}
+        </Card>
+        <Card>
+          <SectionTitle>Prep day</SectionTitle>
+          {nextSession && (
+            <p className="text-sm text-muted">
+              Cook {nextSession.batches.length} recipes before {DAY_LONG[nextSession.beforeDay]}.
+              {plan.schedule.sessions.length > 1 && <> A short second session before {DAY_LONG[plan.schedule.sessions[1]!.beforeDay]} keeps everything fresh.</>}
+            </p>
+          )}
+          <Link href="/prep/" className="btn mt-3 w-full"><ChefHat size={16} aria-hidden /> Prep plan <ArrowRight size={16} aria-hidden /></Link>
+          <Link href="/pantry/" className="btn mt-2 w-full">Pantry and prices</Link>
+          <p className="mt-3 text-xs text-muted">Estimated {money(r.cost / Math.max(1, plan.days * Math.max(1, plan.schedule.days[0]?.meals.length ?? 1)))} per prepped meal.</p>
+        </Card>
+      </div>
+    </>
+  );
+}

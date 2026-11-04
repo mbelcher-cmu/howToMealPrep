@@ -1,0 +1,5 @@
+public/highs.wasm
+public/highs.js
+out/
+.next/
+*.tsbuildinfo

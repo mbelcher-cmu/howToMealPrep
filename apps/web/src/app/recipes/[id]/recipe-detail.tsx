@@ -1,0 +1,113 @@
+"use client";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import { ArrowLeft, Lock, LockOpen } from "lucide-react";
+import { ALLERGENS, CHAINS, DIETS, EQUIPMENT, formatAmount, INGREDIENTS, MOODS, RECIPES_BY_ID } from "@prep-cart/catalog";
+import { macroShares } from "@prep-cart/nutrition";
+import { buildPriceTable, hardRejection, servingCost } from "@prep-cart/planner";
+import { RecipeMeta, RecipeTile } from "@/components/plan-bits";
+import { Card, SectionTitle, Stepper, Tag } from "@/components/ui";
+import { useApp } from "@/lib/store";
+import { useHydrated } from "@/lib/use-planner";
+import { money } from "@/lib/format";
+
+export function RecipeDetail({ id }: { id: string }) {
+  const r = RECIPES_BY_ID[id]!;
+  const hydrated = useHydrated();
+  const s = useApp();
+  const [servings, setServings] = useState(r.servings);
+  const scale = servings / r.servings;
+  const prices = useMemo(() => buildPriceTable(s.priceOverrides), [s.priceOverrides]);
+  const n = r.perServing;
+  const shares = macroShares(n);
+  const rejected = hydrated ? hardRejection(r, s.prefs) : null;
+  const locked = s.locked.includes(r.id);
+  const inPlan = s.current?.result.recipes.some((p) => p.recipe.id === r.id);
+
+  return (
+    <article>
+      <Link href="/recipes/" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"><ArrowLeft size={16} aria-hidden /> All recipes</Link>
+      <header className="mb-5 flex flex-wrap items-start gap-4">
+        <RecipeTile recipe={r} size={64} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap gap-1.5"><Tag>{r.mealType}</Tag>{r.moods.map((m) => <Tag key={m}>{MOODS[m]}</Tag>)}</div>
+          <h1 className="mt-1 font-display text-[28px] font-bold leading-tight sm:text-[32px]">{r.name}</h1>
+          <div className="mt-1"><RecipeMeta recipe={r} /></div>
+        </div>
+        {hydrated && (
+          <button className={locked ? "btn btn-primary" : "btn"} onClick={() => s.toggleLock(r.id)} aria-pressed={locked} disabled={!!rejected && !locked}>
+            {locked ? <><Lock size={16} aria-hidden /> In every plan</> : <><LockOpen size={16} aria-hidden /> Add to my plan</>}
+          </button>
+        )}
+      </header>
+      {rejected && <p role="note" className="card mb-4 border-warn bg-warn-soft p-3 text-sm">This recipe doesn't fit your rules: it {rejected}.</p>}
+      {hydrated && inPlan && !locked && <p className="mb-4 text-sm text-muted">It's in this week's plan.</p>}
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+        <div className="grid content-start gap-4">
+          <Card>
+            <SectionTitle>Per serving</SectionTitle>
+            <div className="num text-[28px] font-semibold leading-none">{n.kcal}<span className="text-sm font-normal text-muted"> kcal</span></div>
+            <dl className="num mt-3 grid grid-cols-3 gap-2 text-sm">
+              <div><dt className="label">Protein</dt><dd className="font-semibold text-protein">{n.protein} g</dd></div>
+              <div><dt className="label">Carbs</dt><dd className="font-semibold text-carbs">{n.carbs} g</dd></div>
+              <div><dt className="label">Fat</dt><dd className="font-semibold text-fat">{n.fat} g</dd></div>
+              <div><dt className="label">Fiber</dt><dd>{n.fiber} g</dd></div>
+              <div className="col-span-2"><dt className="label">Sodium</dt><dd>{n.sodiumMg.toLocaleString()} mg</dd></div>
+            </dl>
+            <div className="mt-3 flex h-2.5 overflow-hidden rounded-full" role="img" aria-label={`Protein ${Math.round(shares.protein * 100)}%, carbs ${Math.round(shares.carbs * 100)}%, fat ${Math.round(shares.fat * 100)}% of calories`}>
+              <div style={{ width: `${shares.protein * 100}%` }} className="bg-protein" />
+              <div style={{ width: `${shares.carbs * 100}%` }} className="bg-carbs" />
+              <div style={{ width: `${shares.fat * 100}%` }} className="bg-fat" />
+            </div>
+            <p className="mt-2 text-xs text-muted">Calculated from ingredient nutrition (USDA values, rounded). 4 × protein + 4 × carbs + 9 × fat.</p>
+          </Card>
+          <Card>
+            <SectionTitle>Cost per serving</SectionTitle>
+            <ul className="grid gap-1 text-sm">
+              {CHAINS.map((c) => {
+                const missing = r.lines.some((l) => !prices[l.ingredientId]?.[c.id]);
+                return (
+                  <li key={c.id} className="flex justify-between">
+                    <span>{c.name}</span>
+                    <span className="num text-muted">{missing ? "Not all items" : money(servingCost(r, prices, [c.id], new Set()))}</span>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-2 text-xs text-muted">Ingredient share only, at estimated prices. Whole packages can cost more.</p>
+          </Card>
+          <Card>
+            <SectionTitle>Good to know</SectionTitle>
+            <ul className="grid gap-1.5 text-sm">
+              <li><span className="text-muted">Fits:</span> {r.diets.filter((d) => d !== "omnivore").map((d) => DIETS[d].label).join(", ") || "No special diets"}</li>
+              <li><span className="text-muted">Contains:</span> {r.allergens.map((a) => ALLERGENS[a]).join(", ") || "None of the 9 major allergens"}</li>
+              <li><span className="text-muted">Equipment:</span> {r.equipment.map((e) => EQUIPMENT[e]).join(", ")}</li>
+              <li><span className="text-muted">Storage:</span> {r.fridgeDays} days in the fridge{r.freezerFriendly ? ", freezes well" : ""}</li>
+              {r.reheat && <li><span className="text-muted">Reheat:</span> {r.reheat}</li>}
+            </ul>
+          </Card>
+        </div>
+        <div className="grid content-start gap-4">
+          <Card>
+            <SectionTitle aside={<div className="w-40"><Stepper label="Servings" value={servings} min={1} max={16} onChange={setServings} /></div>}>Ingredients</SectionTitle>
+            <ul className="divide-y divide-line text-sm">
+              {r.lines.map((l) => (
+                <li key={l.ingredientId} className="flex justify-between gap-3 py-1.5">
+                  <span>{INGREDIENTS[l.ingredientId]?.name}</span>
+                  <span className="num shrink-0 text-muted">{formatAmount(l.ingredientId, l.grams * scale, s.profile.units)}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+          <Card>
+            <SectionTitle>Method</SectionTitle>
+            <ol className="grid list-decimal gap-2 pl-5">
+              {r.steps.map((st, i) => <li key={i}>{st}</li>)}
+            </ol>
+          </Card>
+        </div>
+      </div>
+    </article>
+  );
+}
