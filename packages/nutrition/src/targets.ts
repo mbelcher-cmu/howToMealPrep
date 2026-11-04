@@ -120,6 +120,51 @@ export function editMacroKeepingCalories(t: Targets, macro: MacroKey, grams: num
   return { targets: finalize(next), clamped: value !== target };
 }
 
+const MACROS = ["protein", "carbs", "fat"] as const;
+
+/**
+ * Lock-aware editing. Locked macros never move. Changing one macro moves the other unlocked
+ * macros (in proportion to the calories they carry now) so total calories stay the same. With
+ * every other macro locked there is nothing to rebalance, so calories follow the edit instead.
+ */
+export function editMacroWithLocks(t: Targets, macro: MacroKey, grams: number, locked: readonly MacroKey[]): EditResult & { kcalChanged: boolean } {
+  const target = Math.max(0, Math.round(grams));
+  const free = MACROS.filter((k) => k !== macro && !locked.includes(k));
+  if (!free.length) return { targets: editMacroFree(t, macro, target), clamped: false, kcalChanged: true };
+  const fixedKcal = MACROS.filter((k) => k !== macro && locked.includes(k)).reduce((a, k) => a + t[k] * KCAL_PER_GRAM[k], 0);
+  const room = Math.max(0, t.kcal - fixedKcal);
+  const value = Math.min(target, Math.floor(room / KCAL_PER_GRAM[macro]));
+  const next = { protein: t.protein, carbs: t.carbs, fat: t.fat, [macro]: value } as MacroGrams;
+  Object.assign(next, spread(room - value * KCAL_PER_GRAM[macro], free, t));
+  return { targets: finalize(next), clamped: value !== target, kcalChanged: false };
+}
+
+/** Share kcal among macros in proportion to the calories each carries now (evenly when none do). */
+function spread(kcal: number, keys: readonly MacroKey[], t: MacroGrams): Partial<MacroGrams> {
+  const cur = keys.map((k) => t[k] * KCAL_PER_GRAM[k]);
+  const sum = cur.reduce((a, b) => a + b, 0);
+  const out: Partial<MacroGrams> = {};
+  let left = kcal;
+  keys.forEach((k, i) => {
+    const share = i === keys.length - 1 ? left : sum > 0 ? (kcal * cur[i]!) / sum : kcal / keys.length;
+    const g = Math.max(0, Math.round(share / KCAL_PER_GRAM[k]));
+    out[k] = g;
+    left -= g * KCAL_PER_GRAM[k];
+  });
+  return out;
+}
+
+/** Change calories while holding every locked macro; the unlocked ones scale to fit. */
+export function editCaloriesWithLocks(t: Targets, kcal: number, locked: readonly MacroKey[]): EditResult {
+  const want = Math.max(0, Math.round(kcal));
+  const free = MACROS.filter((k) => !locked.includes(k));
+  if (!free.length) return { targets: t, clamped: want !== t.kcal };
+  const fixedKcal = MACROS.filter((k) => locked.includes(k)).reduce((a, k) => a + t[k] * KCAL_PER_GRAM[k], 0);
+  const room = want - fixedKcal;
+  const next = { protein: t.protein, carbs: t.carbs, fat: t.fat, ...spread(Math.max(0, room), free, t) } as MacroGrams;
+  return { targets: finalize(next), clamped: room < 0 };
+}
+
 /** Grams mode: set any macro freely; calories follow. */
 export function editMacroFree(t: Targets, macro: MacroKey, grams: number): Targets {
   return finalize({ protein: t.protein, carbs: t.carbs, fat: t.fat, [macro]: grams } as MacroGrams);

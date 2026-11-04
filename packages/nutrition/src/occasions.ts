@@ -11,6 +11,8 @@ export interface EatingOccasion {
   weight: number;
   /** true when this occasion comes from the prepped batch; false keeps an allowance for eating out or cooking fresh */
   prepped: boolean;
+  /** fixed grams for this occasion; the others share what is left of the day */
+  macros?: MacroGrams;
 }
 
 export const MAX_MEALS = 6;
@@ -55,14 +57,24 @@ function apportion(total: number, weights: number[]): number[] {
  * daily grams, and each occasion's kcal is derived from its own grams (4/4/9).
  */
 export function splitTargets(t: Targets, occasions: EatingOccasion[]): OccasionTargets[] {
-  const w = occasions.map((o) => Math.max(0, o.weight));
-  const p = apportion(t.protein, w);
-  const c = apportion(t.carbs, w);
-  const f = apportion(t.fat, w);
+  // occasions with their own macros keep them; the rest share what is left of the day
+  const w = occasions.map((o) => (o.macros ? 0 : Math.max(0, o.weight)));
+  const fixed = (k: keyof MacroGrams) => occasions.reduce((a, o) => a + (o.macros ? Math.max(0, Math.round(o.macros[k])) : 0), 0);
+  const p = apportion(Math.max(0, t.protein - fixed("protein")), w);
+  const c = apportion(Math.max(0, t.carbs - fixed("carbs")), w);
+  const f = apportion(Math.max(0, t.fat - fixed("fat")), w);
   return occasions.map((o, i) => {
-    const g = { protein: p[i]!, carbs: c[i]!, fat: f[i]! };
+    const g = o.macros
+      ? { protein: Math.max(0, Math.round(o.macros.protein)), carbs: Math.max(0, Math.round(o.macros.carbs)), fat: Math.max(0, Math.round(o.macros.fat)) }
+      : { protein: p[i]!, carbs: c[i]!, fat: f[i]! };
     return { occasionId: o.id, ...g, kcal: kcalFromMacros(g) };
   });
+}
+
+/** Grams of each macro that custom occasions take beyond the day's target (0 when they fit). */
+export function customOverflow(t: Targets, occasions: EatingOccasion[]): MacroGrams {
+  const sum = (k: keyof MacroGrams) => occasions.reduce((a, o) => a + (o.macros ? o.macros[k] : 0), 0);
+  return { protein: Math.max(0, sum("protein") - t.protein), carbs: Math.max(0, sum("carbs") - t.carbs), fat: Math.max(0, sum("fat") - t.fat) };
 }
 
 /** What the prepped batch must cover per day, and the allowance left for unprepped occasions. */

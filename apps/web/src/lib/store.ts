@@ -3,8 +3,8 @@ import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import { INGREDIENTS, type ChainId, type UnitSystem } from "@prep-cart/catalog";
 import {
-  defaultOccasions, editCalories, editMacroFree, editMacroKeepingCalories, suggestTargets, targetsFromSplit,
-  SPLIT_PRESETS, type ActivityLevel, type Balancer, type EatingOccasion, type Goal, type MacroKey, type Sex,
+  defaultOccasions, editCaloriesWithLocks, editMacroFree, editMacroWithLocks, suggestTargets, targetsFromSplit,
+  SPLIT_PRESETS, type ActivityLevel, type Balancer, type EatingOccasion, type Goal, type MacroGrams, type MacroKey, type Sex,
   type SplitPreset, type Targets,
 } from "@prep-cart/nutrition";
 import type { PantryItem, PlanResult, Preferences, PriceQuote, Schedule, Variety, Wish } from "@prep-cart/planner";
@@ -35,7 +35,10 @@ export interface AppState {
   profile: Profile;
   targets: Targets;
   targetMode: TargetMode;
+  /** @deprecated replaced by lockedMacros */
   balancer: Balancer;
+  /** macros that stay put when another macro or the calories change */
+  lockedMacros: MacroKey[];
   splitPreset: SplitPreset | "custom";
   meals: number;
   snacks: number;
@@ -59,7 +62,9 @@ export interface AppState {
   setProfile: (p: Partial<Profile>) => void;
   applySuggestedTargets: () => void;
   setCalories: (kcal: number) => void;
-  setMacro: (m: MacroKey, grams: number) => { clamped: boolean };
+  setMacro: (m: MacroKey, grams: number) => { clamped: boolean; kcalChanged: boolean };
+  toggleMacroLock: (m: MacroKey) => void;
+  setOccasionMacros: (id: string, macros: MacroGrams | null) => void;
   setSplitPreset: (p: SplitPreset) => void;
   setTargetMode: (m: TargetMode) => void;
   setBalancer: (b: Balancer) => void;
@@ -88,7 +93,7 @@ function initial(): Omit<AppState, keyof Actions> {
   return {
     onboarded: false,
     profile: DEFAULT_PROFILE,
-    targets, targetMode: "calories", balancer: "carbs", splitPreset: "highProtein",
+    targets, targetMode: "calories", balancer: "carbs", lockedMacros: ["protein"], splitPreset: "highProtein",
     meals: 3, snacks: 1, occasions: defaultOccasions(3, 1),
     days: 7,
     budget: { amount: 75, period: "week" },
@@ -106,7 +111,7 @@ function initial(): Omit<AppState, keyof Actions> {
     checked: {},
   };
 }
-type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "setWish" | "toggleLock" | "setPantryAmount" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "reset">;
+type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "toggleMacroLock" | "setOccasionMacros" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "setWish" | "toggleLock" | "setPantryAmount" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "reset">;
 
 const storage: StateStorage = {
   getItem: (k) => safeStorage.getItem(k),
@@ -127,18 +132,28 @@ export const useApp = create<AppState>()(
         } catch { /* invalid stats: leave targets alone */ }
       },
       setCalories: (kcal) => {
-        const { targets, splitPreset } = get();
-        if (splitPreset !== "custom") set({ targets: targetsFromSplit(kcal, SPLIT_PRESETS[splitPreset].split) });
-        else set({ targets: editCalories(targets, kcal, "keepProtein").targets });
+        const { targets, splitPreset, lockedMacros } = get();
+        if (splitPreset !== "custom" && !lockedMacros.length) set({ targets: targetsFromSplit(kcal, SPLIT_PRESETS[splitPreset].split) });
+        else set({ targets: editCaloriesWithLocks(targets, kcal, lockedMacros).targets, splitPreset: "custom" });
       },
       setMacro: (m, grams) => {
-        const { targets, targetMode, balancer } = get();
-        if (targetMode === "grams") { set({ targets: editMacroFree(targets, m, grams), splitPreset: "custom" }); return { clamped: false }; }
-        const b: Balancer = m === balancer ? (m === "carbs" ? "fat" : "carbs") : balancer;
-        const r = editMacroKeepingCalories(targets, m, grams, b);
+        const { targets, targetMode, lockedMacros } = get();
+        if (targetMode === "grams") { set({ targets: editMacroFree(targets, m, grams), splitPreset: "custom" }); return { clamped: false, kcalChanged: true }; }
+        const r = editMacroWithLocks(targets, m, grams, lockedMacros.filter((k) => k !== m));
         set({ targets: r.targets, splitPreset: "custom" });
-        return { clamped: r.clamped };
+        return { clamped: r.clamped, kcalChanged: r.kcalChanged };
       },
+      toggleMacroLock: (m) => {
+        const l = get().lockedMacros;
+        set({ lockedMacros: l.includes(m) ? l.filter((x) => x !== m) : [...l, m] });
+      },
+      setOccasionMacros: (id, macros) => set({
+        occasions: get().occasions.map((o) => {
+          if (o.id !== id) return o;
+          const { macros: _old, ...rest } = o;
+          return macros ? { ...rest, macros } : rest;
+        }),
+      }),
       setSplitPreset: (p) => set({ splitPreset: p, targets: targetsFromSplit(get().targets.kcal, SPLIT_PRESETS[p].split) }),
       setTargetMode: (m) => set({ targetMode: m }),
       setBalancer: (b) => set({ balancer: b }),
@@ -146,7 +161,7 @@ export const useApp = create<AppState>()(
         const prev = get().occasions;
         const next = defaultOccasions(meals, snacks).map((o) => {
           const old = prev.find((p) => p.id === o.id);
-          return old ? { ...o, prepped: old.prepped } : o;
+          return old ? { ...o, prepped: old.prepped, ...(old.macros ? { macros: old.macros } : {}) } : o;
         });
         set({ meals, snacks, occasions: next });
       },

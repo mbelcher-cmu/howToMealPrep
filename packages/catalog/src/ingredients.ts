@@ -151,6 +151,15 @@ const ROWS: Record<string, Row> = {
 
 /** Not wheat, but not safe for a gluten-free diet unless certified (cross-contact). */
 const GLUTEN_RISK = new Set(["oats", "granola"]);
+/**
+ * Processed or refined ingredients a whole-foods eater skips: processed meats, refined grains,
+ * snack foods and sugary or additive-heavy sauces. Whole-grain breads, plain dairy, canned
+ * beans and tomatoes, and simple condiments still count as whole foods here.
+ */
+export const PROCESSED = new Set([
+  "chicken_sausage", "deli_turkey", "bacon", "string_cheese", "pasta_white", "egg_noodles", "rice", "jasmine_rice",
+  "rice_noodles", "couscous", "pierogies", "granola", "teriyaki_sauce", "bbq_sauce", "enchilada_sauce", "taco_seasoning", "curry_paste",
+]);
 
 const CHAIN_ORDER: ChainId[] = ["aldi", "gianteagle", "walmart", "traderjoes"];
 

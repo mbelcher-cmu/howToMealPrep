@@ -57,6 +57,9 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   const parts = splitTargets(req.targets, req.occasions);
   const slotCount: Record<MealType, number> = { breakfast: 0, main: 0, snack: 0 };
   const slotKcal: Record<MealType, number> = { breakfast: 0, main: 0, snack: 0 };
+  const slotMacros: Record<MealType, { protein: number; carbs: number; fat: number; custom: boolean }> = {
+    breakfast: { protein: 0, carbs: 0, fat: 0, custom: false }, main: { protein: 0, carbs: 0, fat: 0, custom: false }, snack: { protein: 0, carbs: 0, fat: 0, custom: false },
+  };
   const dayTarget = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   let allowanceKcal = 0;
   req.occasions.forEach((o, i) => {
@@ -65,6 +68,8 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
     const t = slotTypeFor(o);
     slotCount[t] += 1;
     slotKcal[t] += part.kcal;
+    slotMacros[t].protein += part.protein; slotMacros[t].carbs += part.carbs; slotMacros[t].fat += part.fat;
+    if (o.macros) slotMacros[t].custom = true;
     dayTarget.kcal += part.kcal; dayTarget.protein += part.protein; dayTarget.carbs += part.carbs; dayTarget.fat += part.fat;
   });
   const totalMeals = SLOTS.reduce((a, s) => a + slotCount[s], 0);
@@ -140,6 +145,15 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
     m.addRow([...members.map((a): [number, string] => [a.r.perServing.kcal / 4, `s_${a.key}`]), [-1, `kp_${slot}`], [1, `kn_${slot}`]], "=", tk);
     m.addObjective(`kp_${slot}`, 0.004 * macroW);
     m.addObjective(`kn_${slot}`, 0.004 * macroW);
+    // per-meal macros the person set by hand are honored per slot, not just across the day
+    if (slotMacros[slot].custom) {
+      for (const k of ["protein", "carbs", "fat"] as const) {
+        const v = `${k[0]}${slot}`;
+        m.addRow([...members.map((a): [number, string] => [a.r.perServing[k] / 4, `s_${a.key}`]), [-1, `${v}_p`], [1, `${v}_n`]], "=", slotMacros[slot][k] * days);
+        const w = (k === "fat" ? 0.12 : 0.05) * macroW;
+        m.addObjective(`${v}_p`, w); m.addObjective(`${v}_n`, k === "protein" ? w * 3 : w);
+      }
+    }
   }
   for (const id of req.lockedRecipes ?? []) {
     const a = all.find((x) => x.r.id === id);
@@ -216,7 +230,12 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   m.addObjective("over", 6);
 
   const lp = m.toString();
-  const sol = highs.solve(lp, { time_limit: req.timeLimit ?? 2, mip_rel_gap: 0.02, output_flag: false });
+  const limit = req.timeLimit ?? 2;
+  let sol = highs.solve(lp, { time_limit: limit, mip_rel_gap: 0.02, output_flag: false });
+  // a slow or busy device can run out of time before the first feasible plan: try once more, longer
+  if (sol.Status === "Time limit reached" && !(sol.Columns && sol.Columns["cost"])) {
+    sol = highs.solve(lp, { time_limit: limit * 3, mip_rel_gap: 0.05, output_flag: false });
+  }
   if (!sol.Columns || !["Optimal", "Time limit reached", "Solution limit reached"].includes(sol.Status) || !sol.Columns["cost"]) {
     return wrap(empty("no_recipes", `The planner couldn't find a plan (${sol.Status}). Try more stores or fewer restrictions.`));
   }

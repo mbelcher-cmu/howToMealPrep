@@ -1,5 +1,5 @@
 import { kcalFromMacros } from "@prep-cart/nutrition";
-import { INGREDIENTS } from "./ingredients";
+import { INGREDIENTS, PROCESSED } from "./ingredients";
 import { RECIPE_SEEDS } from "./recipes.data";
 import type { Nutrition, Recipe, RecipeSeed } from "./recipe-types";
 import { ALLERGENS, CUISINES, EQUIPMENT, FLAVORS, MOODS, PROTEIN_SOURCES, type Allergen, type Diet, type MealType } from "./taxonomy";
@@ -42,6 +42,7 @@ function dietsFor(lines: { ingredientId: string }[], allergens: Set<Allergen>, p
   if (!animals.has("pork")) out.push("noPork");
   if (per.carbs <= 25) out.push("lowCarb");
   if (per.carbs - per.fiber <= 10) out.push("keto");
+  if (!lines.some((l) => PROCESSED.has(l.ingredientId))) out.push("wholeFoods");
   return out;
 }
 
