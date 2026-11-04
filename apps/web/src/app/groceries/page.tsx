@@ -12,6 +12,7 @@ import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { chainName, cx, money } from "@/lib/format";
 import { aisleOrderFor } from "@/lib/aisles";
+import { useFlag } from "@/lib/flags";
 
 const SOURCE_LABEL = { estimate: "Estimate", receipt: "Receipt", manual: "Your price", live: "Live", sale: "On sale" } as const;
 const lineKey = (l: CartLine) => `${l.chain}:${l.ingredientId}`;
@@ -21,6 +22,7 @@ export default function Groceries() {
   const { plan } = usePlanner();
   const s = useApp();
   const [copied, setCopied] = useState(false);
+  const nextWeekOn = useFlag("nextWeek");
   const done = !!s.current && s.shoppedPlanId === s.current.id;
 
   const byStore = useMemo(() => {
@@ -133,7 +135,9 @@ export default function Groceries() {
               </button>
             </div>
             {done
-              ? <button className="btn btn-primary mt-2 w-full" onClick={() => s.planNextWeek()}>Plan next week</button>
+              ? (nextWeekOn
+                ? <Link href="/next-week/" className="btn btn-primary mt-2 w-full">Plan next week</Link>
+                : <button className="btn btn-primary mt-2 w-full" onClick={() => s.planNextWeek()}>Plan next week</button>)
               : null}
             <p className="mt-3 text-xs text-muted">{done ? "Your leftovers are in the pantry. This week's plan stays as it is until you plan next week." : "Done shopping moves what's left of each package into your pantry, so next week's plan uses it first."}</p>
           </Card>

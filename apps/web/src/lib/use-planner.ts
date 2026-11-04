@@ -8,12 +8,13 @@ import { reportError, track } from "./telemetry";
 export type PlannerStatus = "idle" | "solving" | "error";
 
 function requestFrom(s: AppState, avoidSets: string[][] = []) {
+  const resting = (s.resting ?? []).filter((id) => !s.locked.includes(id));
   return {
     days: s.days,
     targets: s.targets,
     occasions: s.occasions,
     budget: periodBudget(s),
-    prefs: { ...s.prefs, ratings: s.ratings },
+    prefs: { ...s.prefs, ratings: s.ratings, ...(resting.length ? { excludeRecipes: [...(s.prefs.excludeRecipes ?? []), ...resting] } : {}) },
     customRecipes: s.customRecipes,
     variety: s.variety,
     stores: s.stores,
@@ -67,6 +68,12 @@ async function run(avoid: string[][] = []) {
   setShared({ status: "solving" });
   const r = await solve(requestFrom(useApp.getState(), avoid));
   if (ticket !== ticketSeq) return; // a newer request is on its way
+  if (r.ok && r.result?.status === "no_recipes" && useApp.getState().resting?.length) {
+    // resting last week's recipes left nothing that fits: let them back in (the sync re-plans) rather than show an empty week
+    useApp.getState().set({ resting: [] });
+    if (!useApp.getState().onboarded) setShared({ status: "idle" });
+    return;
+  }
   if (!r.ok || !r.result || !r.schedule) { setShared({ status: "error", error: r.error ?? "The planner stopped unexpectedly." }); reportError(new Error(r.error ?? "planner failed"), { where: "planner" }); return; }
   setShared({ status: "idle", error: null });
   const s = useApp.getState();
