@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Cloud, LogOut, RefreshCw } from "lucide-react";
 import { sendCode, signOut, syncNow, useAccount, verifyCode } from "@/lib/account";
 
@@ -17,6 +17,15 @@ export function AccountPanel() {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  // a sign-in link that failed comes back with an error in the address: say so plainly, then tidy the address
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search + "&" + window.location.hash.slice(1));
+    const code = q.get("error_code");
+    if (!code) return;
+    setMsg(code === "otp_expired" ? "That sign-in link has expired or was already used. Ask for a new one below and open only the newest email." : "That sign-in link didn't work. Please ask for a new one.");
+    window.history.replaceState(null, "", window.location.pathname);
+  }, []);
 
   if (a.status === "off") return null;
   if (a.status === "loading") return <p className="text-sm text-muted">Checking your account…</p>;
@@ -58,13 +67,13 @@ export function AccountPanel() {
           <label htmlFor="acct-email" className="text-[13px] text-muted">Email</label>
           <div className="flex flex-wrap gap-2">
             <input id="acct-email" type="email" autoComplete="email" inputMode="email" className="input min-w-0 flex-1" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-            <button className="btn btn-primary" type="submit" disabled={!validEmail || busy}>{busy ? "Sending…" : "Email me a code"}</button>
+            <button className="btn btn-primary" type="submit" disabled={!validEmail || busy}>{busy ? "Sending…" : "Email me a sign-in link"}</button>
           </div>
           <p className="text-xs text-muted">No password needed. Your data stays on this device until you sign in, then it syncs to your account.</p>
         </form>
       ) : (
         <form className="grid gap-2" onSubmit={(e) => { e.preventDefault(); if (code.trim().length >= 6 && !busy) void verify(); }}>
-          <label htmlFor="acct-code" className="text-[13px] text-muted">We emailed {email.trim()}. Enter the code, or tap the link in the email on this device.</label>
+          <label htmlFor="acct-code" className="text-[13px] text-muted">We emailed a sign-in link to {email.trim()}. Open it on this device and in this browser. If the email has a code instead, enter it here.</label>
           <div className="flex flex-wrap gap-2">
             <input id="acct-code" autoComplete="one-time-code" inputMode="numeric" className="input num min-w-0 flex-1 tracking-widest" value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, "").slice(0, 10))} placeholder="123456" />
             <button className="btn btn-primary" type="submit" disabled={code.trim().length < 6 || busy}>{busy ? "Checking…" : "Sign in"}</button>
