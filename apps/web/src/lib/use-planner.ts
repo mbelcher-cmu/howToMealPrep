@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PlanResult, Schedule } from "@prep-cart/planner";
-import { daysUntil, periodBudget, useApp, type AppState } from "./store";
+import { daysUntil, isoDay, periodBudget, useApp, type AppState } from "./store";
 
 export type PlannerStatus = "idle" | "solving" | "error";
 
@@ -21,6 +21,8 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
     lockedRecipes: s.locked,
     avoidSets,
     priceOverrides: s.priceOverrides,
+    deals: s.deals.filter((d) => d.endsOn >= isoDay()).map(({ ingredientId, chain, price, endsOn }) => ({ ingredientId, chain, price, endsOn })),
+    today: isoDay(),
     timeLimit: 2,
     eatingOut: s.eatingOut.filter((e) => e.day < s.days && s.occasions.some((o) => o.id === e.occasionId)),
   };

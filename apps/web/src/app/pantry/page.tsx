@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import { Infinity as InfinityIcon, Plus, Trash2 } from "lucide-react";
 import { CHAINS, formatAmount, INGREDIENTS, type ChainId } from "@prep-cart/catalog";
+import { DealsPanel, PriceHistoryLine } from "@/components/deals";
 import { Card, Chip, NumberField, PageHeader, Segmented } from "@/components/ui";
 import { daysUntil, useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
@@ -42,7 +43,7 @@ function PriceCell({ ingredientId, chain }: { ingredientId: string; chain: Chain
 export default function Pantry() {
   const hydrated = useHydrated();
   const s = useApp();
-  const [tab, setTab] = useState<"pantry" | "prices">("pantry");
+  const [tab, setTab] = useState<"pantry" | "prices" | "deals">("pantry");
   const [q, setQ] = useState("");
   const [priceQ, setPriceQ] = useState("");
   const [onlyCart, setOnlyCart] = useState(true);
@@ -58,15 +59,16 @@ export default function Pantry() {
     (a.useBy ? daysUntil(a.useBy) : 1e9) - (b.useBy ? daysUntil(b.useBy) : 1e9) ||
     (INGREDIENTS[a.ingredientId]?.name ?? "").localeCompare(INGREDIENTS[b.ingredientId]?.name ?? ""));
   const soon = items.filter((p) => p.useBy && daysUntil(p.useBy) <= 2);
+  const activeDeals = s.deals.filter((d) => daysUntil(d.endsOn) >= 0).length;
   const overrideCount = Object.values(s.priceOverrides).reduce((n, r) => n + Object.keys(r).length, 0);
 
   return (
     <>
-      <PageHeader title="Pantry and prices" lead="Food you already have gets used first. Correct any price and the plan re-runs with it." />
-      <div className="mb-4 max-w-[360px]">
-        <Segmented label="Section" value={tab} onChange={setTab} options={[{ value: "pantry", label: "What I have" }, { value: "prices", label: `Prices${overrideCount ? ` (${overrideCount})` : ""}` }]} />
+      <PageHeader title="Pantry and prices" lead="Food you already have gets used first. Correct any price or add a sale and the plan re-runs with it." />
+      <div className="mb-4 max-w-[480px]">
+        <Segmented label="Section" value={tab} onChange={setTab} options={[{ value: "pantry", label: "What I have" }, { value: "prices", label: `Prices${overrideCount ? ` (${overrideCount})` : ""}` }, { value: "deals", label: `Sales${activeDeals ? ` (${activeDeals})` : ""}` }]} />
       </div>
-      {tab === "pantry" ? (
+      {tab === "deals" ? <DealsPanel /> : tab === "pantry" ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           <Card>
             {soon.length > 0 && (
@@ -137,6 +139,7 @@ export default function Pantry() {
                     <th scope="row" className="py-1 pr-2 text-left font-normal">
                       <span className="block font-medium">{i.name}</span>
                       <span className="block text-xs text-muted">{i.pkg.label}</span>
+                      <PriceHistoryLine ingredientId={i.id} />
                     </th>
                     {CHAINS.map((c) => <PriceCell key={c.id} ingredientId={i.id} chain={c.id} />)}
                   </tr>

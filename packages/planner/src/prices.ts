@@ -14,3 +14,19 @@ export function buildPriceTable(overrides: Record<string, Partial<Record<ChainId
   }
   return t;
 }
+
+export interface Deal { ingredientId: string; chain: ChainId; price: number; endsOn: string }
+
+/** Lay this week's sales over a price table. A sale only counts while it runs and when it beats the usual price. */
+export function applyDeals(t: PriceTable, deals: Deal[], today: string): PriceTable {
+  const out: PriceTable = { ...t };
+  for (const d of deals) {
+    if (d.endsOn < today || !(d.price > 0)) continue;
+    const row = { ...(out[d.ingredientId] ?? {}) };
+    const usual = row[d.chain]?.price;
+    if (usual != null && d.price >= usual) continue;
+    row[d.chain] = { price: d.price, source: "sale", ...(usual != null ? { regular: usual } : {}), observedAt: today };
+    out[d.ingredientId] = row;
+  }
+  return out;
+}

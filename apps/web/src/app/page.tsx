@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { ArrowRight, ChefHat, ShoppingCart } from "lucide-react";
-import { MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
+import { INGREDIENTS, MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
+import { usualPrice } from "@/components/deals";
 import { BudgetBar, PlanMacros, PlanStatus, RecipeTile, SolvingNote, usePreppedTargets } from "@/components/plan-bits";
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
 import { useApp } from "@/lib/store";
@@ -12,6 +13,8 @@ export default function Home() {
   const hydrated = useHydrated();
   const { plan, status } = usePlanner();
   const checked = useApp((s) => s.checked);
+  const deals = useApp((s) => s.deals);
+  const overrides = useApp((s) => s.priceOverrides);
   const t = usePreppedTargets();
   if (!hydrated) return null;
   if (!plan) {
@@ -30,6 +33,8 @@ export default function Home() {
   const day = plan.schedule.days[dayIdx];
   const bought = r.cart.filter((l) => checked[`${l.chain}:${l.ingredientId}`]).length;
   const nextSession = plan.schedule.sessions[0];
+  const sales = r.cart.filter((l) => l.priceSource === "sale").map((l) => ({ ...l, regular: deals.find((d) => d.ingredientId === l.ingredientId && d.chain === l.chain) ? usualPrice(l.ingredientId, l.chain, overrides) : null }));
+  const saved = sales.reduce((a, l) => a + (l.regular ? (l.regular - l.unitPrice) * l.packages : 0), 0);
   return (
     <>
       <PageHeader title="This week" lead={<>Your {plan.days}-day plan: {r.recipes.length} recipes from {r.stores.map(chainName).join(" and ") || "your stores"}.</>} action={<SolvingNote />} />
@@ -78,6 +83,19 @@ export default function Home() {
             </ul>
           ) : <p className="text-sm text-muted">Nothing prepped is planned for today.</p>}
         </Card>
+        {sales.length > 0 && (
+          <Card className="lg:col-span-3">
+            <SectionTitle aside={<Link href="/pantry/" className="text-sm text-accent underline-offset-2 hover:underline">All sales</Link>}>On sale this week</SectionTitle>
+            <ul className="flex flex-wrap gap-2">
+              {sales.map((l) => (
+                <li key={l.ingredientId + l.chain} className="pill">
+                  {INGREDIENTS[l.ingredientId]?.name} · {money(l.unitPrice)} at {chainName(l.chain)}{l.regular ? ` (save ${money((l.regular - l.unitPrice) * l.packages)})` : ""}
+                </li>
+              ))}
+            </ul>
+            {saved > 0 && <p className="mt-2 text-sm text-muted">Your plan uses {sales.length} sale item{sales.length === 1 ? "" : "s"} and saves about {money(saved)}.</p>}
+          </Card>
+        )}
         <Card>
           <SectionTitle>Prep day</SectionTitle>
           {nextSession && (

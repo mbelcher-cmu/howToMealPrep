@@ -7,7 +7,7 @@ import {
   SPLIT_PRESETS, type ActivityLevel, type Balancer, type EatingOccasion, type Goal, type MacroGrams, type MacroKey, type Sex,
   type SplitPreset, type Targets,
 } from "@prep-cart/nutrition";
-import type { EatOut, PantryItem, PlanResult, Preferences, PriceQuote, Schedule, Variety, Wish } from "@prep-cart/planner";
+import type { Deal, EatOut, PantryItem, PlanResult, Preferences, PriceQuote, Schedule, Variety, Wish } from "@prep-cart/planner";
 import { decode, encode, safeStorage } from "./storage";
 
 export interface Profile {
@@ -67,6 +67,10 @@ export interface AppState {
   checked: Record<string, boolean>;
   /** takeout meals placed on the week */
   eatingOut: EatOut[];
+  /** sales the person entered from a weekly ad or the shelf */
+  deals: (Deal & { id: string; addedOn: string })[];
+  /** every price the person recorded, newest last */
+  priceHistory: Record<string, { chain: ChainId; price: number; on: string; source: "manual" | "receipt" | "sale" }[]>;
 
   // actions
   setProfile: (p: Partial<Profile>) => void;
@@ -90,6 +94,8 @@ export interface AppState {
   toggleChecked: (key: string) => void;
   finishShopping: () => void;
   setTakeout: (day: number, occasionId: string, itemId: string | null) => void;
+  addDeal: (d: Deal) => void;
+  removeDeal: (id: string) => void;
   reset: () => void;
 }
 
@@ -122,9 +128,11 @@ function initial(): Omit<AppState, keyof Actions> {
     history: [],
     checked: {},
     eatingOut: [],
+    deals: [],
+    priceHistory: {},
   };
 }
-type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "toggleMacroLock" | "setOccasionMacros" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "setWish" | "toggleLock" | "setPantryAmount" | "addToPantry" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "setTakeout" | "reset">;
+type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "toggleMacroLock" | "setOccasionMacros" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "setWish" | "toggleLock" | "setPantryAmount" | "addToPantry" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "setTakeout" | "addDeal" | "removeDeal" | "reset">;
 
 const storage: StateStorage = {
   getItem: (k) => safeStorage.getItem(k),
@@ -205,7 +213,9 @@ export const useApp = create<AppState>()(
         if (price === undefined) delete row[chain];
         else row[chain] = price === null ? null : { price, source: "manual", observedAt: new Date().toISOString() };
         o[id] = row;
-        set({ priceOverrides: o });
+        const history = { ...get().priceHistory };
+        if (typeof price === "number") history[id] = [...(history[id] ?? []), { chain, price, on: isoDay(), source: "manual" as const }].slice(-30);
+        set({ priceOverrides: o, priceHistory: history });
       },
       savePlan: (plan) => set({ current: plan, history: [plan, ...get().history.filter((h) => h.id !== plan.id)].slice(0, 20), checked: {} }),
       toggleChecked: (key) => set({ checked: { ...get().checked, [key]: !get().checked[key] } }),
@@ -236,6 +246,13 @@ export const useApp = create<AppState>()(
         const rest = get().eatingOut.filter((e) => !(e.day === day && e.occasionId === occasionId));
         set({ eatingOut: itemId ? [...rest, { day, occasionId, itemId }] : rest });
       },
+      addDeal: (d) => {
+        const deals = get().deals.filter((x) => !(x.ingredientId === d.ingredientId && x.chain === d.chain));
+        const history = { ...get().priceHistory };
+        history[d.ingredientId] = [...(history[d.ingredientId] ?? []), { chain: d.chain, price: d.price, on: isoDay(), source: "sale" as const }].slice(-30);
+        set({ deals: [...deals, { ...d, id: `${d.ingredientId}:${d.chain}:${Date.now()}`, addedOn: isoDay() }], priceHistory: history });
+      },
+      removeDeal: (id) => set({ deals: get().deals.filter((d) => d.id !== id) }),
       reset: () => set({ ...initial() }),
     }),
     {

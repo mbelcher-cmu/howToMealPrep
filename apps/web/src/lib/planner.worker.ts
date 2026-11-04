@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
 import type highsLoaderType from "highs";
-import { buildPriceTable, plan, schedule, type PlanRequest } from "@prep-cart/planner";
+import { applyDeals, buildPriceTable, plan, schedule, type Deal, type PlanRequest } from "@prep-cart/planner";
 
-type Msg = { id: number; base: string; req: Omit<PlanRequest, "prices"> & { priceOverrides: Parameters<typeof buildPriceTable>[0] } };
+type Msg = { id: number; base: string; req: Omit<PlanRequest, "prices"> & { priceOverrides: Parameters<typeof buildPriceTable>[0]; deals: Deal[]; today: string } };
 
 type Loader = typeof highsLoaderType;
 let highsPromise: ReturnType<Loader> | null = null;
@@ -19,8 +19,8 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
   try {
     highsPromise ??= loadHighs(base);
     const highs = await highsPromise;
-    const { priceOverrides, ...rest } = req;
-    const result = plan({ ...rest, prices: buildPriceTable(priceOverrides) }, highs as never);
+    const { priceOverrides, deals, today, ...rest } = req;
+    const result = plan({ ...rest, prices: applyDeals(buildPriceTable(priceOverrides), deals, today) }, highs as never);
     const sched = schedule(result, req.occasions, req.days);
     (self as unknown as Worker).postMessage({ id, ok: true, result, schedule: sched });
   } catch (err) {
