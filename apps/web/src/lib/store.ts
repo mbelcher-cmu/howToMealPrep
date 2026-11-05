@@ -11,6 +11,7 @@ import {
 } from "@prep-cart/nutrition";
 import type { Deal, EatOut, PantryItem, PlanResult, Preferences, PriceQuote, Schedule, Variety, Wish } from "@prep-cart/planner";
 import { decode, encode, safeStorage } from "./storage";
+import { mergeSaved } from "./sanitize";
 
 export interface Profile {
   sex: Sex; ageYears: number; heightCm: number; weightKg: number; activity: ActivityLevel; goal: Goal;
@@ -183,7 +184,16 @@ function initial(): Omit<AppState, keyof Actions> {
 type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "toggleMacroLock" | "setOccasionMacros" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "setWish" | "toggleLock" | "setPantryAmount" | "addToPantry" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "planNextWeek" | "startNextWeek" | "setTakeout" | "addDeal" | "removeDeal" | "reset">;
 
 const storage: StateStorage = {
-  getItem: (k) => safeStorage.getItem(k),
+  getItem: (k) => {
+    const raw = safeStorage.getItem(k);
+    if (raw == null) return null;
+    // a damaged save would stop the store from ever loading (blank app); keep a copy aside and start fresh
+    try { JSON.parse(raw); return raw; } catch {
+      safeStorage.setItem(`${k}:damaged`, raw);
+      safeStorage.removeItem(k);
+      return null;
+    }
+  },
   setItem: (k, v) => safeStorage.setItem(k, v),
   removeItem: (k) => safeStorage.removeItem(k),
 };
@@ -331,6 +341,8 @@ export const useApp = create<AppState>()(
       name: STORE_KEY,
       version: 1,
       storage: createJSONStorage(() => storage, { replacer: (_k, v) => (v === Infinity ? "__inf" : v), reviver: (_k, v) => (v === "__inf" ? Infinity : v) }),
+      // a damaged or older save falls back to defaults field by field instead of crashing the app
+      merge: (saved, current) => mergeSaved(saved, current),
       partialize: (s) => Object.fromEntries(Object.entries(s).filter(([, v]) => typeof v !== "function")) as Partial<AppState>,
     },
   ),

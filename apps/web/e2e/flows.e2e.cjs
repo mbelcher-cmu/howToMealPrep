@@ -268,6 +268,21 @@ test("a new phone can open pages offline it never visited, once the app has load
   }
 });
 
+test("a damaged or odd-shaped save never leaves the app blank or crashed", async () => {
+  for (const saved of ["not json{", JSON.stringify({ state: { onboarded: true, budget: null, stores: "aldi", occasions: {}, targets: null }, version: 1 })]) {
+    const fresh = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+    await fresh.addInitScript((v) => { if (!sessionStorage.getItem("seeded")) { localStorage.setItem("prep-cart-v1", v); sessionStorage.setItem("seeded", "1"); } }, saved);
+    const p = await fresh.newPage();
+    const crashes = [];
+    p.on("pageerror", (e) => crashes.push(e.message));
+    await p.goto(base + "/settings/");
+    await p.getByRole("heading", { level: 1 }).first().waitFor({ timeout: 15000 });
+    assert.doesNotMatch(await p.locator("body").innerText(), /Application error|Something went wrong/);
+    assert.deepEqual(crashes, [], `save ${saved.slice(0, 30)}`);
+    await fresh.close();
+  }
+});
+
 test("no script errors along the way", () => {
   assert.deepEqual(errors, []);
 });
