@@ -22,6 +22,10 @@ export const FLAG_DEFAULTS = {
   calendar: { production: true, staging: true, development: true },
   /** setup asks the person to rank about 10 options for breakfast, lunch and dinner, and snacks, on in production since Nov 5 2026 */
   mealRanking: { production: true, staging: true, development: true },
+  /** prep day knows the kitchen (two oven racks, four burners), plus step-by-step cook mode with timers and storage notes */
+  cookMode: { production: false, staging: true, development: true },
+  /** in-store list: jump between aisles, "can't find it", and a buzz on each tick */
+  aisleMode: { production: false, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */
