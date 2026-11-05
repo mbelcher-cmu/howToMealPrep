@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { adherence, defaultOccasions } from "@prep-cart/nutrition";
-import { applyDeals, buildPriceTable, plan, schedule } from "../src";
+import { INGREDIENTS, RECIPES_BY_ID } from "@prep-cart/catalog";
+import { applyDeals, buildPriceTable, hardRejection, plan, schedule } from "../src";
 import { baseRequest, highsPromise } from "./fixtures";
 
 describe("planner features", async () => {
@@ -22,6 +23,17 @@ describe("planner features", async () => {
     const r = plan(req, highs);
     expect(r.status).not.toBe("no_recipes");
     for (const p of r.recipes) expect(p.recipe.diets).toContain("wholeFoods");
+    for (const l of r.cart) expect(INGREDIENTS[l.ingredientId]!.processing, l.ingredientId).not.toBe("processed");
+  });
+
+  it("keeps a whole-foods plan clean even when locked recipes or stale tags say otherwise", () => {
+    const prefs = { ...baseRequest().prefs, diets: ["wholeFoods" as const] };
+    // a recipe saved before an ingredient was retagged still carries the wholeFoods tag
+    const stale = { ...RECIPES_BY_ID["gochujang_tofu"]!, diets: [...RECIPES_BY_ID["gochujang_tofu"]!.diets, "wholeFoods" as const] };
+    expect(hardRejection(stale, prefs)).toMatch(/Gochujang, a processed food/);
+    const r = plan(baseRequest({ prefs, budget: 95, lockedRecipes: ["bacon_potato_bowls"] }), highs);
+    expect(r.recipes.map((p) => p.recipe.id)).not.toContain("bacon_potato_bowls");
+    for (const l of r.cart) expect(INGREDIENTS[l.ingredientId]!.processing, l.ingredientId).not.toBe("processed");
   });
 
   it("mixes takeout into the week and still hits targets and budget", () => {

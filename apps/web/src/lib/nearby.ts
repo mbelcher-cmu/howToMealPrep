@@ -1,4 +1,4 @@
-import type { ChainId } from "@prep-cart/catalog";
+import { RESTAURANTS, type ChainId } from "@prep-cart/catalog";
 import type { NearbyStore } from "./store";
 
 /**
@@ -61,4 +61,37 @@ export function currentPosition(): Promise<{ lat: number; lon: number }> {
       { timeout: 10000, maximumAge: 600000 },
     );
   });
+}
+
+/** Which takeout chain an OpenStreetMap brand or name belongs to, if any. */
+export function restaurantFor(name: string): string | null {
+  for (const r of RESTAURANTS) if (r.match.test(name)) return r.id;
+  return null;
+}
+
+/** Closest distance in miles to each takeout chain in a list of OpenStreetMap places. */
+export function closestByChain(places: { name: string; distanceMi: number }[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const p of places) {
+    const id = restaurantFor(p.name);
+    if (id && (out[id] == null || p.distanceMi < out[id]!)) out[id] = p.distanceMi;
+  }
+  return out;
+}
+
+/** Takeout chains near a point (fast food, restaurants and cafes with a brand on OpenStreetMap). */
+export async function restaurantsNear(p: { lat: number; lon: number }, radiusMi = 5, signal?: AbortSignal): Promise<Record<string, number>> {
+  const m = Math.round(radiusMi * 1609.34);
+  const q = `[out:json][timeout:20];(nwr["amenity"~"fast_food|restaurant|cafe"](around:${m},${p.lat},${p.lon}););out center tags 400;`;
+  const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: new URLSearchParams({ data: q }), signal });
+  if (!res.ok) throw new Error(`Restaurant lookup failed (${res.status}). Try again in a minute.`);
+  const json = (await res.json()) as { elements: { lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }[] };
+  const places: { name: string; distanceMi: number }[] = [];
+  for (const e of json.elements) {
+    const t = e.tags ?? {};
+    const at = e.center ?? (e.lat != null && e.lon != null ? { lat: e.lat, lon: e.lon } : null);
+    if (!at || !(t.brand || t.name)) continue;
+    places.push({ name: `${t.brand ?? ""} ${t.name ?? ""}`, distanceMi: Math.round(miles(p, at) * 10) / 10 });
+  }
+  return closestByChain(places);
 }

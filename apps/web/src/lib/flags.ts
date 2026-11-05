@@ -24,6 +24,22 @@ export const FLAG_DEFAULTS = {
   mealRanking: { production: true, staging: true, development: true },
   /** household members with their own protein goal, diet and allergies; shared recipes, extra ones only when needed */
   householdGoals: { production: false, staging: true, development: true },
+  /** "Whole foods only" switch, processed items named on recipes, meal preps filtered to fit your diet */
+  wholeFoods: { production: false, staging: true, development: true },
+  /** pantry tracker: fridge/freezer/cupboard groups, quick amounts, savings, "cook from your pantry", per-item "have at home" on the list */
+  pantryV2: { production: false, staging: true, development: true },
+  /** per-meal styles (high-protein breakfast, lighter dinner...), meal edits that keep the meal's calories, macro locks shown up front */
+  mealStyles: { production: false, staging: true, development: true },
+  /** calories get a lock like protein, carbs and fat; all four locks shown up front with a one-line rule */
+  macroLocks: { production: false, staging: true, development: true },
+  /** prep day knows the kitchen (two oven racks, four burners), plus step-by-step cook mode with timers and storage notes */
+  cookMode: { production: false, staging: true, development: true },
+  /** in-store list: jump between aisles, "can't find it", and a buzz on each tick */
+  aisleMode: { production: false, staging: true, development: true },
+  /** Eat out, more: "plan takeout for me", chains near you, search and sort, cost against cooking, just-this-week takeout */
+  eatOutPlus: { production: false, staging: true, development: true },
+  /** Netflix-style recommendations from star ratings: yours, and everyone's via the database (staging first) */
+  recommendations: { production: false, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */
@@ -36,13 +52,14 @@ const LOCAL_KEY = "prep-cart-flags";
 /** Parses "a=on,b=off" into overrides; unknown flags and values are ignored. */
 export function parseFlags(raw: string | null | undefined): Partial<Record<Flag, boolean>> {
   const out: Partial<Record<Flag, boolean>> = {};
+  // names match in any case, so ?flags=pantryv2=on works as well as pantryV2=on
+  const names = new Map((Object.keys(FLAG_DEFAULTS) as Flag[]).map((f) => [f.toLowerCase(), f]));
   for (const part of (raw ?? "").split(",")) {
-    const [raw, v] = part.split("=").map((x) => x?.trim().toLowerCase());
-    // names are matched without case, so ?flags=nextweek=on works for nextWeek
-    const k = (Object.keys(FLAG_DEFAULTS) as Flag[]).find((f) => f.toLowerCase() === raw);
-    if (!k) continue;
-    if (v === "on" || v === "true" || v === "1") out[k] = true;
-    else if (v === "off" || v === "false" || v === "0") out[k] = false;
+    const [k, v] = part.split("=").map((x) => x?.trim().toLowerCase());
+    const name = k ? names.get(k) : undefined;
+    if (!name) continue;
+    if (v === "on" || v === "true" || v === "1") out[name] = true;
+    else if (v === "off" || v === "false" || v === "0") out[name] = false;
   }
   return out;
 }

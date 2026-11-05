@@ -1,4 +1,4 @@
-import { CUISINES, FLAVORS, INGREDIENTS, MOODS, PROTEIN_SOURCES, RECIPES, type ChainId, type Equipment, type MealType, type Recipe } from "@prep-cart/catalog";
+import { CUISINES, FLAVORS, INGREDIENTS, MOODS, processedIn, PROTEIN_SOURCES, RECIPES, RECIPES_BY_ID, type ChainId, type Equipment, type MealType, type Recipe } from "@prep-cart/catalog";
 import type { EatingOccasion } from "@prep-cart/nutrition";
 import type { Preferences, PriceTable, Wish } from "./types";
 
@@ -15,6 +15,11 @@ export interface Rejection { recipeId: string; reason: string }
 /** Hard rules: diets, allergens, dislikes, equipment, time. Returns the reason a recipe is out, or null. */
 export function hardRejection(r: Recipe, p: Preferences): string | null {
   for (const d of p.diets) if (!r.diets.includes(d)) return `not ${d}`;
+  // checked against the ingredients too, so a recipe saved before the tags changed can't slip through
+  if (p.diets.includes("wholeFoods")) {
+    const bad = processedIn(r)[0];
+    if (bad) return `contains ${INGREDIENTS[bad]?.name ?? bad}, a processed food`;
+  }
   for (const a of p.allergens) if (r.allergens.includes(a)) return `contains ${a}`;
   for (const l of r.lines) if (p.dislikes.includes(l.ingredientId)) return `contains ${INGREDIENTS[l.ingredientId]?.name ?? l.ingredientId}`;
   const needs = r.equipment.filter((e) => !OPTIONAL_EQUIPMENT.has(e));
@@ -58,6 +63,16 @@ export function preferenceFit(r: Recipe, p: Preferences): { fit: number; reasons
   if (stars === 5) { fit += 2; reasons.unshift("you rated it 5 stars"); }
   else if (stars === 4) { fit += 1; reasons.unshift("you rated it 4 stars"); }
   else if (stars === 2) fit -= 1.5;
+  const rec = stars ? undefined : p.recommended?.[r.id];
+  if (rec && Number.isFinite(rec.affinity)) {
+    // a sure recommendation counts like a 5-star rating; a likely miss like a 2-star one
+    const a = Math.max(-1, Math.min(1, rec.affinity));
+    fit += a > 0 ? 2 * a : 1.5 * a;
+    if (a >= 0.25) {
+      const liked = rec.because ? RECIPES_BY_ID[rec.because]?.name : undefined;
+      reasons.unshift(liked ? `because you liked ${liked}` : "people with your taste liked it");
+    }
+  }
   const place = p.rankings?.[r.id];
   if (place && place >= 1) {
     // the top pick is worth more than a 5-star rating; every ranked pick counts for something

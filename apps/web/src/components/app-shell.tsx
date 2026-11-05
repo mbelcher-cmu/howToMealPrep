@@ -38,7 +38,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const onboarded = useApp((s) => s.onboarded);
   const { status } = usePlanner();
   const isOnboarding = path.startsWith("/welcome");
-  const isShopping = path.startsWith("/shop");
+  const isShopping = path.startsWith("/shop") || path.startsWith("/cook");
 
   useEffect(() => { void initTelemetry(); }, []);
   useEffect(() => { if (hydrated) void initAccount(); }, [hydrated]);
