@@ -66,6 +66,92 @@ export function BodyStatsEditor() {
 
 /* ───────────── Calories and macros ───────────── */
 export function TargetsEditor({ showSuggest = true }: { showSuggest?: boolean }) {
+  return useFlag("macroLocks") ? <LockingTargetsEditor showSuggest={showSuggest} /> : <ClassicTargetsEditor showSuggest={showSuggest} />;
+}
+
+type TargetField = "kcal" | "protein" | "carbs" | "fat";
+const FIELD_NAME: Record<TargetField, string> = { kcal: "calories", protein: "protein", carbs: "carbs", fat: "fat" };
+const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
+
+/** One plain sentence on what moves when the person changes something, for the locks they have. */
+export function lockRule(kcalLocked: boolean, locked: readonly ("protein" | "carbs" | "fat")[]): string {
+  const free = (["protein", "carbs", "fat"] as const).filter((k) => !locked.includes(k));
+  if (kcalLocked) {
+    if (free.length === 3) return "Calories are locked, so changing one macro moves the other two.";
+    if (free.length === 2) return `Calories and ${locked[0]} are locked, so changing ${free[0]} moves ${free[1]}, and the other way round.`;
+    return `Calories and ${andList([...locked])} are locked, so nothing can move. Unlock one to make a change.`;
+  }
+  if (!free.length) return "All three macros are locked, so your calories are set by them.";
+  return `Calories are unlocked, so changing a macro changes your calories. Changing calories moves ${andList([...free])}.`;
+}
+
+/** Calories and macros with a lock on each; locked values hold when anything else changes. */
+function LockingTargetsEditor({ showSuggest }: { showSuggest: boolean }) {
+  const s = useApp();
+  const t = s.targets;
+  const shares = macroShares(t);
+  const [note, setNote] = useState<string | null>(null);
+  const locked = s.lockedMacros ?? [];
+  const kcalLocked = s.targetMode === "calories";
+  const isLocked = (f: TargetField) => (f === "kcal" ? kcalLocked : locked.includes(f));
+  const edit = (f: TargetField, v: number) => {
+    const r = s.setTarget(f, v);
+    if (r.blocked) setNote(`Nothing else is unlocked to make room for that. Unlock ${f === "kcal" ? "a macro" : "calories or another macro"} first.`);
+    else if (r.clamped) setNote(f === "kcal" ? "Your locked macros already need more calories than that, so the others went to zero." : "That's more than your calories allow with these locks, so it was set as high as it fits.");
+    else setNote(null);
+  };
+  const field = (f: TargetField, label: string, max: number, step: number, suffix: string) => {
+    const on = isLocked(f);
+    return (
+      <div className="grid min-w-0 gap-1">
+        <NumberField label={label} value={f === "kcal" ? t.kcal : t[f]} min={f === "kcal" ? 1000 : 0} max={max} step={step} onChange={(v) => edit(f, v)} suffix={suffix} />
+        <button type="button" onClick={() => { (f === "kcal" ? s.toggleCaloriesLock() : s.toggleMacroLock(f)); setNote(null); }} aria-pressed={on} aria-label={`Lock ${FIELD_NAME[f]}`}
+          className={cx("inline-flex min-h-[32px] items-center justify-center gap-1 rounded-md border text-xs font-semibold", on ? "border-accent bg-accent-soft text-ink" : "border-line text-muted hover:bg-sunk")}>
+          {on ? <Lock size={12} aria-hidden /> : <LockOpen size={12} aria-hidden />} {on ? "Locked" : "Lock"}
+        </button>
+      </div>
+    );
+  };
+  return (
+    <div className="grid gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {field("kcal", "Calories per day", 6000, 50, "kcal")}
+        {field("protein", "Protein", 500, 5, "g")}
+        {field("carbs", "Carbs", 900, 5, "g")}
+        {field("fat", "Fat", 300, 1, "g")}
+      </div>
+      <p className="text-xs text-muted">{lockRule(kcalLocked, locked)}</p>
+      {note && <p role="status" className="text-sm text-warn">{note}</p>}
+      <div className="grid gap-1 sm:max-w-xs">
+        <label htmlFor="split" className="text-[13px] text-muted">Macro split</label>
+        <select id="split" className="input" value={s.splitPreset} onChange={(e) => { if (e.target.value !== "custom") { s.setSplitPreset(e.target.value as SplitPreset); setNote(null); } }}>
+          {Object.entries(SPLIT_PRESETS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          <option value="custom">{s.splitPreset === "custom" ? "Suggested or your own" : "Custom"}</option>
+        </select>
+      </div>
+      <div>
+        <div className="flex h-3 overflow-hidden rounded-full" role="img" aria-label={`Protein ${Math.round(shares.protein * 100)}%, carbs ${Math.round(shares.carbs * 100)}%, fat ${Math.round(shares.fat * 100)}% of calories`}>
+          <div style={{ width: `${shares.protein * 100}%` }} className="bg-protein" />
+          <div style={{ width: `${shares.carbs * 100}%` }} className="bg-carbs" />
+          <div style={{ width: `${shares.fat * 100}%` }} className="bg-fat" />
+        </div>
+        <div className="num mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+          <span><b className="text-protein">■</b> Protein {Math.round(shares.protein * 100)}% · {t.protein * 4} kcal</span>
+          <span><b className="text-carbs">■</b> Carbs {Math.round(shares.carbs * 100)}% · {t.carbs * 4} kcal</span>
+          <span><b className="text-fat">■</b> Fat {Math.round(shares.fat * 100)}% · {t.fat * 9} kcal</span>
+          <span>Fiber goal {t.fiber} g</span>
+        </div>
+      </div>
+      {showSuggest && (
+        <button type="button" className="btn btn-sm justify-self-start" onClick={() => { s.applySuggestedTargets(); setNote(null); }}>
+          Use the suggestion from my body stats
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ClassicTargetsEditor({ showSuggest }: { showSuggest: boolean }) {
   const s = useApp();
   const t = s.targets;
   const shares = macroShares(t);

@@ -24,6 +24,8 @@ export const FLAG_DEFAULTS = {
   mealRanking: { production: true, staging: true, development: true },
   /** per-meal styles (high-protein breakfast, lighter dinner...), meal edits that keep the meal's calories, macro locks shown up front */
   mealStyles: { production: false, staging: true, development: true },
+  /** calories get a lock like protein, carbs and fat; all four locks shown up front with a one-line rule */
+  macroLocks: { production: false, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */
