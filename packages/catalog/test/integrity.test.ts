@@ -103,3 +103,26 @@ describe("restaurant menu", () => {
     expect(menuFit(m, { ...t, protein: m.protein + 20 })).toBeGreaterThan(menuFit(m, { ...t, protein: m.protein - 20 }));
   });
 });
+
+describe("shopping line amounts", () => {
+  it("never shows more used plus left over than was bought", async () => {
+    const { formatUseAndLeftover } = await import("../src");
+    const counted = Object.values(INGREDIENTS).filter((i) => i.each);
+    for (const ing of counted) {
+      for (const packages of [1, 2, 9]) {
+        const bought = ing.pkg.grams * packages;
+        for (const need of [bought * 0.03, bought * 0.5, bought * 0.94, bought * 0.97, bought]) {
+          const { use, left } = formatUseAndLeftover(ing.id, need, bought - need);
+          const n = (s: string | null) => (s ? Number(s.split(" ")[0]) : 0);
+          const total = Math.round((bought / ing.each!.grams) * 2) / 2;
+          expect(n(use) + n(left), `${ing.id} ${packages} pkg, need ${need}`).toBeCloseTo(total, 5);
+        }
+      }
+    }
+  });
+  it("hides tiny leftovers by weight", async () => {
+    const { formatUseAndLeftover } = await import("../src");
+    expect(formatUseAndLeftover("rice", 900, 5).left).toBeNull();
+    expect(formatUseAndLeftover("rice", 400, 507).left).toBe("1.1 lb");
+  });
+});
