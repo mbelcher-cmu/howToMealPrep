@@ -54,7 +54,7 @@ const DEVICE_ONLY = new Set(["plusPreview"]);
 const GROUPS: string[][] = [
   ["targets", "targetMode", "splitPreset", "lockedMacros", "balancer"],
   ["meals", "snacks", "occasions"],
-  ["currentId", "historyIds", "lastWeekId", "checked", "shoppedPlanId", "pantryForPlan", "weekOf", "locked", "resting", "eatingOut", "days"],
+  ["currentId", "historyIds", "lastWeekId", "checked", "shoppedPlanId", "pantryForPlan", "weekOf", "locked", "held", "resting", "eatingOut", "days"],
   ["priceOverrides", "deals"],
 ];
 
