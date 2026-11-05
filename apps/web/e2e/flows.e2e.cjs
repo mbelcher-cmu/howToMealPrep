@@ -150,6 +150,23 @@ test("recipe search narrows the list and a recipe page opens", async () => {
   assert.ok(await page.getByRole("heading", { level: 1 }).isVisible());
 });
 
+test("rating a recipe brings picks like it, with a match and the reason", async () => {
+  // behind the recommendations flag (off in production): turn it on for this device, then back to the build's flags
+  await page.goto(base + "/recipes/?flags=recommendations=on");
+  await page.getByText("Get recipes picked for you.").waitFor();
+  await page.goto(base + "/recipes/chickpea_curry/");
+  await page.getByRole("radio", { name: /^5 stars/ }).click();
+  await page.goto(base + "/recipes/");
+  const rail = page.getByRole("group", { name: "Picked for you" });
+  await rail.waitFor();
+  assert.ok(await rail.getByText(/\d+% match/).first().isVisible(), "picks show a match");
+  assert.ok(await rail.getByText("Because you liked Chickpea spinach coconut curry").first().isVisible(), "picks say why");
+  await page.goto(base + "/recipes/chicken_tikka/");
+  await page.getByText(/\d+% match/).first().waitFor();
+  await page.goto(base + "/recipes/?flags=reset");
+  await page.locator("main").waitFor();
+});
+
 /** The recipe names in "Recipes this week", in order. */
 async function planRecipes(p) {
   await p.getByText("Recipes this week").first().waitFor({ timeout: 45000 });
@@ -236,6 +253,23 @@ test("adding takeout on Eat out takes that meal out of the prep", async () => {
   await page.waitForFunction(() => /takeout/i.test(document.querySelector("main")?.innerText ?? ""), null, { timeout: 45000 });
   await page.goto(base + "/eat-out/");
   await page.getByRole("button", { name: /^Remove takeout on Friday/ }).first().click();
+});
+
+test("Eat out can plan takeout for the week (eatOutPlus flag)", async () => {
+  await page.goto(base + "/eat-out/?flags=eatOutPlus=on");
+  await page.getByRole("heading", { name: "Plan takeout for me" }).waitFor();
+  await page.getByRole("button", { name: "Plan takeout" }).click();
+  await page.getByRole("status").filter({ hasText: /Added \d takeout meal/ }).waitFor();
+  assert.ok(await page.getByRole("button", { name: /^Remove takeout on / }).count() >= 1, "takeout was placed on the week");
+  // the picker gains search and sort
+  await page.getByRole("button", { name: /^Add takeout for / }).first().click();
+  await page.getByRole("searchbox", { name: "Search takeout" }).fill("chili");
+  await page.locator("#takeout-picker li button", { hasText: /chili/i }).first().waitFor();
+  await page.getByRole("button", { name: "Close" }).click();
+  const v = (await axeScan(page, "eat-out/ with eatOutPlus")).filter((x) => x.impact === "serious" || x.impact === "critical");
+  assert.deepEqual(v, [], JSON.stringify(v, null, 1));
+  await page.getByRole("button", { name: "Clear all" }).click();
+  await page.goto(base + "/eat-out/?flags=eatOutPlus=off");
 });
 
 test("every main page renders on a phone without errors or sideways scrolling", async () => {
