@@ -364,6 +364,19 @@ test("a sale shows up as a deal on Groceries and the shopping calendar (price tr
   // the flag stays on for this device, so the page and accessibility scans below cover the deal hints too
   await page.goto(base + "/groceries/?flags=pricetrends=on,calendar=on");
   await page.locator("main li input[type=checkbox]").first().waitFor({ timeout: 45000 });
+  // shop at one store only: with several, each store's solve is time-limited and a re-plan can
+  // land on a different store, which drops the sale item from the list for reasons unrelated to deals
+  const storesBefore = await page.evaluate(() => {
+    const k = Object.keys(localStorage).find((x) => /^prep-cart-(\w+-)?v1$/.test(x));
+    const saved = JSON.parse(localStorage.getItem(k));
+    const before = saved.state.stores;
+    const chain = document.querySelector("main .card h2").textContent.trim().toLowerCase().replace(/[^a-z]/g, "");
+    saved.state.stores = [chain];
+    localStorage.setItem(k, JSON.stringify(saved));
+    return before;
+  });
+  await page.reload();
+  await page.locator("main li input[type=checkbox]").first().waitFor({ timeout: 45000 });
   const item = await page.evaluate(() => {
     const li = [...document.querySelectorAll("main li")].find((x) => x.querySelector("input[type=checkbox]"));
     return { name: li.querySelector("span.font-medium").textContent.trim(), store: li.closest(".card").querySelector("h2").textContent.trim() };
@@ -387,6 +400,14 @@ test("a sale shows up as a deal on Groceries and the shopping calendar (price tr
   await page.goto(base + "/pantry/");
   await page.getByRole("radio", { name: /^Sales/ }).click();
   await page.getByRole("button", { name: `Remove the ${item.name} sale` }).click();
+  await page.evaluate((stores) => {
+    const k = Object.keys(localStorage).find((x) => /^prep-cart-(\w+-)?v1$/.test(x));
+    const saved = JSON.parse(localStorage.getItem(k));
+    saved.state.stores = stores;
+    localStorage.setItem(k, JSON.stringify(saved));
+  }, storesBefore);
+  await page.reload();
+  await page.locator("main").waitFor();
 });
 
 test("training days move calories to the days you train", async () => {
