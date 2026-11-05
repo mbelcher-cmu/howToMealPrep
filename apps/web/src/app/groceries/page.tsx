@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CalendarDays, Check, Copy, ExternalLink, House, PackageCheck, Store } from "lucide-react";
 import { CHAINS, formatUseAndLeftover, INGREDIENTS, type Aisle, type ChainId } from "@prep-cart/catalog";
-import type { CartLine } from "@prep-cart/planner";
+import { cartSavings, type CartLine } from "@prep-cart/planner";
 import { BudgetBar, PlanStatus, SolvingNote } from "@/components/plan-bits";
 import { ItemArt } from "@/components/food";
 import { NearbyFinder } from "@/components/nearby";
@@ -13,6 +13,7 @@ import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { chainName, cx, money } from "@/lib/format";
 import { aisleOrderFor } from "@/lib/aisles";
 import { useFlag } from "@/lib/flags";
+import { DealTag, hintFor } from "@/components/price-trends";
 
 const SOURCE_LABEL = { estimate: "Estimate", receipt: "Receipt", manual: "Your price", live: "Live", sale: "On sale" } as const;
 const lineKey = (l: CartLine) => `${l.chain}:${l.ingredientId}`;
@@ -24,6 +25,7 @@ export default function Groceries() {
   const [copied, setCopied] = useState(false);
   const nextWeekOn = useFlag("nextWeek");
   const calendarOn = useFlag("calendar");
+  const trendsOn = useFlag("priceTrends");
   const done = !!s.current && s.shoppedPlanId === s.current.id;
 
   const byStore = useMemo(() => {
@@ -46,6 +48,8 @@ export default function Groceries() {
 
   const r = plan.result;
   const total = r.cart.length;
+  const hints = new Map(trendsOn ? r.cart.map((l) => [lineKey(l), hintFor(s, l.ingredientId, l.chain, l.unitPrice)]) : []);
+  const saved = cartSavings(r.cart.map((l) => ({ price: l.unitPrice, packages: l.packages, hint: hints.get(lineKey(l)) ?? null })));
   const got = r.cart.filter((l) => s.checked[lineKey(l)]).length;
 
   const copy = async () => {
@@ -88,6 +92,7 @@ export default function Groceries() {
                                   <span className="block text-xs text-muted">
                                     {(() => { const u = formatUseAndLeftover(ing.id, l.needGrams, l.leftoverGrams, s.profile.units); return <>{l.packages} × {ing.pkg.label} · recipes use {u.use}{u.left && <> · {u.left} left over</>}</>; })()}
                                   </span>
+                                  <DealTag hint={hints.get(k) ?? null} />
                                 </span>
                               </label>
                               <div className="shrink-0 text-right">
@@ -125,6 +130,7 @@ export default function Groceries() {
           <Card>
             <SectionTitle>Total</SectionTitle>
             <BudgetBar cost={r.cost} budget={r.budget} takeout={r.takeout?.cost ?? 0} />
+            {saved > 0 && <p className="mt-2 text-sm font-medium text-accent">Deals save about {money(saved)} on this trip</p>}
             <p className="mt-3 text-sm text-muted">{got} of {total} in the cart</p>
             <div className="mt-1 h-1.5 rounded-full bg-sunk"><div className="h-full rounded-full bg-accent" style={{ width: `${total ? (got / total) * 100 : 0}%` }} /></div>
             <div className="mt-4 grid gap-2">

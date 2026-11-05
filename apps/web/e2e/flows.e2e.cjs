@@ -14,7 +14,7 @@ const { chromium } = require("playwright");
 const axe = require("axe-core");
 const { serve } = require("./serve.cjs");
 
-const PAGES = ["", "plan/", "groceries/", "shop/", "prep/", "recipes/", "recipes/chicken_tikka/", "recipes/import/", "pantry/", "settings/", "eat-out/", "preps/", "more/", "next-week/"];
+const PAGES = ["", "plan/", "groceries/", "shop/", "prep/", "recipes/", "recipes/chicken_tikka/", "recipes/import/", "pantry/", "settings/", "eat-out/", "preps/", "more/", "next-week/", "calendar/"];
 /** axe rule sets we hold the app to: WCAG 2.1 A and AA plus axe's best practices */
 const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 
@@ -201,6 +201,35 @@ test("adding takeout on Eat out takes that meal out of the prep", async () => {
   await page.waitForFunction(() => /takeout/i.test(document.querySelector("main")?.innerText ?? ""), null, { timeout: 45000 });
   await page.goto(base + "/eat-out/");
   await page.getByRole("button", { name: /^Remove takeout on Friday/ }).first().click();
+});
+
+test("a sale shows up as a deal on Groceries and the shopping calendar (price trends on)", async () => {
+  // the flag stays on for this device, so the page and accessibility scans below cover the deal hints too
+  await page.goto(base + "/groceries/?flags=pricetrends=on,calendar=on");
+  await page.locator("main li input[type=checkbox]").first().waitFor({ timeout: 45000 });
+  const item = await page.evaluate(() => {
+    const li = [...document.querySelectorAll("main li")].find((x) => x.querySelector("input[type=checkbox]"));
+    return { name: li.querySelector("span.font-medium").textContent.trim(), store: li.closest(".card").querySelector("h2").textContent.trim() };
+  });
+  await page.goto(base + "/pantry/");
+  await page.getByRole("radio", { name: /^Sales/ }).click();
+  await page.getByLabel("Item").fill(item.name.slice(0, 14));
+  await page.locator("main li button", { hasText: item.name }).first().click();
+  await page.getByLabel("Store").selectOption({ label: item.store });
+  await page.getByLabel("Sale price").fill("0.25");
+  await page.getByRole("button", { name: "Add sale" }).click();
+  await page.getByRole("button", { name: `Remove the ${item.name} sale` }).waitFor();
+
+  await page.goto(base + "/groceries/");
+  await page.getByText(/^Deals save about \$/).waitFor({ timeout: 45000 });
+  assert.ok(await page.getByText(/(Stock up|Good deal) · \d+% off/).count() >= 1, "a deal hint on the sale item");
+  await page.goto(base + "/calendar/");
+  await page.getByText(/(Stock up|Good deal) · \d+% off/).first().waitFor({ timeout: 45000 });
+
+  // put the week back as it was
+  await page.goto(base + "/pantry/");
+  await page.getByRole("radio", { name: /^Sales/ }).click();
+  await page.getByRole("button", { name: `Remove the ${item.name} sale` }).click();
 });
 
 test("every main page renders on a phone without errors or sideways scrolling", async () => {

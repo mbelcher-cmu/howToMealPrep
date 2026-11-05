@@ -19,6 +19,9 @@ const POOL_SIZE: Record<MealType, number> = { breakfast: 6, main: 12, snack: 5 }
 const MIN_PORTION_Q = 2; // 0.5 serving, in quarter servings
 const MAX_PORTION_Q = 10; // 2.5 servings
 
+/** preference-fit bonus per sale ingredient when the plan favors deals, and its cap */
+const DEAL_FIT = 0.5;
+const DEAL_FIT_MAX = 1;
 const DEFAULT_WEIGHTS: Weights = { costVsMacros: 0.5, extraStopCost: 4 };
 
 /**
@@ -135,6 +138,8 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
       if (saves.length) { fit += Math.min(3, 1.5 * saves.length); reasons.unshift(`uses up your ${saves.slice(0, 2).join(" and ")}`); }
       const onSale = [...new Set(r.lines.filter((l) => stores.some((c) => req.prices[l.ingredientId]?.[c]?.source === "sale")).map((l) => INGREDIENTS[l.ingredientId]!.name.toLowerCase()))];
       if (onSale.length) reasons.unshift(`${onSale.slice(0, 2).join(" and ")} on sale`);
+      // leaning on sales: a recipe built on sale items is worth a bit more than its price alone says
+      if (onSale.length && req.favorDeals) fit += Math.min(DEAL_FIT_MAX, DEAL_FIT * onSale.length);
       const cost = servingCost(r, req.prices, stores, freeIds);
       const proteinShare = (r.perServing.protein * 4) / Math.max(1, r.perServing.kcal);
       const targetShare = (dayTarget.protein * 4) / Math.max(1, dayTarget.kcal);
