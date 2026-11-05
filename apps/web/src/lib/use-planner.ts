@@ -7,6 +7,13 @@ import { reportError, track } from "./telemetry";
 
 export type PlannerStatus = "idle" | "solving" | "error";
 
+/** Favorites per meal, best first, as recipe id -> place (1 = top pick). */
+export function rankingsOf(favorites: AppState["favorites"] | undefined): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const list of Object.values(favorites ?? {})) (list ?? []).forEach((id, i) => { out[id] = i + 1; });
+  return out;
+}
+
 function requestFrom(s: AppState, avoidSets: string[][] = []) {
   const resting = (s.resting ?? []).filter((id) => !s.locked.includes(id));
   return {
@@ -14,7 +21,7 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
     targets: s.targets,
     occasions: s.occasions,
     budget: periodBudget(s),
-    prefs: { ...s.prefs, ratings: s.ratings, ...(resting.length ? { excludeRecipes: [...(s.prefs.excludeRecipes ?? []), ...resting] } : {}) },
+    prefs: { ...s.prefs, ratings: s.ratings, rankings: rankingsOf(s.favorites), ...(resting.length ? { excludeRecipes: [...(s.prefs.excludeRecipes ?? []), ...resting] } : {}) },
     customRecipes: s.customRecipes,
     variety: s.variety,
     stores: s.stores,

@@ -2,7 +2,9 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { ChevronDown, Lock, LockOpen, Shuffle, X } from "lucide-react";
-import { MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
+import { MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID, type MealType } from "@prep-cart/catalog";
+import { FavoritesEditor } from "@/components/favorites";
+import { useFlag } from "@/lib/flags";
 import { BudgetEditor, MealStructureEditor, MoodEditor, RulesEditor, StoresEditor, TargetsEditor } from "@/components/editors";
 import { BudgetBar, LockedTag, PerServing, PlanMacros, PlanStatus, RecipeMeta, RecipeTile, SolvingNote } from "@/components/plan-bits";
 import { Card, EmptyState, PageHeader, SectionTitle, Tag } from "@/components/ui";
@@ -76,6 +78,8 @@ export default function PlanPage() {
   const hydrated = useHydrated();
   const { plan, status, tryAnother } = usePlanner();
   const s = useApp();
+  const ranking = useFlag("mealRanking");
+  const [favMeal, setFavMeal] = useState<MealType | undefined>(undefined);
   if (!hydrated) return null;
   const excluded = s.prefs.excludeRecipes ?? [];
   return (
@@ -87,6 +91,7 @@ export default function PlanPage() {
           <Panel title="Calories and macros"><TargetsEditor showSuggest /></Panel>
           <Panel title="Meals and rotation"><MealStructureEditor /></Panel>
           <Panel title="Budget and days"><BudgetEditor /></Panel>
+          {ranking && <Panel title="Your favorites"><FavoritesEditor meal={favMeal} onMeal={setFavMeal} /></Panel>}
           <Panel title="In the mood for"><MoodEditor /></Panel>
           <Panel title="Diet, allergies and dislikes"><RulesEditor /></Panel>
           <Panel title="Stores"><div className="grid gap-5"><NearbyFinder /><div className="border-t border-line pt-4"><StoresEditor /></div></div></Panel>

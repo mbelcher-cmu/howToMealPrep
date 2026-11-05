@@ -4,7 +4,10 @@ import { useState } from "react";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { ALLERGENS, DIETS, type Allergen, type Diet } from "@prep-cart/catalog";
 import { ACTIVITY_LEVELS, feetInchesToCm, lbToKg, suggestTargets, type ActivityLevel, type Goal } from "@prep-cart/nutrition";
+import type { MealType } from "@prep-cart/catalog";
 import { NearbyFinder } from "@/components/nearby";
+import { FavoritesRanker, MEAL_LABELS, useRankedMeals } from "@/components/favorites";
+import { useFlag } from "@/lib/flags";
 import { BudgetEditor, RotationPicker, StoresEditor } from "@/components/editors";
 import { Chip, Segmented, Stepper } from "@/components/ui";
 import { useApp } from "@/lib/store";
@@ -131,24 +134,46 @@ function Stores() {
   );
 }
 
-const TITLES = [
-  { title: "About you", lead: "So we can size your meals. It stays on this device." },
-  { title: "Your week", lead: "Your budget and how you like to eat. Everything else can wait." },
-  { title: "Stores near you", lead: "Enter your ZIP code and we'll shop the closest store we have prices for." },
-];
+type StepId = "about" | "week" | "favorites" | "stores";
+const STEPS: Record<StepId, { title: string; lead: string }> = {
+  about: { title: "About you", lead: "So we can size your meals. It stays on this device." },
+  week: { title: "Your week", lead: "Your budget and how you like to eat. Everything else can wait." },
+  favorites: { title: "What sounds good?", lead: "Tap what you'd eat, favorite first. We plan your top picks when they fit your budget and macros." },
+  stores: { title: "Stores near you", lead: "Enter your ZIP code and we'll shop the closest store we have prices for." },
+};
 
 export default function Welcome() {
   const [i, setI] = useState(0);
   const router = useRouter();
   const s = useApp();
+  const ranking = useFlag("mealRanking");
+  const meals = useRankedMeals();
+  // which meal the favorites step is on; Next walks through them before moving on
+  const [m, setM] = useState(0);
   const [d, setD] = useState<Draft>({ sex: null, age: "", ft: "", inch: "", cm: "", lb: "", kg: "", activity: "", goal: null });
-  const step = TITLES[i]!;
-  const last = i === TITLES.length - 1;
+  const ids: StepId[] = ranking && meals.length ? ["about", "week", "favorites", "stores"] : ["about", "week", "stores"];
+  const TITLES = ids.map((id) => STEPS[id]);
+  const id = ids[i]!;
+  const step = STEPS[id];
+  const last = i === ids.length - 1;
+  const meal: MealType | undefined = meals[Math.min(m, meals.length - 1)];
   const stats = statsOf(d, s.profile.units === "us");
-  const finish = () => { s.set({ onboarded: true }); track("onboarding_done", { rotation: s.variety.rotation ?? "mix", diets: s.prefs.diets.length, nearby: s.nearby.length > 0 }); router.push("/"); };
+  const finish = () => {
+    s.set({ onboarded: true });
+    const fav = s.favorites ?? {};
+    track("onboarding_done", { rotation: s.variety.rotation ?? "mix", diets: s.prefs.diets.length, nearby: s.nearby.length > 0, ranked: (fav.breakfast?.length ?? 0) + (fav.main?.length ?? 0) + (fav.snack?.length ?? 0) });
+    router.push("/");
+  };
   const next = () => {
     if (i === 0 && stats) { s.setProfile(stats); s.applySuggestedTargets(); }
+    if (id === "favorites" && m < meals.length - 1) { setM(m + 1); window.scrollTo({ top: 0 }); return; }
+    if (ids[i + 1] === "favorites") setM(0);
     setI(i + 1);
+  };
+  const back = () => {
+    if (id === "favorites" && m > 0) { setM(m - 1); return; }
+    if (ids[i - 1] === "favorites") setM(meals.length - 1);
+    setI(i - 1);
   };
   return (
     <div className="mx-auto grid min-h-dvh w-full max-w-[640px] grid-rows-[auto_1fr_auto] px-4 pb-6 pt-6 sm:px-6">
@@ -161,18 +186,24 @@ export default function Welcome() {
             </li>
           ))}
         </ol>
-        <p className="label mt-4">Step {i + 1} of {TITLES.length}</p>
-        <h1 className="page-title mt-1 font-display text-[28px] font-bold leading-tight">{step.title}</h1>
+        <p className="label mt-4">Step {i + 1} of {TITLES.length}{id === "favorites" && meal && meals.length > 1 ? <> · Meal {m + 1} of {meals.length}</> : null}</p>
+        <h1 className="page-title mt-1 font-display text-[28px] font-bold leading-tight">{id === "favorites" && meal ? MEAL_LABELS[meal] : step.title}</h1>
         <p className="mt-1 text-muted">{step.lead}</p>
       </header>
-      <section className="card mt-5 self-start p-4 sm:p-5" aria-label={step.title}>
-        {i === 0 ? <AboutYou d={d} setD={setD} /> : i === 1 ? <YourWeek /> : <Stores />}
-      </section>
+      {id === "favorites" && meal ? (
+        <section className="mt-5 self-start" aria-label={`${MEAL_LABELS[meal]} favorites`}>
+          <FavoritesRanker key={meal} meal={meal} />
+        </section>
+      ) : (
+        <section className="card mt-5 self-start p-4 sm:p-5" aria-label={step.title}>
+          {id === "about" ? <AboutYou d={d} setD={setD} /> : id === "week" ? <YourWeek /> : <Stores />}
+        </section>
+      )}
       <footer className="sticky bottom-0 z-10 mt-6 flex items-center justify-between gap-3 border-t border-line bg-bg py-3" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
-        <button className="btn" onClick={() => setI(i - 1)} disabled={i === 0}><ArrowLeft size={16} aria-hidden /> Back</button>
+        <button className="btn" onClick={back} disabled={i === 0}><ArrowLeft size={16} aria-hidden /> Back</button>
         {last
           ? <button className="btn btn-primary" onClick={finish} disabled={s.stores.length === 0}><Check size={16} aria-hidden /> Build my plan</button>
-          : <button className="btn btn-primary" onClick={next} disabled={i === 0 && !stats}>Next <ArrowRight size={16} aria-hidden /></button>}
+          : <button className="btn btn-primary" onClick={next} disabled={i === 0 && !stats}>{id === "favorites" && !(s.favorites?.[meal!]?.length) ? "Skip" : "Next"} <ArrowRight size={16} aria-hidden /></button>}
       </footer>
     </div>
   );

@@ -82,7 +82,17 @@ test("a first visit goes to onboarding, and finishing it lands on Home", async (
   await page.getByLabel("How active are you?").selectOption("moderate");
   await page.getByRole("button", { name: /^Next/ }).click();
   await page.getByRole("button", { name: /^Next/ }).click();
-  await page.getByRole("button", { name: /Build my plan/ }).click();
+  // favorites (mealRanking flag): one screen per meal; rank a lunch-and-dinner pick on the first, skip the rest
+  const build = page.getByRole("button", { name: /Build my plan/ });
+  for (let step = 0; step < 6 && !(await build.isVisible()); step++) {
+    const options = page.getByRole("button", { name: /^Rank / });
+    if (step === 0 && (await options.count())) {
+      await options.first().click();
+      await page.getByRole("button", { name: /your number 1/ }).waitFor();
+    }
+    await page.getByRole("button", { name: /^(Next|Skip)/ }).click();
+  }
+  await build.click();
   await page.waitForURL(base + "/", { timeout: 15000 });
   assert.ok(await page.getByRole("navigation", { name: "Main" }).first().isVisible(), "tab bar shows on Home");
 });
