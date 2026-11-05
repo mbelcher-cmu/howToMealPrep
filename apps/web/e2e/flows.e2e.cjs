@@ -195,6 +195,26 @@ test("the app opens offline after one visit", async () => {
   }
 });
 
+test("a new phone can open pages offline it never visited, once the app has loaded", async () => {
+  const fresh = await browser.newContext({ viewport: { width: 390, height: 844 }, storageState: await ctx.storageState() });
+  const p = await fresh.newPage();
+  watch(p, "precache");
+  await p.goto(base + "/");
+  await p.locator("main").waitFor();
+  // ready resolves once the worker has installed, and install finishes only after the precache
+  await p.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await fresh.setOffline(true);
+  try {
+    for (const [path, title] of [["pantry/", "Pantry and prices"], ["settings/", "Settings"], ["eat-out/", "Eat out"], ["recipes/import/", "Add a recipe"]]) {
+      await p.goto(base + "/" + path);
+      // the right page, not the Home fallback
+      await p.getByRole("heading", { level: 1, name: title }).waitFor({ timeout: 10000 });
+    }
+  } finally {
+    await fresh.close();
+  }
+});
+
 test("no script errors along the way", () => {
   assert.deepEqual(errors, []);
 });

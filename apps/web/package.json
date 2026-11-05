@@ -11,7 +11,8 @@
     "predev": "node scripts/copy-wasm.mjs",
     "prebuild": "node scripts/copy-wasm.mjs",
     "e2e": "node e2e/smoke.cjs",
-    "e2e:ci": "node --test --test-concurrency=1 e2e/flows.e2e.cjs"
+    "e2e:ci": "node --test --test-concurrency=1 e2e/flows.e2e.cjs",
+    "postbuild": "node scripts/sw-precache.mjs"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "^5.3.0",

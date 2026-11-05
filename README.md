@@ -30,5 +30,6 @@ The older screenshot script is still there: serve `apps/web/out` on port 4173, t
 
 - The planner runs in a Web Worker so the page stays responsive. Every input change re-plans after 400 ms.
 - The solver's loader (`highs.js`) and WebAssembly (`highs.wasm`) are copied into `public/` before dev and build, and the worker loads them with `importScripts`.
+- Offline: `public/sw.js` is the service worker. After `next build`, `scripts/sw-precache.mjs` writes the list of files to precache (every main page, scripts, fonts, food photos, the solver; about 7.6 MB) and a build id into `out/sw.js`. Pages are network first but fall back to the cached copy after 3.5 seconds, so a weak signal in a store doesn't stall the list.
 - Nearby stores come from OpenStreetMap (Nominatim and Overpass), called from the browser only when you ask.
 - Set `NEXT_PUBLIC_BASE_PATH` when hosting under a sub-path, such as GitHub Pages.
