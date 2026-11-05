@@ -9,6 +9,8 @@ import {
 } from "@prep-cart/catalog";
 import { buildPriceTable, servingCost } from "@prep-cart/planner";
 import { Card, NumberField, PageHeader, SectionTitle, Segmented } from "@/components/ui";
+import { Paywall } from "@/components/paywall";
+import { useEntitlements } from "@/lib/entitlements";
 import { useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
 import { money, recipeHref } from "@/lib/format";
@@ -28,6 +30,9 @@ export function ImportV2() {
   const hydrated = useHydrated();
   const router = useRouter();
   const editId = useSearchParams().get("edit");
+  const ent = useEntitlements();
+  // editing a recipe you already have is always allowed; a new one counts toward the free limit
+  const atLimit = !(editId && s.customRecipes.some((c) => c.id === editId)) && !ent.canAdd("recipeImport", s.customRecipes.length);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
@@ -109,7 +114,7 @@ export function ImportV2() {
     setNewLine("");
   };
   const save = (addToPlan: boolean) => {
-    if (!draft || !seed?.items.length) return;
+    if (!draft || !seed?.items.length || atLimit) return;
     const id = editId && s.customRecipes.some((c) => c.id === editId) ? editId : `custom_${Date.now().toString(36)}`;
     const next = draftToSeed(draft, id, cuisine, fridge, freezer);
     const list = s.customRecipes.some((c) => c.id === id) ? s.customRecipes.map((c) => (c.id === id ? next : c)) : [...s.customRecipes, next];
@@ -124,6 +129,7 @@ export function ImportV2() {
     <>
       <Link href="/recipes/" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"><ArrowLeft size={16} aria-hidden /> All recipes</Link>
       <PageHeader title={editing ? "Edit recipe" : "Add a recipe"} lead={editing ? "Change anything, then save. Your plan picks up the new amounts." : "Paste a link or a whole recipe. Each ingredient is matched to store items so the planner can price it and count its macros."} />
+      {atLimit && <Paywall feature="recipeImport">You've added {s.customRecipes.length} of your own recipes, the most a free plan holds. They all stay in your recipe book. Plus lets you add as many as you like.</Paywall>}
       {!draft ? (
         <div className="grid max-w-[760px] gap-4">
           <Card>
@@ -232,8 +238,8 @@ export function ImportV2() {
                   {cost != null && <p className="num mt-3 text-sm text-muted">About <span className="font-semibold text-ink">{money(cost)}</span> a serving at your stores</p>}
                 </>
               ) : <p className="text-sm text-muted">Match at least one ingredient.</p>}
-              <button className="btn btn-primary mt-4 w-full" onClick={() => save(true)} disabled={!per || !draft.name.trim()}>{editing ? "Save changes" : "Save and add to my plan"}</button>
-              {!editing && <button className="btn mt-2 w-full" onClick={() => save(false)} disabled={!per || !draft.name.trim()}>Just save it</button>}
+              <button className="btn btn-primary mt-4 w-full" onClick={() => save(true)} disabled={!per || !draft.name.trim() || atLimit}>{editing ? "Save changes" : "Save and add to my plan"}</button>
+              {!editing && <button className="btn mt-2 w-full" onClick={() => save(false)} disabled={!per || !draft.name.trim() || atLimit}>Just save it</button>}
               <button className="btn mt-2 w-full" onClick={() => (editing ? router.push(recipeHref(editId!)) : setDraft(null))}>{editing ? "Cancel" : "Start over"}</button>
               <p className="mt-3 text-xs text-muted">{editing ? "" : "\"Add to my plan\" puts it in every week until you take it out. "}Saved recipes can be rated like any other.</p>
             </Card>
