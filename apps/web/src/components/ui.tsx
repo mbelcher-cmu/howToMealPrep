@@ -223,7 +223,7 @@ export function EmptyState({ title, children, action }: { title: string; childre
 }
 
 export function Tag({ children }: { children: ReactNode }) {
-  return <span className="rounded bg-sunk px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted">{children}</span>;
+  return <span className="tag rounded bg-sunk px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted">{children}</span>;
 }
 
 /** Your own 1 to 5 star rating. Tap the current rating again to clear it. */

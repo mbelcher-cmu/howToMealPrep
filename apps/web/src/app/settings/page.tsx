@@ -58,9 +58,9 @@ export default function Settings() {
   return (
     <>
       <PageHeader title="Settings" lead={signedIn ? "Saved on this device and synced to your account." : "Everything here is saved on this device only."} />
-      <nav aria-label="Settings sections" className="mb-4 flex flex-wrap gap-2 text-sm">
+      <nav aria-label="Settings sections" className="rail mb-4 text-sm">
         {[...(accounts && account.status !== "off" ? [["account", "Account"]] : []), ["you", "You"], ["household", "Household"], ["fitness", "Fitness apps"], ["plus", "MacroAisle Plus"], ["data", "Data"]].map(([id, label]) => (
-          <a key={id} href={`#${id}`} className="rounded-full border border-line bg-surface px-3 py-1 hover:bg-sunk">{label}</a>
+          <a key={id} href={`#${id}`} className="press inline-flex min-h-[40px] shrink-0 items-center whitespace-nowrap rounded-full bg-surface px-4 font-semibold shadow-[var(--shadow-card)] hover:bg-sunk">{label}</a>
         ))}
       </nav>
       <div className="grid max-w-[760px] gap-4">
