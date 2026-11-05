@@ -55,7 +55,7 @@ function AboutYou({ d, setD }: { d: Draft; setD: (d: Draft) => void }) {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-1">
-          <span className="text-[13px] text-muted">Sex (for the calorie formula)</span>
+          <span className="text-[13px] text-muted">Sex</span>
           <Segmented label="Sex" value={d.sex ?? ("" as "male")} onChange={(sex) => up({ sex })} options={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }]} />
         </div>
         <Field id="age" label="Age" value={d.age} onChange={(age) => up({ age })} suffix="yr" />
@@ -91,7 +91,8 @@ function YourWeek() {
   const s = useApp();
   const p = s.prefs;
   const toggle = <T extends string>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
-  const diets = (["vegetarian", "vegan", "pescatarian", "glutenFree", "dairyFree"] as Diet[]).filter((d) => DIETS[d]);
+  const wholeFoodsOn = useFlag("pantryV2");
+  const diets = (["vegetarian", "vegan", "pescatarian", "glutenFree", "dairyFree", ...(wholeFoodsOn ? ["wholeFoods"] : [])] as Diet[]).filter((d) => DIETS[d]);
   return (
     <div className="grid gap-5">
       <BudgetEditor />

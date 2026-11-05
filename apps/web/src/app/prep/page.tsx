@@ -1,12 +1,14 @@
 "use client";
 import Link from "next/link";
 import { useMemo } from "react";
-import { BellRing, Clock, Package, Snowflake, Timer } from "lucide-react";
+import { BellRing, ChefHat, Clock, Microwave, Package, Snowflake, Timer } from "lucide-react";
 import { formatAmount, INGREDIENTS, RECIPES_BY_ID } from "@prep-cart/catalog";
-import { prepTimeline, type Timeline } from "@prep-cart/planner";
+import { cookPlan, prepTimeline, STATION_LABEL, storageNote, type CookStep, type Timeline } from "@prep-cart/planner";
 import { RecipeTile, SolvingNote } from "@/components/plan-bits";
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
 import { useApp } from "@/lib/store";
+import { useFlag } from "@/lib/flags";
+import { minutesWord, sessionBatches } from "@/lib/cook";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { useDays } from "@/lib/days";
 import { at, buildIcs, downloadText, nextWeekday, type CalEvent } from "@/lib/ics";
@@ -25,16 +27,12 @@ export default function Prep() {
   const units = s.profile.units;
   const { DAY_LONG, PREP_DAY } = useDays();
 
+  const cookMode = useFlag("cookMode");
   const timelines = useMemo(() => {
-    if (!plan) return [] as Timeline[];
-    return plan.schedule.sessions.map((sess) => prepTimeline(sess.batches.flatMap((b) => {
-      const recipe = RECIPES_BY_ID[b.recipeId];
-      const portion = plan.result.recipes.find((p) => p.recipe.id === b.recipeId)?.portion ?? 1;
-      // one container per person per meal: average container size across the household
-      const hh = plan.result.household ?? { people: 1, factor: 1 };
-      return recipe ? [{ recipe, servings: b.servings, portion: (portion * hh.factor) / hh.people }] : [];
-    })));
-  }, [plan]);
+    type Any = Omit<Timeline, "steps"> & { oneAtATimeMinutes?: number; steps: (Timeline["steps"][number] | CookStep)[] };
+    if (!plan) return [] as Any[];
+    return sessionBatches(plan).map((b): Any => (cookMode ? cookPlan(b) : prepTimeline(b)));
+  }, [plan, cookMode]);
 
   if (!hydrated) return null;
   if (!plan) return (<><PageHeader title="Prep day" /><EmptyState title="No plan yet">Your cooking plan appears here once a plan is ready.</EmptyState></>);
@@ -113,6 +111,8 @@ export default function Prep() {
         </Card>
       )}
 
+      {cookMode && <StorageCard recipeIds={[...new Set(sessions.flatMap((x) => x.batches.map((b) => b.recipeId)))]} />}
+
       <div className="grid gap-8">
         {sessions.map((sess, si) => {
           const t = timelines[si]!;
@@ -127,17 +127,28 @@ export default function Prep() {
                 </h2>
                 <span className="inline-flex items-center gap-1.5 text-sm text-muted"><Timer size={15} aria-hidden /> Done by {clock(s.prepTime, t.totalMinutes)} · {t.handsOnMinutes} min hands-on</span>
               </div>
+              {cookMode && (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-accent-soft px-4 py-3">
+                  <p className="text-sm">
+                    {t.oneAtATimeMinutes && t.oneAtATimeMinutes > t.totalMinutes
+                      ? <>Running the oven and stove at the same time saves about <b>{minutesWord(t.oneAtATimeMinutes - t.totalMinutes)}</b>.</>
+                      : <>Step by step, with a timer for everything that cooks on its own.</>}
+                  </p>
+                  <Link href={`/cook/?s=${si}`} className="btn btn-primary"><ChefHat size={16} aria-hidden /> Start cooking</Link>
+                </div>
+              )}
 
               <Card className="mb-4">
                 <SectionTitle>Timeline</SectionTitle>
                 <ol className="relative grid gap-0 border-l border-line pl-4">
                   {t.steps.map((st, i) => (
                     <li key={i} className="relative pb-3 last:pb-0">
-                      <span aria-hidden className={cx("absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full", st.kind === "handsOn" ? "bg-accent" : st.kind === "pack" ? "bg-ink" : "bg-line")} />
+                      <span aria-hidden className={cx("absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full", st.kind === "handsOn" || st.kind === "preheat" ? "bg-accent" : st.kind === "pack" ? "bg-ink" : "bg-line")} />
                       <div className="flex flex-wrap items-baseline gap-x-3">
                         <span className="num w-20 shrink-0 text-sm font-semibold">{clock(s.prepTime, st.at)}</span>
                         <span className={cx("text-sm", st.kind === "waiting" && "text-muted")}>{st.text}</span>
                         <span className="inline-flex items-center gap-1 text-xs text-muted"><Clock size={11} aria-hidden /> {st.minutes} min{st.kind === "waiting" ? ", hands off" : ""}</span>
+                        {"station" in st && st.station !== "counter" && <span className="rounded-full border border-line px-2 py-0.5 text-[11px] font-semibold text-muted">{STATION_LABEL[st.station]}</span>}
                       </div>
                     </li>
                   ))}
@@ -196,5 +207,33 @@ export default function Prep() {
         })}
       </div>
     </>
+  );
+}
+
+/** How long each dish keeps, when to eat it by, and how to reheat it. */
+function StorageCard({ recipeIds }: { recipeIds: string[] }) {
+  const { DAY_LONG } = useDays();
+  const notes = recipeIds.flatMap((id) => { const r = RECIPES_BY_ID[id]; return r ? [{ r, n: storageNote(r) }] : []; });
+  if (!notes.length) return null;
+  return (
+    <Card className="mb-5">
+      <SectionTitle>Storage and reheating</SectionTitle>
+      <ul className="grid gap-3 text-sm">
+        {notes.map(({ r, n }) => (
+          <li key={r.id} className="flex items-start gap-3">
+            <RecipeTile recipe={r} size={40} />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">{r.name}</p>
+              <p className="text-muted">
+                Fridge {n.fridgeDays} day{n.fridgeDays === 1 ? "" : "s"}{n.fridgeDays < 7 ? `, eat by ${DAY_LONG[Math.max(0, n.fridgeDays - 1)]}` : ""}
+                {n.freezer ? <> · <Snowflake size={12} className="inline align-[-1px] text-accent" aria-hidden /> freezes up to 3 months</> : null}
+              </p>
+              <p className="mt-0.5 flex items-start gap-1.5"><Microwave size={14} className="mt-0.5 shrink-0 text-accent" aria-hidden /> <span>{n.reheat}</span></p>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-xs text-muted">Cool food within 2 hours of cooking. Thaw frozen meals in the fridge overnight, and reheat until steaming hot (165°F).</p>
+    </Card>
   );
 }

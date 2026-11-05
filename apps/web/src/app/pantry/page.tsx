@@ -9,6 +9,7 @@ import { Card, Chip, NumberField, PageHeader, Segmented } from "@/components/ui"
 import { daysUntil, useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
 import { cx, money } from "@/lib/format";
+import { PantryTracker } from "@/components/pantry-tracker";
 
 function PriceCell({ ingredientId, chain }: { ingredientId: string; chain: ChainId }) {
   const s = useApp();
@@ -50,6 +51,7 @@ export default function Pantry() {
   const [q, setQ] = useState("");
   const [priceQ, setPriceQ] = useState("");
   const [onlyCart, setOnlyCart] = useState(true);
+  const tracker = useFlag("pantryV2");
   const have = new Map(s.pantry.map((p) => [p.ingredientId, p.grams]));
   const matches = q.length >= 2 ? Object.values(INGREDIENTS).filter((i) => i.name.toLowerCase().includes(q.toLowerCase()) && !have.has(i.id)).slice(0, 8) : [];
   const cartIds = useMemo(() => new Set(s.current?.result.cart.map((l) => l.ingredientId) ?? []), [s.current]);
@@ -71,7 +73,7 @@ export default function Pantry() {
       <div className="mb-4 max-w-[480px]">
         <Segmented label="Section" value={tab} onChange={setTab} options={[{ value: "pantry", label: "What I have" }, { value: "prices", label: `Prices${overrideCount ? ` (${overrideCount})` : ""}` }, { value: "deals", label: `Sales${activeDeals ? ` (${activeDeals})` : ""}` }]} />
       </div>
-      {tab === "deals" ? <DealsPanel /> : tab === "pantry" ? (
+      {tab === "deals" ? <DealsPanel /> : tab === "pantry" && tracker ? <PantryTracker /> : tab === "pantry" ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           <Card>
             {soon.length > 0 && (

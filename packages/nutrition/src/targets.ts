@@ -192,3 +192,34 @@ export function editCalories(t: Targets, kcal: number, mode: "keepProtein" | "ke
   const carbs = Math.max(0, Math.round((rest - fat * 9) / 4));
   return { targets: finalize({ protein: t.protein, carbs, fat }), clamped: false };
 }
+
+/** What the person has locked: calories, and any of the three macros. */
+export interface TargetLocks {
+  kcal: boolean;
+  macros: readonly MacroKey[];
+}
+
+export interface LockedEditResult extends EditResult {
+  /** "noRoom": every other value that could absorb the change is locked, so nothing changed */
+  blocked: "noRoom" | null;
+}
+
+/**
+ * One edit under the person's locks, with calories as a lock like any macro. A lock stops a value
+ * from being moved by some other edit; typing into a value directly always changes it.
+ *  - Calories edited: unlocked macros scale to fit (locked ones hold). Blocked if all three are locked.
+ *  - A macro edited with calories locked: the other unlocked macros rebalance so calories stay put
+ *    (4/4/9). Blocked if both other macros are locked, since calories may not move.
+ *  - A macro edited with calories unlocked: only that macro changes and calories follow.
+ */
+export function editTargets(t: Targets, field: MacroKey | "kcal", value: number, locks: TargetLocks): LockedEditResult {
+  if (field === "kcal") {
+    if (MACROS.every((k) => locks.macros.includes(k))) return { targets: t, clamped: false, blocked: "noRoom" };
+    return { ...editCaloriesWithLocks(t, value, locks.macros), blocked: null };
+  }
+  if (!locks.kcal) return { targets: editMacroFree(t, field, value), clamped: false, blocked: null };
+  const others = locks.macros.filter((k) => k !== field);
+  if (MACROS.every((k) => k === field || others.includes(k))) return { targets: t, clamped: false, blocked: "noRoom" };
+  const r = editMacroWithLocks(t, field, value, others);
+  return { targets: r.targets, clamped: r.clamped, blocked: null };
+}

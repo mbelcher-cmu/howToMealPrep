@@ -1,25 +1,33 @@
 "use client";
 import { Trash2, UserPlus } from "lucide-react";
+import { ALLERGENS, DIETS, type Allergen, type Diet } from "@prep-cart/catalog";
 import { ACTIVITY_LEVELS, kgToLb, lbToKg, suggestTargets, type ActivityLevel, type Goal } from "@prep-cart/nutrition";
 import { useApp, type Member } from "@/lib/store";
-import { NumberField, Segmented } from "./ui";
+import { memberGoals, memberKcal } from "@/lib/household";
+import { useFlag } from "@/lib/flags";
+import { Chip, NumberField, Segmented } from "./ui";
 
-/** Daily calories for a household member: their own number, or an estimate from body stats and goal. */
-export function memberKcal(m: Member): number {
-  if (m.kcal) return m.kcal;
-  try { return suggestTargets({ stats: m, activity: m.activity, goal: m.goal }).goalKcal; } catch { return 2000; }
-}
+/** Diets that change what a person can eat (the cook's own diet lives in Preferences). */
+const MEMBER_DIETS: Diet[] = ["vegetarian", "vegan", "pescatarian", "glutenFree", "dairyFree", "noPork"];
+const toggle = <T,>(list: T[] | undefined, x: T) => ((list ?? []).includes(x) ? (list ?? []).filter((y) => y !== x) : [...(list ?? []), x]);
 
 const newMember = (n: number): Member => ({ id: `m${Date.now()}`, name: `Person ${n + 2}`, sex: "female", ageYears: 30, heightCm: 165, weightKg: 65, activity: "light", goal: "maintain", kcal: null });
 
 export function HouseholdEditor() {
   const s = useApp();
+  const ownGoals = useFlag("householdGoals");
   const us = s.profile.units === "us";
   const people = s.household;
   const update = (id: string, patch: Partial<Member>) => s.set({ household: people.map((m) => (m.id === id ? { ...m, ...patch } : m)) });
   return (
     <div className="grid gap-4">
-      {people.length === 0 && <p className="text-sm text-muted">Just you for now. Add the people you cook for and everyone gets the same meals, in portions sized to their own calories, from one shopping list.</p>}
+      {people.length === 0 && (
+        <p className="text-sm text-muted">
+          {ownGoals
+            ? "Just you for now. Add the people you cook for, with their own calories, protein and diet. Everyone shares recipes where they can, in portions sized for them, from one shopping list and one prep day."
+            : "Just you for now. Add the people you cook for and everyone gets the same meals, in portions sized to their own calories, from one shopping list."}
+        </p>
+      )}
       {people.map((m) => {
         const est = (() => { try { return suggestTargets({ stats: m, activity: m.activity, goal: m.goal }).goalKcal; } catch { return null; } })();
         return (
@@ -58,12 +66,50 @@ export function HouseholdEditor() {
               </div>
               <NumberField compact label="Calories a day" value={memberKcal(m)} min={1000} max={5000} step={10} suffix="kcal" hint={m.kcal && est ? `Estimate: ${est.toLocaleString()}` : "Estimated"} onChange={(kcal) => update(m.id, { kcal })} />
             </div>
+            {ownGoals && <MemberGoals m={m} update={(patch) => update(m.id, patch)} />}
           </fieldset>
         );
       })}
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn" onClick={() => s.set({ household: [...people, newMember(people.length)] })} disabled={people.length >= 5}><UserPlus size={16} aria-hidden /> Add a person</button>
-        {people.length > 0 && <p className="text-xs text-muted">Budget, meals and food rules are shared. The budget is for everyone.</p>}
+        {people.length > 0 && (
+          <p className="text-xs text-muted">
+            {ownGoals
+              ? "One budget, one cart and one prep day for everyone. Recipes are shared where diets allow; if someone can't eat one, the plan cooks something just for them."
+              : "Budget, meals and food rules are shared. The budget is for everyone."}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Protein, diet and allergies for one household member (householdGoals flag). */
+function MemberGoals({ m, update }: { m: Member; update: (patch: Partial<Member>) => void }) {
+  const g = memberGoals(m);
+  const name = m.name.trim() || "This person";
+  return (
+    <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
+      <NumberField compact label="Protein a day" value={g.protein} min={30} max={Math.max(30, Math.round((g.kcal * 0.4) / 4))} step={5} suffix="g" hint={m.protein != null ? `Estimate: ${g.estimatedProtein} g` : "Estimated"} onChange={(protein) => update({ protein })} />
+      <div className="grid gap-1.5">
+        <span className="text-xs text-muted" id={`diet-${m.id}`}>Diet</span>
+        <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby={`diet-${m.id}`}>
+          {MEMBER_DIETS.map((d) => (
+            <Chip key={d} selected={(m.diets ?? []).includes(d)} onClick={() => update({ diets: toggle(m.diets, d) })} title={DIETS[d].detail}>
+              <span className="sr-only">{name}: </span>{DIETS[d].label}
+            </Chip>
+          ))}
+        </div>
+        <details className="text-sm">
+          <summary className="cursor-pointer text-xs text-muted">Allergies{m.allergens?.length ? ` (${m.allergens.length})` : ""}</summary>
+          <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={`${name} allergies`}>
+            {(Object.keys(ALLERGENS) as Allergen[]).map((a) => (
+              <Chip key={a} tone="warn" selected={(m.allergens ?? []).includes(a)} onClick={() => update({ allergens: toggle(m.allergens, a) })}>
+                <span className="sr-only">{name}: </span>{ALLERGENS[a]}
+              </Chip>
+            ))}
+          </div>
+        </details>
       </div>
     </div>
   );

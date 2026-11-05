@@ -7,6 +7,15 @@ describe("feature flags", () => {
     expect(parseFlags("")).toEqual({});
     expect(parseFlags(undefined)).toEqual({});
     expect(parseFlags("pricetrends=on,NEXTWEEK=off")).toEqual({ priceTrends: true, nextWeek: false });
+    expect(parseFlags("pantryV2=on,NEXTWEEK=off")).toEqual({ pantryV2: true, nextWeek: false });
+  });
+
+  it("reads camelCase flag names in any case", () => {
+    expect(parseFlags("eatOutPlus=on,NEXTWEEK=off")).toEqual({ eatOutPlus: true, nextWeek: false });
+  });
+
+  it("matches camelCase flag names in any case", () => {
+    expect(parseFlags("householdGoals=on,NEXTWEEK=off")).toEqual({ householdGoals: true, nextWeek: false });
   });
 
   it("falls back to the development defaults outside the browser", () => {

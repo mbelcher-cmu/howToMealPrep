@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ALLERGENS, CHAINS, CUISINES, DIETS, INGREDIENTS, MENU_ITEMS, MOODS, PREP_PACKS, RECIPES, RECIPES_BY_ID, RESTAURANTS_BY_ID,
+  ALLERGENS, CHAINS, CUISINES, DIETS, INGREDIENTS, MENU_ITEMS, MOODS, PREP_PACKS, RECIPES, RECIPES_BY_ID, RESTAURANTS, RESTAURANTS_BY_ID,
   menuFit, packDay, packRecipes, shelfLifeDays,
 } from "../src";
 
@@ -93,6 +93,14 @@ describe("restaurant menu", () => {
       expect(m.kcal, m.id).toBe(4 * m.protein + 4 * m.carbs + 9 * m.fat);
       expect(m.price, m.id).toBeGreaterThan(0);
       if (m.vegan) expect(m.vegetarian, m.id).toBe(true);
+    }
+  });
+
+  it("has unique ids, and each chain's map pattern matches its own name only", () => {
+    expect(new Set(MENU_ITEMS.map((m) => m.id)).size).toBe(MENU_ITEMS.length);
+    for (const r of RESTAURANTS) {
+      expect(r.match.test(r.name), r.id).toBe(true);
+      for (const o of RESTAURANTS) if (o.id !== r.id) expect(r.match.test(o.name), `${r.id} vs ${o.id}`).toBe(false);
     }
   });
 

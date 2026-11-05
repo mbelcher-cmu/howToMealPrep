@@ -1,5 +1,6 @@
 import { RECIPES_BY_ID } from "./recipes";
 import type { Recipe } from "./recipe-types";
+import type { Diet } from "./taxonomy";
 
 /**
  * Featured meal preps: four recipes that make a full day (breakfast, two mains, a snack) and prep together
@@ -40,4 +41,9 @@ export function packDay(p: PrepPack) {
   const rs = packRecipes(p);
   const sum = (k: "kcal" | "protein" | "carbs" | "fat") => Math.round(rs.reduce((a, r) => a + r.perServing[k], 0));
   return { kcal: sum("kcal"), protein: sum("protein"), carbs: sum("carbs"), fat: sum("fat"), activeMinutes: rs.reduce((a, r) => a + r.activeMinutes, 0) };
+}
+
+/** True when every recipe in the pack fits all of the person's diets, so using it changes the plan. */
+export function packFits(p: PrepPack, diets: readonly Diet[]): boolean {
+  return packRecipes(p).every((r) => diets.every((d) => r.diets.includes(d)));
 }
