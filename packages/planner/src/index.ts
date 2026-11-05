@@ -5,3 +5,4 @@ export * from "./solve";
 export * from "./schedule";
 export * from "./timeline";
 export * from "./recommend";
+export * from "./takeout";
