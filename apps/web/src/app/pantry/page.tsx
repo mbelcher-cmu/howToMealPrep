@@ -9,7 +9,6 @@ import { Card, Chip, NumberField, PageHeader, Segmented } from "@/components/ui"
 import { daysUntil, useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
 import { cx, money } from "@/lib/format";
-import { useFlag } from "@/lib/flags";
 import { PantryTracker } from "@/components/pantry-tracker";
 
 function PriceCell({ ingredientId, chain }: { ingredientId: string; chain: ChainId }) {

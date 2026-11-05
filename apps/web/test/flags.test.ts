@@ -15,6 +15,7 @@ describe("feature flags", () => {
 
   it("matches camelCase flag names in any case", () => {
     expect(parseFlags("householdGoals=on,NEXTWEEK=off")).toEqual({ householdGoals: true, nextWeek: false });
+    expect(parseFlags("plusTier=on,NEXTWEEK=off")).toEqual({ plusTier: true, nextWeek: false });
   });
 
   it("falls back to the development defaults outside the browser", () => {
