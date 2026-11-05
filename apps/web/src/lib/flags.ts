@@ -30,6 +30,10 @@ export const FLAG_DEFAULTS = {
   recommendations: { production: false, staging: true, development: true },
   /** Eat out, more: "plan takeout for me", chains near you, search and sort, cost against cooking, just-this-week takeout */
   eatOutPlus: { production: false, staging: true, development: true },
+  /** prep day knows the kitchen (two oven racks, four burners), plus step-by-step cook mode with timers and storage notes */
+  cookMode: { production: false, staging: true, development: true },
+  /** in-store list: jump between aisles, "can't find it", and a buzz on each tick */
+  aisleMode: { production: false, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */
