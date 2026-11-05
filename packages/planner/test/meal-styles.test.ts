@@ -12,10 +12,17 @@ describe("meal styles in the plan", async () => {
     const r = plan(req, highs);
     expect(r.status, r.message).toBe("ok");
     const s = schedule(r, req.occasions, 7, "mix", req.targets);
-    const lunch = s.days.flatMap((d) => d.meals.filter((m) => m.occasionName === "Lunch"));
-    const dinner = s.days.flatMap((d) => d.meals.filter((m) => m.occasionName === "Dinner"));
-    const avg = (xs: { portion: number }[]) => xs.reduce((a, m) => a + m.portion, 0) / xs.length;
-    expect(avg(dinner)).toBeLessThan(avg(lunch) * 0.85);
+    // the solver may give two mains very different portions, so compare each recipe with itself
+    const meals = s.days.flatMap((d) => d.meals);
+    let compared = 0;
+    for (const p of r.recipes.filter((x) => x.slot === "main")) {
+      const at = (name: string) => meals.filter((m) => m.recipeId === p.recipe.id && m.occasionName === name).map((m) => m.portion);
+      const [lunch, dinner] = [at("Lunch"), at("Dinner")];
+      if (!lunch.length || !dinner.length) continue;
+      compared++;
+      expect(Math.max(...dinner)).toBeLessThan(Math.min(...lunch) * 0.85);
+    }
+    expect(compared).toBeGreaterThan(0);
     // every recipe's portions still add up to what the plan cooks for them
     for (const p of r.recipes) {
       const eaten = s.days.flatMap((d) => d.meals).filter((m) => m.recipeId === p.recipe.id).reduce((a, m) => a + m.portion, 0);

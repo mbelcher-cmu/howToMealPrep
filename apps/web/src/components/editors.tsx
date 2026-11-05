@@ -157,6 +157,8 @@ function ClassicTargetsEditor({ showSuggest }: { showSuggest: boolean }) {
   const shares = macroShares(t);
   const [note, setNote] = useState<string | null>(null);
   const [adv, setAdv] = useState(false);
+  // hooks run on every render, so read the flag before any condition uses it
+  const stylesOn = useFlag("mealStyles");
   const presetOptions = Object.entries(SPLIT_PRESETS).map(([k, v]) => ({ value: k, label: v.label }));
   const change = (m: "protein" | "carbs" | "fat", g: number) => {
     const r = s.setMacro(m, g);

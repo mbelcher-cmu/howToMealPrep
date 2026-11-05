@@ -259,6 +259,19 @@ test("a lighter dinner moves calories to the other meals and the day still adds 
   await page.getByLabel("Dinner style").selectOption("balanced");
 });
 
+test("opening macro locks and switching editing modes doesn't crash the editor", async () => {
+  await openPlan(page);
+  await page.getByRole("button", { name: "Calories and macros" }).click();
+  const more = page.getByRole("button", { name: "Locks and more options" });
+  if (!(await more.count())) return; // macroLocks flag is on: the locks editor replaces this one and has its own test
+  await more.click();
+  await page.getByRole("radio", { name: "Set grams freely" }).click();
+  await page.getByRole("radio", { name: "Keep calories fixed" }).click();
+  await page.getByRole("button", { name: "Fewer options" }).click();
+  assert.ok(await page.getByLabel("Calories per day").isVisible(), "the editor is still on screen");
+  assert.deepEqual(errors.filter((e) => /hook|Rendered (more|fewer)/i.test(e)), []);
+});
+
 test("every main page renders on a phone without errors or sideways scrolling", async () => {
   for (const p of PAGES) {
     await page.goto(base + "/" + p);
