@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CalendarDays, Check, Copy, ExternalLink, House, PackageCheck, Store } from "lucide-react";
-import { CHAINS, formatAmount, INGREDIENTS, type Aisle, type ChainId } from "@prep-cart/catalog";
+import { CHAINS, formatUseAndLeftover, INGREDIENTS, type Aisle, type ChainId } from "@prep-cart/catalog";
 import type { CartLine } from "@prep-cart/planner";
 import { BudgetBar, PlanStatus, SolvingNote } from "@/components/plan-bits";
 import { ItemArt } from "@/components/food";
@@ -86,8 +86,7 @@ export default function Groceries() {
                                 <span className={cx("min-w-0", on && "text-muted line-through")}>
                                   <span className="block font-medium">{ing.name}</span>
                                   <span className="block text-xs text-muted">
-                                    {l.packages} × {ing.pkg.label} · recipes use {formatAmount(ing.id, l.needGrams, s.profile.units)}
-                                    {l.leftoverGrams >= 10 && <> · {formatAmount(ing.id, l.leftoverGrams, s.profile.units)} left over</>}
+                                    {(() => { const u = formatUseAndLeftover(ing.id, l.needGrams, l.leftoverGrams, s.profile.units); return <>{l.packages} × {ing.pkg.label} · recipes use {u.use}{u.left && <> · {u.left} left over</>}</>; })()}
                                   </span>
                                 </span>
                               </label>

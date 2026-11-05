@@ -110,7 +110,8 @@ export function Rail({ title, href, linkLabel = "See all", children, lead }: { t
         </div>
         {href && <Link href={href} className="inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-accent hover:underline">{linkLabel} <ChevronRight size={16} aria-hidden /></Link>}
       </div>
-      <div className="rail">{children}</div>
+      {/* focusable so keyboard users can scroll a row of cards that has no links in it */}
+      <div className="rail" tabIndex={0} role="group" aria-label={title}>{children}</div>
     </section>
   );
 }

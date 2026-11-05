@@ -55,6 +55,11 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://xfhxwkmeiktxvhedmfhj.supabase.co' }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY || 'sb_publishable_QvER-hwBYT43Qa_88IDTWQ_TAGe5swU' }}
           NEXT_PUBLIC_FLAGS: ${{ vars.FLAGS }}
+      # real-browser checks of the production build: onboarding, plan, groceries, recipes, accessibility, offline
+      - name: Install browser for end-to-end tests
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end tests
+        run: npm run e2e:ci -w @prep-cart/web
       - name: Add staging under /staging/
         if: github.event_name != 'pull_request'
         run: mv "$RUNNER_TEMP/staging" apps/web/out/staging
