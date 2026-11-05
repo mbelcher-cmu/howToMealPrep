@@ -78,6 +78,7 @@ export default function Recipes() {
         </div>
       </div>
       <p className="mb-3 text-sm text-muted" aria-live="polite">{list.length} recipe{list.length === 1 ? "" : "s"}</p>
+      <h2 className="sr-only">Matching recipes</h2>
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
         {list.map((r) => (
           <li key={r.id} className="flex">

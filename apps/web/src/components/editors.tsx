@@ -32,7 +32,7 @@ export function BodyStatsEditor() {
       {us ? (
         <div className="grid grid-cols-3 gap-3">
           <NumberField label="Height" value={fi.feet} min={3} max={7} onChange={(f) => setProfile({ heightCm: Math.round(feetInchesToCm(f, fi.inches)) })} suffix="ft" />
-          <NumberField label="&nbsp;" value={fi.inches} min={0} max={11} onChange={(i) => setProfile({ heightCm: Math.round(feetInchesToCm(fi.feet, i)) })} suffix="in" />
+          <NumberField label="Inches" hideLabel value={fi.inches} min={0} max={11} onChange={(i) => setProfile({ heightCm: Math.round(feetInchesToCm(fi.feet, i)) })} suffix="in" />
           <NumberField label="Weight" value={Math.round(kgToLb(p.weightKg))} min={70} max={650} onChange={(lb) => setProfile({ weightKg: Math.round(lbToKg(lb) * 10) / 10 })} suffix="lb" />
         </div>
       ) : (

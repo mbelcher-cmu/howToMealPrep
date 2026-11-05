@@ -22,7 +22,9 @@ npm run dev -w @prep-cart/web # http://localhost:3000
 npm run build -w @prep-cart/web   # static site in apps/web/out
 ```
 
-Smoke test in a real browser (after a build): serve `apps/web/out` on port 4173, then `npm run e2e -w @prep-cart/web`.
+End-to-end tests in a real browser (after a build): `npm run e2e:ci -w @prep-cart/web`. They serve `apps/web/out` themselves and walk onboarding, the plan, live re-planning, the grocery list, recipe search, every page on a phone (no sideways scrolling), an axe accessibility scan in light and dark (serious or critical problems fail the build), and offline use. CI runs them on every pull request and before every deploy. Set `BASE_URL` to test a deployed copy instead.
+
+The older screenshot script is still there: serve `apps/web/out` on port 4173, then `npm run e2e -w @prep-cart/web`.
 
 ## How it works
 

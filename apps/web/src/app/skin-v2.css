@@ -25,6 +25,10 @@
   --protein: 226 88 88;
   --carbs: 230 145 60;
   --fat: 76 128 230;
+  /* darker macro shades for text, so small numbers meet 4.5:1 contrast; rings and bars keep the brighter fills */
+  --protein-text: 192 54 54;
+  --carbs-text: 169 84 0;
+  --fat-text: 44 95 196;
   --font-display: "Inter Variable";
   --font-sans: "Inter Variable";
   --font-wide: "Archivo Variable";
@@ -39,6 +43,7 @@
     --accent: 245 245 247; --accent-ink: 0 0 0; --accent-soft: 44 44 48;
     --good: 76 210 130; --warn: 255 105 97; --warn-soft: 60 24 22; --caution: 245 180 70;
     --protein: 255 110 106; --carbs: 255 166 88; --fat: 106 152 255;
+    --protein-text: 255 110 106; --carbs-text: 255 166 88; --fat-text: 106 152 255;
     --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.06);
     --shadow-float: 0 0 0 1px rgb(255 255 255 / 0.08), 0 12px 32px rgb(0 0 0 / 0.6);
   }
@@ -49,9 +54,14 @@
   --accent: 245 245 247; --accent-ink: 0 0 0; --accent-soft: 44 44 48;
   --good: 76 210 130; --warn: 255 105 97; --warn-soft: 60 24 22; --caution: 245 180 70;
   --protein: 255 110 106; --carbs: 255 166 88; --fat: 106 152 255;
+    --protein-text: 255 110 106; --carbs-text: 255 166 88; --fat-text: 106 152 255;
   --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.06);
   --shadow-float: 0 0 0 1px rgb(255 255 255 / 0.08), 0 12px 32px rgb(0 0 0 / 0.6);
 }
+
+[data-skin="v2"] .text-protein { color: rgb(var(--protein-text)); }
+[data-skin="v2"] .text-carbs { color: rgb(var(--carbs-text)); }
+[data-skin="v2"] .text-fat { color: rgb(var(--fat-text)); }
 
 /* Type */
 [data-skin="v2"] body { font-size: 15px; letter-spacing: -0.006em; font-feature-settings: "cv11", "ss01"; }
