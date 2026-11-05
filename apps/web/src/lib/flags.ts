@@ -9,19 +9,19 @@ import { APP_ENV } from "./env";
  */
 export const FLAG_DEFAULTS = {
   /** sign-in and cloud sync (sprint 2) */
-  accounts: { production: false, staging: true, development: true },
+  accounts: { production: true, staging: true, development: true },
   /** "Continue with Google" on the sign-in form; turn on once the Google provider is set up in Supabase */
   googleSignIn: { production: false, staging: false, development: false },
   /** Plus page (swaps are free for everyone) */
   plus: { production: true, staging: true, development: true },
   /** November 2026 visual redesign (skin v2). Mirrored in app/layout.tsx so the first paint is right. */
   redesign: { production: true, staging: true, development: true },
-  /** "Plan next week" review: keep or swap each recipe, carry leftovers over (staging first) */
-  nextWeek: { production: false, staging: true, development: true },
-  /** multi-week shopping calendar with bulk-buy hints (staging first) */
-  calendar: { production: false, staging: true, development: true },
-  /** setup asks the person to rank about 10 options for breakfast, lunch and dinner, and snacks (staging first) */
-  mealRanking: { production: false, staging: true, development: true },
+  /** "Plan next week" review: keep or swap each recipe, carry leftovers over, on in production since Nov 5 2026 */
+  nextWeek: { production: true, staging: true, development: true },
+  /** multi-week shopping calendar with bulk-buy hints, on in production since Nov 5 2026 */
+  calendar: { production: true, staging: true, development: true },
+  /** setup asks the person to rank about 10 options for breakfast, lunch and dinner, and snacks, on in production since Nov 5 2026 */
+  mealRanking: { production: true, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */
