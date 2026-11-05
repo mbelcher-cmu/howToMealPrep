@@ -7,17 +7,21 @@ import { hardRejection } from "@prep-cart/planner";
 import { RecipeCard } from "@/components/food";
 import { Chip, PageHeader } from "@/components/ui";
 import { useApp } from "@/lib/store";
+import { useFlag } from "@/lib/flags";
+import { cookFromPantry } from "@/lib/pantry";
 import { useHydrated } from "@/lib/use-planner";
 import { PicksRail } from "@/components/picks";
 import { useRecommendations } from "@/lib/recommend";
 
-type Sort = "protein" | "fast" | "name" | "match";
+type Sort = "protein" | "fast" | "name" | "match" | "pantry";
 
 export default function Recipes() {
   const hydrated = useHydrated();
   const prefs = useApp((s) => s.prefs);
   const ratings = useApp((s) => s.ratings);
   const custom = useApp((s) => s.customRecipes);
+  const pantry = useApp((s) => s.pantry);
+  const pantryOn = useFlag("pantryV2");
   const [mineOnly, setMineOnly] = useState(false);
   const [moreFilters, setMoreFilters] = useState(false);
   const [q, setQ] = useState("");
@@ -31,7 +35,7 @@ export default function Recipes() {
 
   const list = useMemo(() => {
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-    return RECIPES.filter((r) =>
+    const found = RECIPES.filter((r) =>
       (meal === "all" || r.mealType === meal) &&
       (!cuisine || r.cuisines.includes(cuisine)) &&
       (!mood || r.moods.includes(mood)) &&
@@ -44,8 +48,12 @@ export default function Recipes() {
         : sort === "name" ? a.name.localeCompare(b.name)
         : sort === "fast" ? a.activeMinutes - b.activeMinutes
           : b.perServing.protein / b.perServing.kcal - a.perServing.protein / a.perServing.kcal);
+    if (sort !== "pantry") return found;
+    // recipes the pantry covers most come first, the rest keep their order
+    const rank = new Map(cookFromPantry(pantry, found, { limit: found.length }).map((m, i) => [m.recipe.id, i]));
+    return [...found].sort((a, b) => (rank.get(a.id) ?? 1e9) - (rank.get(b.id) ?? 1e9));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, meal, cuisine, mood, diet, fitsMe, prefs, sort, mineOnly, ratings, custom, recs]);
+  }, [q, meal, cuisine, mood, diet, fitsMe, prefs, sort, mineOnly, ratings, custom, recs, pantry]);
 
   return (
     <>
@@ -80,6 +88,7 @@ export default function Recipes() {
             <option value="fast">Least hands-on time</option>
             <option value="name">A to Z</option>
             {recsOn && <option value="match">Best match for you</option>}
+            {hydrated && pantryOn && <option value="pantry">Uses what I have</option>}
           </select>
         </div>
       </div>

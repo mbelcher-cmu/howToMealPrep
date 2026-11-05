@@ -34,6 +34,8 @@ export const FLAG_DEFAULTS = {
   cookMode: { production: false, staging: true, development: true },
   /** in-store list: jump between aisles, "can't find it", and a buzz on each tick */
   aisleMode: { production: false, staging: true, development: true },
+  /** pantry tracker: fridge/freezer/cupboard groups, quick amounts, savings, "cook from your pantry", per-item "have at home" on the list */
+  pantryV2: { production: false, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */
