@@ -24,7 +24,7 @@ const ITEM_ART: Record<string, string> = {
   pasta: "1f35d", pasta_white: "1f35d", egg_noodles: "1f35c", rice_noodles: "1f35c",
   tortillas: "1fad3", corn_tortillas: "1fad3", pita: "1fad3", bread: "1f35e", potatoes: "1f954", sweet_potato: "1f360", pierogies: "1f95f",
   broccoli: "1f966", green_beans: "1fadb", stirfry_veg: "1f966", corn: "1f33d", peas: "1fadb", berries: "1fad0",
-  spinach: "1f96c", kale: "1f96c", lettuce: "1f96c", coleslaw_mix: "1f957", bell_pepper: "1fad1", onion: "1f9c5", garlic: "1f9c4", ginger: "1fada",
+  spinach: "1f96c", kale: "1f96c", lettuce: "1f96c", coleslaw_mix: "1f957", bell_pepper: "1fad1", jalapeno: "1f336", almond_milk: "1f95b", onion: "1f9c5", garlic: "1f9c4", ginger: "1fada",
   green_onion: "1f33f", cilantro: "1f33f", limes: "1f34b", lemons: "1f34b", carrots: "1f955", cucumber: "1f952", tomatoes: "1f345", zucchini: "1f952",
   mushrooms: "1f344", bananas: "1f34c", apples: "1f34e", avocado: "1f951", pineapple: "1f34d",
   diced_tomatoes: "1f96b", marinara: "1f345", salsa: "1f336", enchilada_sauce: "1f336", coconut_milk: "1f965", curry_paste: "1f35b",

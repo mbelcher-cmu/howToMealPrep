@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRecipe, draftToSeed, matchIngredient, parseLine, parseRecipe, registerRecipes, RECIPES_BY_ID } from "../src";
+import { amountFor, buildRecipe, draftFromRecipeNode, draftLine, draftToSeed, matchIngredient, parseLine, parseRecipe, registerRecipes, RECIPES_BY_ID, seedToDraft, suggestIngredients } from "../src";
 
 describe("recipe import", () => {
   it("matches ingredient lines and converts amounts", () => {
@@ -48,5 +48,46 @@ describe("recipe import", () => {
     expect(RECIPES_BY_ID.custom_greek?.name).toBe("Greek Chicken Meal Prep");
     registerRecipes([]);
     expect(RECIPES_BY_ID.custom_greek).toBeUndefined();
+  });
+
+  describe("v2 matching", () => {
+    const v2 = { v2: true };
+    it("doesn't mistake a different product for the food in its name", () => {
+      expect(matchIngredient("1 tbsp rice vinegar", v2)).toBeNull();
+      expect(matchIngredient("1 cup unsweetened almond milk", v2)).toBe("almond_milk");
+      expect(matchIngredient("1 cup low-sodium chicken broth", v2)).toBe("chicken_broth");
+      expect(matchIngredient("1 cup beef broth", v2)).toBeNull();
+      expect(matchIngredient("1/2 cup shredded cheddar cheese", v2)).toBe("cheddar");
+      expect(matchIngredient("1 tsp toasted sesame oil", v2)).toBe("sesame_oil");
+      expect(parseLine("1 tsp garlic powder", v2)).toBe("skip");
+      expect(parseLine("1 tbsp rice vinegar", v2)).toBe("skip");
+    });
+    it("reads amounts anywhere in the line, and slices and scoops", () => {
+      expect(parseLine("Chicken breast, 2 lb", v2)).toMatchObject({ ingredientId: "chicken_breast", grams: 907, sure: true });
+      expect(parseLine("juice of 1 lime", v2)).toMatchObject({ ingredientId: "limes", grams: 67 });
+      expect(parseLine("4 slices bacon", v2)).toMatchObject({ ingredientId: "bacon", grams: 100, sure: true });
+      expect(parseLine("1 scoop vanilla protein powder", v2)).toMatchObject({ ingredientId: "protein_powder", grams: 30, sure: true });
+      expect(parseLine("1 jalapeño, seeded", v2)).toMatchObject({ ingredientId: "jalapeno", grams: 14 });
+    });
+    it("suggests close items for lines it can't match", () => {
+      expect(suggestIngredients("1 head brocoli")[0]).toBe("broccoli");
+      expect(suggestIngredients("Mozarella 100 g")[0]).toBe("mozzarella");
+      expect(suggestIngredients("1 lb ground lamb")).toEqual(expect.arrayContaining(["ground_beef", "ground_turkey"]));
+      expect(draftLine("4 oz chorizo", v2)).toMatchObject({ ingredientId: null });
+      const line = draftLine("Mozarella 100 g", v2);
+      expect(line).toMatchObject({ ingredientId: null, suggestions: ["mozzarella"] });
+      expect(amountFor("Mozarella 100 g", "mozzarella", v2)).toEqual({ grams: 100, sure: true });
+    });
+    it("reads a recipe object sent by the bookmark", () => {
+      const d = draftFromRecipeNode({ name: "Sheet Pan Fajitas", recipeYield: "6 servings", totalTime: "PT35M", recipeIngredient: ["2 lb chicken breast", "3 bell peppers", "1 onion", "12 flour tortillas"], recipeInstructions: [{ "@type": "HowToSection", itemListElement: [{ "@type": "HowToStep", text: "Roast at 425°F for 20 minutes." }] }] }, "https://example.com/fajitas", v2);
+      expect(d).toMatchObject({ name: "Sheet Pan Fajitas", servings: 6, totalMinutes: 35, source: "https://example.com/fajitas" });
+      expect(d.lines.map((l) => l.ingredientId)).toEqual(["chicken_breast", "bell_pepper", "onion", "tortillas"]);
+      expect(d.equipment).toContain("oven");
+    });
+    it("turns a saved recipe back into a draft that saves the same", () => {
+      const d = parseRecipe("Turkey Chili\nServes 6\nIngredients\n2 lb ground turkey\n2 cans kidney beans\n1 onion\nInstructions\n1. Simmer everything in a pot for 30 minutes.", undefined, v2);
+      const seed = draftToSeed(d, "custom_chili", "american", 4, true);
+      expect(draftToSeed(seedToDraft(seed), "custom_chili", "american", 4, true)).toEqual(seed);
+    });
   });
 });

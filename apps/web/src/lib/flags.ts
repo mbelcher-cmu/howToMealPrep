@@ -46,6 +46,8 @@ export const FLAG_DEFAULTS = {
   priceTrends: { production: false, staging: true, development: true },
   /** training and rest days: workouts move calories to the days you train, plus workout file import */
   fitnessSync: { production: false, staging: true, development: true },
+  /** recipe import v2: one box for a link or text, a bookmark for any site, smarter matching, edit, cost, add to plan */
+  recipeImportV2: { production: false, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */
