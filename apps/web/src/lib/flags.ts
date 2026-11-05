@@ -26,6 +26,8 @@ export const FLAG_DEFAULTS = {
   mealStyles: { production: false, staging: true, development: true },
   /** calories get a lock like protein, carbs and fat; all four locks shown up front with a one-line rule */
   macroLocks: { production: false, staging: true, development: true },
+  /** Netflix-style recommendations from star ratings: yours, and everyone's via the database (staging first) */
+  recommendations: { production: false, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */

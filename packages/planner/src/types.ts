@@ -23,6 +23,8 @@ export interface Preferences {
   ratings?: Record<string, number>;
   /** the person's favorites from setup: recipe id -> place in their ranking for that meal (1 = top pick) */
   rankings?: Record<string, number>;
+  /** predicted taste for recipes the person hasn't rated, from recommend(): affinity -1..1 and the liked recipe behind it */
+  recommended?: Record<string, { affinity: number; because?: string }>;
 }
 
 export interface Variety {
