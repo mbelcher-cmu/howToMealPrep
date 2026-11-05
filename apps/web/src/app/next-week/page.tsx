@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Check, Loader2, PackageOpen, RefreshCw, Shuffle } from "lucide-react";
 import { CUISINES, INGREDIENTS, MOODS, RECIPES_BY_ID } from "@prep-cart/catalog";
 import { RecipeArt, RecipeCard, ItemArt } from "@/components/food";
-import { Chip, EmptyState, PageHeader, Segmented, Toggle } from "@/components/ui";
+import { Chip, EmptyState, PageHeader, Segmented, Stars, Toggle } from "@/components/ui";
 import { daysUntil, isoDay, shoppedShare, useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { dayLabel, useWeek } from "@/lib/use-week";
@@ -35,6 +35,14 @@ export default function NextWeekPage() {
 
   const [choice, setChoice] = useState<Record<string, Choice>>({});
   const pick = (id: string): Choice => choice[id] ?? (s.locked.includes(id) ? "keep" : "swap");
+  // rating what you ate trains the recommendations; a high rating keeps the recipe, a low one swaps it
+  const rateOn = useFlag("recommendations");
+  const rate = (id: string, v: number | null) => {
+    const { [id]: _old, ...rest } = s.ratings;
+    void _old;
+    s.set({ ratings: v ? { ...rest, [id]: v } : rest });
+    if (v && !choice[id]) setChoice({ ...choice, [id]: v >= 4 ? "keep" : v <= 2 ? "swap" : pick(id) });
+  };
 
   const alreadyShopped = !!plan && s.shoppedPlanId === plan.id;
   const [shopped, setShopped] = useState<boolean | null>(null);
@@ -141,7 +149,7 @@ export default function NextWeekPage() {
   return (
     <>
       <PageHeader eyebrow={`${startsToday ? "This week" : "Next week"} · from ${dayLabel(startsOn)}`} title={startsToday ? "Plan this week" : "Plan next week"}
-        lead="Keep what you liked and swap the rest for something new. Your pantry carries over." />
+        lead={rateOn ? "Rate what you ate, keep what you liked and swap the rest. Your ratings shape what we suggest next, and your pantry carries over." : "Keep what you liked and swap the rest for something new. Your pantry carries over."} />
 
       <div className="grid min-w-0 grid-cols-1 gap-7 pb-28 md:pb-4">
         <section aria-labelledby="nw-food">
@@ -166,6 +174,7 @@ export default function NextWeekPage() {
                   <span className="min-w-0 flex-1">
                     <Link href={recipeHref(id)} className="line-clamp-2 font-semibold leading-snug hover:underline">{r.name}</Link>
                     <span className="block text-xs text-muted">{p ? `${plural(p.meals, "meal")} · ${p.slot === "main" ? "lunch or dinner" : p.slot}` : "Locked in"}</span>
+                    {rateOn && <span className="-ml-1 block"><Stars compact label={`Rate ${r.name}`} value={s.ratings[id]} onChange={(v) => rate(id, v)} /></span>}
                   </span>
                   <div className="w-[124px] shrink-0 sm:w-[168px]">
                     <Segmented size="sm" label={`${r.name} next week`} value={pick(id)} onChange={(v) => setChoice({ ...choice, [id]: v })}

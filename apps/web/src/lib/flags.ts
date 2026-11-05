@@ -24,6 +24,8 @@ export const FLAG_DEFAULTS = {
   mealRanking: { production: true, staging: true, development: true },
   /** Eat out, more: "plan takeout for me", chains near you, search and sort, cost against cooking, just-this-week takeout */
   eatOutPlus: { production: false, staging: true, development: true },
+  /** Netflix-style recommendations from star ratings: yours, and everyone's via the database (staging first) */
+  recommendations: { production: false, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */
