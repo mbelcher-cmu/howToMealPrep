@@ -175,7 +175,7 @@ export function SolvingNote() {
 }
 
 /** A simple colored monogram tile in place of photos. */
-export function RecipeTile({ recipe, size = 44 }: { recipe: Recipe; size?: number }) {
+export function RecipeTile({ recipe, size = 64 }: { recipe: Recipe; size?: number }) {
   return <span className="shrink-0 overflow-hidden rounded-xl" style={{ width: size, height: size }}><RecipeArt recipe={recipe} className="h-full w-full" badges={size >= 80} /></span>;
 }
 
