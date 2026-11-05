@@ -165,7 +165,7 @@ export default function NextWeekPage() {
                   <RecipeArt recipe={r} badges={false} className={cx("h-14 w-14 shrink-0 rounded-xl transition-opacity", !keep && "opacity-60")} />
                   <span className="min-w-0 flex-1">
                     <Link href={recipeHref(id)} className="line-clamp-2 font-semibold leading-snug hover:underline">{r.name}</Link>
-                    <span className="block text-xs text-muted">{p ? `${plural(p.meals, "meal")} · ${p.slot === "main" ? "lunch or dinner" : p.slot}` : "Locked in"}</span>
+                    <span className="block text-xs text-muted">{p ? `${p.meals > 0 ? plural(p.meals, "meal") : `for ${p.household?.eaters.map((e) => e.name).join(" and ") ?? "the household"}`} · ${p.slot === "main" ? "lunch or dinner" : p.slot}` : "Locked in"}</span>
                   </span>
                   <div className="w-[124px] shrink-0 sm:w-[168px]">
                     <Segmented size="sm" label={`${r.name} next week`} value={pick(id)} onChange={(v) => setChoice({ ...choice, [id]: v })}
