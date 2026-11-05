@@ -15,7 +15,7 @@ describe("database row-level security", () => {
   const count = async (table: string) => Number((await db.query<{ n: number }>(`select count(*)::int as n from public.${table}`)).rows[0]!.n);
 
   beforeAll(async () => {
-    await db.exec(`create schema auth; create table auth.users (id uuid primary key);
+    await db.exec(`create schema auth; create table auth.users (id uuid primary key, email text);
       create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
       create role anon; create role authenticated; grant usage on schema auth to anon, authenticated;`);
     for (const f of readdirSync(MIGRATIONS).filter((x) => x.endsWith(".sql")).sort()) await db.exec(readFileSync(join(MIGRATIONS, f), "utf8"));

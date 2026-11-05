@@ -31,6 +31,9 @@ const server = http.createServer((req, res) => {
 const db = { profiles: [{ id: USER.id, settings: {} }], pantry_items: [], plans: [], price_observations: [] };
 let nextPriceId = 1;
 let deleted = false;
+let joined = false;
+const invites = [];
+let sharedPlan = null;
 const calls = [];
 
 function filterRows(rows, params) {
@@ -63,6 +66,10 @@ async function handleSupabase(route) {
       p.settings = body.doc;
       return json(true);
     }
+    if (name === "household_info") return json(joined ? { role: "member", ownerName: "michael", members: [{ id: "x", name: "tester" }], invites: [] } : invites.length ? { role: "owner", ownerName: "tester", members: [], invites: invites.map((code) => ({ code, expiresAt: new Date(Date.now() + 7 * 864e5).toISOString() })) } : null);
+    if (name === "create_household_invite") { invites.push("ABCD1234"); return json("ABCD1234"); }
+    if (name === "join_household") { if (body.invite !== "HOME5678") return json({ message: "invite not valid" }, 400); joined = true; return json("michael"); }
+    if (name === "household_plan") return json(joined ? { ownerName: "michael", weekOf: "2026-11-09", checked: {}, plan: { id: "household-plan-1", key: "", createdAt: new Date().toISOString(), days: 7, result: sharedPlan.result, schedule: sharedPlan.schedule } } : null);
     if (name === "delete_account") { deleted = true; for (const t of Object.keys(db)) db[t] = []; return json(null); }
     return json(null);
   }
@@ -135,7 +142,7 @@ const waitSynced = (page) => page.waitForFunction(() => document.body.innerText.
     // Device B: fresh browser, same account, should get the plan
     const b = await device(browser, "B", BASE);
     await b.page.goto(BASE + "/settings/");
-    await b.page.getByText("Signed in as").waitFor();
+    await b.page.getByText("Signed in as").waitFor().catch(async (e) => { await b.page.screenshot({ path: `${OUT}/b-fail.png` }); console.log(b.errors, b.page.url()); throw e; });
     await b.page.waitForFunction(([k, id]) => { try { return JSON.parse(localStorage.getItem(k) || "{}").state?.current?.id === id; } catch { return false; } }, [KEY, aState.current.id], { timeout: 15000 });
     await b.page.goto(BASE + "/");
     await b.page.screenshot({ path: `${OUT}/sync-b-home.png` });
@@ -158,6 +165,19 @@ const waitSynced = (page) => page.waitForFunction(() => document.body.innerText.
 
     await a.page.getByRole("button", { name: "Sync now" }).click();
     await a.page.waitForFunction((k) => { try { return JSON.parse(localStorage.getItem(k)).state.pantry.some((p) => p.ingredientId === "e2e_test_item"); } catch { return false; } }, KEY, { timeout: 15000 });
+
+    // household: A makes an invite; B joins another household by link and gets its plan
+    await a.page.getByRole("button", { name: "Invite someone" }).click();
+    await a.page.getByText("ABCD1234", { exact: true }).waitFor();
+    await a.page.locator("section:has(#household)").screenshot({ path: `${OUT}/household-owner.png` });
+    sharedPlan = (await appState(a.page)).current;
+    await b.page.goto(BASE + "/settings/?join=home5678#household");
+    await b.page.getByRole("button", { name: "Join" }).click();
+    await b.page.getByText("You're using").waitFor({ timeout: 10000 });
+    await b.page.locator("section:has(#household)").screenshot({ path: `${OUT}/household-member.png` });
+    const bAfter = await appState(b.page);
+    if (bAfter.current?.id !== "household-plan-1") fail("member did not get the household plan");
+    if (bAfter.weekOf !== "2026-11-09") fail("member did not get the household week");
 
     // delete the account from A, keeping the device's data
     await a.page.getByRole("button", { name: "Delete account…" }).click();

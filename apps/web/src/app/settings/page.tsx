@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRef, useState, type ReactNode } from "react";
 import { Download, RotateCcw, Upload } from "lucide-react";
 import { AccountPanel } from "@/components/account";
+import { HouseholdShare } from "@/components/household-share";
 import { BodyStatsEditor } from "@/components/editors";
 import { FitnessSync } from "@/components/fitness";
 import { HouseholdEditor } from "@/components/household";
@@ -85,6 +86,7 @@ export default function Settings() {
         </Section>
         <Section id="household" title="Household" lead="Cook once for everyone. Each person gets portions sized to their own calories.">
           <HouseholdEditor />
+          {accounts && <HouseholdShare />}
         </Section>
         <Card>
           <p className="text-sm">Calories, meals, diet, moods and stores are on the <Link href="/plan/" className="font-semibold text-accent underline">Plan page</Link>, next to the plan they change.</p>
