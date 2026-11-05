@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CalendarDays, Check, Copy, ExternalLink, House, PackageCheck, Store } from "lucide-react";
-import { CHAINS, formatUseAndLeftover, INGREDIENTS, type Aisle, type ChainId } from "@prep-cart/catalog";
+import { CHAINS, formatAmount, formatUseAndLeftover, INGREDIENTS, type Aisle, type ChainId } from "@prep-cart/catalog";
 import type { CartLine } from "@prep-cart/planner";
 import { BudgetBar, PlanStatus, SolvingNote } from "@/components/plan-bits";
 import { ItemArt } from "@/components/food";
@@ -24,6 +24,7 @@ export default function Groceries() {
   const [copied, setCopied] = useState(false);
   const nextWeekOn = useFlag("nextWeek");
   const calendarOn = useFlag("calendar");
+  const pantryOn = useFlag("pantryV2");
   const done = !!s.current && s.shoppedPlanId === s.current.id;
 
   const byStore = useMemo(() => {
@@ -47,6 +48,9 @@ export default function Groceries() {
   const r = plan.result;
   const total = r.cart.length;
   const got = r.cart.filter((l) => s.checked[lineKey(l)]).length;
+  // food the plan takes from home (staples left out), shown on each line it shortens
+  const staples = new Set((s.pantryForPlan ?? s.pantry).filter((p) => p.grams === Infinity).map((p) => p.ingredientId));
+  const fromHome = new Map(r.pantryUsed.filter((u) => !staples.has(u.ingredientId) && u.grams > 0).map((u) => [u.ingredientId, u.grams]));
 
   const copy = async () => {
     const text = [...byStore].map(([chain, aisles]) =>
@@ -86,7 +90,7 @@ export default function Groceries() {
                                 <span className={cx("min-w-0", on && "text-muted line-through")}>
                                   <span className="block font-medium">{ing.name}</span>
                                   <span className="block text-xs text-muted">
-                                    {(() => { const u = formatUseAndLeftover(ing.id, l.needGrams, l.leftoverGrams, s.profile.units); return <>{l.packages} × {ing.pkg.label} · recipes use {u.use}{u.left && <> · {u.left} left over</>}</>; })()}
+                                    {(() => { const u = formatUseAndLeftover(ing.id, l.needGrams, l.leftoverGrams, s.profile.units); return <>{l.packages} × {ing.pkg.label} · recipes use {u.use}{u.left && <> · {u.left} left over</>}{pantryOn && fromHome.has(ing.id) && <> · <span className="font-semibold text-accent">{formatAmount(ing.id, fromHome.get(ing.id)!, s.profile.units)} from home</span></>}</>; })()}
                                   </span>
                                 </span>
                               </label>
@@ -115,7 +119,7 @@ export default function Groceries() {
             <Card>
               <SectionTitle>Already in your pantry</SectionTitle>
               <ul className="flex flex-wrap gap-2">
-                {r.pantryUsed.map((u) => <li key={u.ingredientId}><Tag>{INGREDIENTS[u.ingredientId]?.name ?? u.ingredientId}</Tag></li>)}
+                {r.pantryUsed.map((u) => <li key={u.ingredientId}><Tag>{INGREDIENTS[u.ingredientId]?.name ?? u.ingredientId}{pantryOn && fromHome.has(u.ingredientId) && `: ${formatAmount(u.ingredientId, u.grams, s.profile.units)}`}</Tag></li>)}
               </ul>
             </Card>
           )}

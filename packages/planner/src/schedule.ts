@@ -1,4 +1,4 @@
-import type { EatingOccasion } from "@prep-cart/nutrition";
+import { splitTargets, type EatingOccasion, type Targets } from "@prep-cart/nutrition";
 import { slotTypeFor } from "./filters";
 import type { PlanResult, PlannedRecipe } from "./types";
 
@@ -22,7 +22,7 @@ const lifeKey = (p: PlannedRecipe) => (p.recipe.freezerFriendly ? 100 + p.recipe
  * occasions on one day where possible, and anything eaten past its fridge life gets a second cook
  * session (or a freezer note, when it freezes well).
  */
-export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: number, rotation: "mix" | "blocks" = "mix"): Schedule {
+export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: number, rotation: "mix" | "blocks" = "mix", targets?: Targets): Schedule {
   const prepped = occasions.filter((o) => o.prepped);
   const remaining = new Map(plan.recipes.map((p) => [p.recipe.id, p.meals]));
   const byId = new Map(plan.recipes.map((p) => [p.recipe.id, p]));
@@ -35,6 +35,12 @@ export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: nu
   const blocks = rotation === "blocks";
   const blockOrder = new Map(plan.recipes.filter((p) => p.slot === "main").sort((a, b) => lifeKey(a) - lifeKey(b) || b.meals - a.meals).map((p, i) => [p.recipe.id, i]));
 
+  // when meals of one kind have different sizes (a lighter dinner), each recipe should land on both
+  // so that sizing portions later doesn't have to shrink one recipe and grow another
+  const uneven = targets ? unevenSlots(occasions, targets) : new Set<string>();
+  const atOccasion = new Map<string, number>();
+  const seenAt = (id: string, occ: string) => atOccasion.get(id + "@" + occ) ?? 0;
+
   for (let d = 0; d < days; d++) {
     for (const o of prepped) {
       if (out[d]!.takeout.some((t) => t.occasionId === o.id)) continue;
@@ -45,15 +51,19 @@ export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: nu
       if (blocks && slot === "main") options.sort((a, b) => blockOrder.get(a.recipe.id)! - blockOrder.get(b.recipe.id)!);
       else options.sort((a, b) =>
         Number(usedToday.has(a.recipe.id)) - Number(usedToday.has(b.recipe.id)) ||
+        (uneven.has(slot) ? seenAt(a.recipe.id, o.id) / a.meals - seenAt(b.recipe.id, o.id) / b.meals : 0) ||
         // a recipe that would otherwise run past its life goes first
         lifeKey(a) - lifeKey(b) ||
         (remaining.get(b.recipe.id)! - remaining.get(a.recipe.id)!),
       );
       const pick = options[0]!;
       remaining.set(pick.recipe.id, remaining.get(pick.recipe.id)! - 1);
+      atOccasion.set(pick.recipe.id + "@" + o.id, seenAt(pick.recipe.id, o.id) + 1);
       out[d]!.meals.push({ occasionId: o.id, occasionName: o.name, recipeId: pick.recipe.id, portion: pick.portion, fromSession: 0 });
     }
   }
+
+  if (targets) sizePortions(out, occasions, targets, byId);
 
   // when each recipe is cooked: day 0, or (blocks) fresh just before its block starts
   const cookDay = new Map<string, number>();
@@ -112,4 +122,42 @@ export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: nu
   for (const day of out) for (const m of day.meals) m.fromSession = remap.get(m.fromSession) ?? 0;
   kept.forEach((x, i) => (x.index = i));
   return { days: out, sessions: kept.length ? kept : [{ index: 0, beforeDay: 0, batches: [] }], freezer };
+}
+
+/**
+ * Lunch and dinner (and snacks) share recipes, so a lighter dinner or a bigger lunch is a matter
+ * of portion size: each meal's portion follows its calorie target relative to the other meals of
+ * its kind. Each recipe's portions are then rescaled so they still add up to what is cooked.
+ */
+/** Kinds of meal (breakfast, main, snack) whose prepped occasions have different calorie targets. */
+function unevenSlots(occasions: EatingOccasion[], targets: Targets): Set<string> {
+  const parts = splitTargets(targets, occasions);
+  const bySlot = new Map<string, number[]>();
+  occasions.forEach((o, i) => { if (o.prepped) bySlot.set(slotTypeFor(o), [...(bySlot.get(slotTypeFor(o)) ?? []), parts[i]!.kcal]); });
+  return new Set([...bySlot].filter(([, ks]) => Math.max(...ks) - Math.min(...ks) > Math.max(...ks) * 0.02).map(([slot]) => slot));
+}
+
+function sizePortions(out: ScheduledDay[], occasions: EatingOccasion[], targets: Targets, byId: Map<string, PlannedRecipe>) {
+  const parts = splitTargets(targets, occasions);
+  const kcal = new Map(occasions.map((o, i) => [o.id, parts[i]!.kcal]));
+  const avg = new Map<string, number>();
+  for (const slot of ["breakfast", "main", "snack"] as const) {
+    const ks = occasions.filter((o) => o.prepped && slotTypeFor(o) === slot).map((o) => kcal.get(o.id)!);
+    if (ks.length) avg.set(slot, ks.reduce((a, b) => a + b, 0) / ks.length);
+  }
+  const scaleOf = (occasionId: string, slot: string) => {
+    const a = avg.get(slot) ?? 0;
+    return a > 0 ? (kcal.get(occasionId) ?? a) / a : 1;
+  };
+  const meals = out.flatMap((d) => d.meals);
+  for (const [id, p] of byId) {
+    const mine = meals.filter((m) => m.recipeId === id);
+    if (mine.length < 1) continue;
+    const raw = mine.map((m) => scaleOf(m.occasionId, p.slot));
+    if (raw.every((x) => Math.abs(x - 1) < 0.01)) continue;
+    const total = p.portion * mine.length;
+    const sum = raw.reduce((a, b) => a + b, 0);
+    if (sum <= 0) continue;
+    mine.forEach((m, i) => { m.portion = Math.round(((total * raw[i]!) / sum) * 100) / 100; });
+  }
 }

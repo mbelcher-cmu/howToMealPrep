@@ -5,7 +5,7 @@ import { track } from "./telemetry";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import { buildRecipe, INGREDIENTS, registerRecipes, shelfLifeDays, type Aisle, type ChainId, type RecipeSeed, type UnitSystem } from "@prep-cart/catalog";
 import {
-  defaultOccasions, editCaloriesWithLocks, editMacroFree, editMacroWithLocks, suggestTargets, targetsFromSplit,
+  defaultOccasions, editCaloriesWithLocks, editMacroFree, editMacroWithLocks, editTargets, suggestTargets, targetsFromSplit,
   SPLIT_PRESETS, type ActivityLevel, type Balancer, type EatingOccasion, type Goal, type MacroGrams, type MacroKey, type Sex,
   type SplitPreset, type Targets,
 } from "@prep-cart/nutrition";
@@ -101,8 +101,10 @@ export interface AppState {
   weekStart: number;
   /** prep session start, HH:MM */
   prepTime: string;
-  /** takeout meals placed on the week */
+  /** takeout meals placed on the week; they repeat every week unless marked once */
   eatingOut: EatOut[];
+  /** takeout chains found near the person on OpenStreetMap: closest distance in miles by chain id */
+  nearbyRestaurants: { zip: string; on: string; miles: Record<string, number> } | null;
   /** sales the person entered from a weekly ad or the shelf */
   deals: (Deal & { id: string; addedOn: string })[];
   /** every price the person recorded, newest last */
@@ -114,6 +116,10 @@ export interface AppState {
   setCalories: (kcal: number) => void;
   setMacro: (m: MacroKey, grams: number) => { clamped: boolean; kcalChanged: boolean };
   toggleMacroLock: (m: MacroKey) => void;
+  /** one edit under the locks, calories included (macroLocks flag); see editTargets */
+  setTarget: (field: MacroKey | "kcal", value: number) => { clamped: boolean; blocked: "noRoom" | null };
+  /** locked calories = "calories" mode: macro edits rebalance the others instead of moving calories */
+  toggleCaloriesLock: () => void;
   setOccasionMacros: (id: string, macros: MacroGrams | null) => void;
   setSplitPreset: (p: SplitPreset) => void;
   setTargetMode: (m: TargetMode) => void;
@@ -137,7 +143,7 @@ export interface AppState {
   planNextWeek: () => void;
   /** set up next week: keep some recipes, rest the others, carry the leftovers over */
   startNextWeek: (o: { startsOn: string; locked: string[]; resting: string[]; shopped: boolean }) => void;
-  setTakeout: (day: number, occasionId: string, itemId: string | null) => void;
+  setTakeout: (day: number, occasionId: string, itemId: string | null, once?: boolean) => void;
   addDeal: (d: Deal) => void;
   removeDeal: (id: string) => void;
   reset: () => void;
@@ -177,6 +183,7 @@ function initial(): Omit<AppState, keyof Actions> {
     lastWeek: null,
     checked: {},
     eatingOut: [],
+    nearbyRestaurants: null,
     fitness: null,
     household: [],
     aisleOrder: {},
@@ -190,7 +197,7 @@ function initial(): Omit<AppState, keyof Actions> {
     priceHistory: {},
   };
 }
-type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "toggleMacroLock" | "setOccasionMacros" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "swapRecipe" | "skipRecipe" | "setWish" | "toggleLock" | "setPantryAmount" | "addToPantry" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "planNextWeek" | "startNextWeek" | "setTakeout" | "addDeal" | "removeDeal" | "reset">;
+type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "toggleMacroLock" | "setTarget" | "toggleCaloriesLock" | "setOccasionMacros" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "swapRecipe" | "skipRecipe" | "setWish" | "toggleLock" | "setPantryAmount" | "addToPantry" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "planNextWeek" | "startNextWeek" | "setTakeout" | "addDeal" | "removeDeal" | "reset">;
 
 const storage: StateStorage = {
   getItem: (k) => {
@@ -231,6 +238,18 @@ export const useApp = create<AppState>()(
         set({ targets: r.targets, splitPreset: "custom" });
         return { clamped: r.clamped, kcalChanged: r.kcalChanged };
       },
+      setTarget: (field, value) => {
+        const { targets, targetMode, lockedMacros, splitPreset } = get();
+        // a calorie change with a preset split and nothing locked keeps the preset's shares
+        if (field === "kcal" && splitPreset !== "custom" && !lockedMacros.length) {
+          set({ targets: targetsFromSplit(value, SPLIT_PRESETS[splitPreset].split) });
+          return { clamped: false, blocked: null };
+        }
+        const r = editTargets(targets, field, value, { kcal: targetMode === "calories", macros: lockedMacros });
+        if (!r.blocked) set({ targets: r.targets, splitPreset: "custom" });
+        return { clamped: r.clamped, blocked: r.blocked };
+      },
+      toggleCaloriesLock: () => set({ targetMode: get().targetMode === "calories" ? "grams" : "calories" }),
       toggleMacroLock: (m) => {
         const l = get().lockedMacros;
         set({ lockedMacros: l.includes(m) ? l.filter((x) => x !== m) : [...l, m] });
@@ -249,7 +268,7 @@ export const useApp = create<AppState>()(
         const prev = get().occasions;
         const next = defaultOccasions(meals, snacks).map((o) => {
           const old = prev.find((p) => p.id === o.id);
-          return old ? { ...o, prepped: old.prepped, ...(old.macros ? { macros: old.macros } : {}) } : o;
+          return old ? { ...o, prepped: old.prepped, ...(old.macros ? { macros: old.macros } : {}), ...(old.style ? { style: old.style } : {}) } : o;
         });
         set({ meals, snacks, occasions: next });
       },
@@ -355,12 +374,14 @@ export const useApp = create<AppState>()(
           held: [],
           pantryForPlan: null,
           checked: {},
+          // "just this week" takeout ends with the week; the rest repeats
+          eatingOut: get().eatingOut.filter((e) => !e.once),
         });
         track("next_week_planned", { kept: locked.length, swapped: resting.length, shopped });
       },
-      setTakeout: (day, occasionId, itemId) => {
+      setTakeout: (day, occasionId, itemId, once) => {
         const rest = get().eatingOut.filter((e) => !(e.day === day && e.occasionId === occasionId));
-        set({ eatingOut: itemId ? [...rest, { day, occasionId, itemId }] : rest });
+        set({ eatingOut: itemId ? [...rest, { day, occasionId, itemId, ...(once ? { once: true } : {}) }] : rest });
       },
       addDeal: (d) => {
         const deals = get().deals.filter((x) => !(x.ingredientId === d.ingredientId && x.chain === d.chain));
