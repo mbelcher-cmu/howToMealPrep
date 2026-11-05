@@ -214,11 +214,31 @@ test("every main page renders on a phone without errors or sideways scrolling", 
   }
 });
 
+test("the pantry tracker files food by where it lives and quick amounts stick", async () => {
+  await page.goto(base + "/pantry/");
+  await page.getByLabel("Add to pantry").fill("frozen salmon");
+  await page.getByRole("button", { name: /Frozen salmon fillets/ }).click();
+  await page.getByLabel("Add to pantry").fill("large eggs");
+  await page.getByRole("button", { name: /Large eggs/ }).click();
+  await page.getByRole("heading", { name: "Freezer" }).waitFor();
+  await page.getByRole("heading", { name: "Fridge" }).waitFor();
+  const amounts = page.getByRole("group", { name: "How much Large eggs is left" });
+  assert.equal(await amounts.getByRole("button", { name: "Full" }).getAttribute("aria-pressed"), "true", "new items start as a full package");
+  await amounts.getByRole("button", { name: "Half" }).click();
+  await page.reload();
+  const after = page.getByRole("group", { name: "How much Large eggs is left" });
+  assert.equal(await after.getByRole("button", { name: "Half" }).getAttribute("aria-pressed"), "true", "half survives a reload");
+  // used up removes it; the salmon stays for the accessibility scan below
+  await after.getByRole("button", { name: /Used up/ }).click();
+  await page.getByRole("heading", { name: "Fridge" }).waitFor({ state: "detached" });
+  await page.getByRole("heading", { name: "Freezer" }).waitFor();
+});
+
 test("no serious accessibility problems on any page, light, dark and desktop", async () => {
   const found = [];
   for (const scheme of ["light", "dark"]) {
     await page.emulateMedia({ colorScheme: scheme });
-    for (const p of scheme === "light" ? PAGES : ["", "plan/", "groceries/", "recipes/"]) {
+    for (const p of scheme === "light" ? PAGES : ["", "plan/", "groceries/", "recipes/", "pantry/"]) {
       await page.goto(base + "/" + p);
       await page.locator("main").waitFor();
       await page.waitForTimeout(600);
