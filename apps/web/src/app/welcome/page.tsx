@@ -55,7 +55,7 @@ function AboutYou({ d, setD }: { d: Draft; setD: (d: Draft) => void }) {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-1">
-          <span className="text-[13px] text-muted">Sex (for the calorie formula)</span>
+          <span className="text-[13px] text-muted">Sex</span>
           <Segmented label="Sex" value={d.sex ?? ("" as "male")} onChange={(sex) => up({ sex })} options={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }]} />
         </div>
         <Field id="age" label="Age" value={d.age} onChange={(age) => up({ age })} suffix="yr" />

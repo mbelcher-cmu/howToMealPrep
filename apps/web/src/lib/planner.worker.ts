@@ -23,7 +23,7 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
     const { priceOverrides, deals, today, customRecipes, ...rest } = req;
     registerRecipes(customRecipes.flatMap((sd) => { try { return [buildRecipe(sd)]; } catch { return []; } }));
     const result = plan({ ...rest, prices: applyDeals(buildPriceTable(priceOverrides), deals, today) }, highs as never);
-    const sched = schedule(result, req.occasions, req.days, req.variety.rotation);
+    const sched = schedule(result, req.occasions, req.days, req.variety.rotation, req.targets);
     (self as unknown as Worker).postMessage({ id, ok: true, result, schedule: sched });
   } catch (err) {
     // a crashed solver instance can't be reused; load a fresh one next time

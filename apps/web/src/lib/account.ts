@@ -7,6 +7,7 @@ import { backendEnabled, supabase } from "./supabase";
 import { syncOnce, type Local } from "./sync-engine";
 import { supabaseRemote } from "./sync-remote";
 import { fromWire, type SyncBase } from "./sync-rules";
+import { mirrorRatings } from "./recommend";
 import { reportError, track } from "./telemetry";
 
 /**
@@ -84,6 +85,7 @@ async function runSync(): Promise<void> {
       if (!r.again) break;
     }
     await followHousehold();
+    await mirrorRatings();
     useAccount.setState({ syncing: false, lastSynced: Date.now() });
   } catch (e) {
     reportError(e, { where: "sync" });

@@ -9,6 +9,7 @@ import { macroShares } from "@prep-cart/nutrition";
 import { buildPriceTable, hardRejection, servingCost } from "@prep-cart/planner";
 import { RecipeMeta } from "@/components/plan-bits";
 import { RecipeArt } from "@/components/food";
+import { MatchLine } from "@/components/picks";
 import { Card, SectionTitle, Stars, Stepper, Tag } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
@@ -33,7 +34,7 @@ export function RecipeDetail({ id }: { id: string }) {
 
   return (
     <article>
-      <Link href="/recipes/" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"><ArrowLeft size={16} aria-hidden /> All recipes</Link>
+      <Link href="/recipes/" className="-ml-1 mb-2 inline-flex min-h-[44px] items-center gap-1.5 px-1 text-sm font-medium text-muted hover:text-ink"><ArrowLeft size={16} aria-hidden /> All recipes</Link>
       <RecipeArt recipe={r} className="mb-4 aspect-[16/9] w-full rounded-card sm:aspect-[5/2]" />
       <header className="mb-5 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div className="min-w-0">
@@ -47,6 +48,7 @@ export function RecipeDetail({ id }: { id: string }) {
               {source?.source && <a className="text-xs text-muted underline" href={source.source} target="_blank" rel="noreferrer">Original recipe</a>}
             </div>
           )}
+          {hydrated && <div className="mt-1"><MatchLine id={r.id} /></div>}
         </div>
         {hydrated && (
           <button className={locked ? "btn btn-primary w-full sm:w-auto" : "btn w-full sm:w-auto"} onClick={() => s.toggleLock(r.id)} aria-pressed={locked} disabled={!!rejected && !locked}>
