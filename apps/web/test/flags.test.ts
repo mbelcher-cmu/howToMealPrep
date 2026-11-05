@@ -8,6 +8,10 @@ describe("feature flags", () => {
     expect(parseFlags(undefined)).toEqual({});
   });
 
+  it("reads camelCase flag names in any case", () => {
+    expect(parseFlags("eatOutPlus=on,NEXTWEEK=off")).toEqual({ eatOutPlus: true, nextWeek: false });
+  });
+
   it("falls back to the development defaults outside the browser", () => {
     for (const k of Object.keys(FLAG_DEFAULTS) as (keyof typeof FLAG_DEFAULTS)[]) expect(flag(k)).toBe(FLAG_DEFAULTS[k].development);
   });

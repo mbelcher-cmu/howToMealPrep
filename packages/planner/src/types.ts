@@ -62,7 +62,11 @@ export interface Weights {
 /** Someone else eating the plan. Portions scale by kcal against the main person's calories. */
 export interface HouseholdMember { id: string; name: string; kcal: number }
 
-export interface EatOut { day: number; occasionId: string; itemId: string }
+export interface EatOut {
+  day: number; occasionId: string; itemId: string;
+  /** just this week: dropped when the next week starts (otherwise takeout repeats every week) */
+  once?: boolean;
+}
 
 export interface PlanRequest {
   days: number;
