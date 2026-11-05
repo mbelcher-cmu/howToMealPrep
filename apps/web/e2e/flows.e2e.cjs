@@ -54,8 +54,10 @@ async function axeScan(p, name) {
 before(async () => {
   if (process.env.BASE_URL) base = process.env.BASE_URL.replace(/\/$/, "");
   else {
-    server = await serve(path.join(__dirname, "..", "out"));
-    base = `http://localhost:${server.address().port}`;
+    // a build made with a base path (GitHub Pages: /howToMealPrep) only works when served under it
+    const prefix = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/$/, "");
+    server = await serve(path.join(__dirname, "..", "out"), 0, prefix);
+    base = `http://localhost:${server.address().port}${prefix}`;
   }
   browser = await chromium.launch();
   ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, acceptDownloads: true });
