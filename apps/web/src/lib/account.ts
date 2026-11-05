@@ -4,13 +4,16 @@ import { STORE_KEY } from "./env";
 import { safeStorage } from "./storage";
 import { useApp } from "./store";
 import { backendEnabled, supabase } from "./supabase";
-import { decide, isRemoteDoc, type RemoteDoc, type SyncMeta } from "./sync-rules";
+import { syncOnce, type Local } from "./sync-engine";
+import { supabaseRemote } from "./sync-remote";
+import type { SyncBase } from "./sync-rules";
 import { reportError, track } from "./telemetry";
 
 /**
  * Sign-in and cloud sync. Signing in is optional: without an account everything stays on the
- * device as before. With one, the saved app state is copied to the person's own profile row
- * (row-level security keeps it private) and follows them to other devices.
+ * device as before. With one, settings, pantry, plans and prices are kept in the person's own rows
+ * (row-level security keeps them private) and follow them to other devices. The merge rules are in
+ * sync-rules.ts and sync-engine.ts.
  */
 type Status = "off" | "loading" | "signedOut" | "signedIn";
 interface AccountState {
@@ -19,50 +22,40 @@ interface AccountState {
   syncing: boolean;
   lastSynced: number | null;
   error: string | null;
+  /** a one-off note for the sign-in form, such as after deleting the account */
+  notice: string | null;
 }
-export const useAccount = create<AccountState>()(() => ({ status: "off", email: null, syncing: false, lastSynced: null, error: null }));
+export const useAccount = create<AccountState>()(() => ({ status: "off", email: null, syncing: false, lastSynced: null, error: null, notice: null }));
 
-const META_KEY = `${STORE_KEY}:sync`;
-const readMeta = (): SyncMeta => {
-  try { return { userId: null, localAt: 0, remoteAt: 0, ...(JSON.parse(safeStorage.getItem(META_KEY) ?? "{}") as Partial<SyncMeta>) }; } catch { return { userId: null, localAt: 0, remoteAt: 0 }; }
+// when this device last changed something, and what the cloud held after the last sync
+const LOCAL_AT_KEY = `${STORE_KEY}:changed`;
+const BASE_KEY = `${STORE_KEY}:sync-base`;
+const LEGACY_META_KEY = `${STORE_KEY}:sync`;
+const readLocalAt = (): number => {
+  const n = Number(safeStorage.getItem(LOCAL_AT_KEY));
+  if (n) return n;
+  try { return Number((JSON.parse(safeStorage.getItem(LEGACY_META_KEY) ?? "{}") as { localAt?: number }).localAt) || 0; } catch { return 0; }
 };
-const writeMeta = (m: Partial<SyncMeta>) => safeStorage.setItem(META_KEY, JSON.stringify({ ...readMeta(), ...m }));
+const readBase = (): SyncBase | null => { try { return JSON.parse(safeStorage.getItem(BASE_KEY) ?? "null") as SyncBase | null; } catch { return null; } };
+const writeBase = (b: SyncBase | null) => (b ? safeStorage.setItem(BASE_KEY, JSON.stringify(b)) : safeStorage.removeItem(BASE_KEY));
 
-/** The saved part of the app state, in the same JSON form the browser store uses. */
-function snapshot(): Record<string, unknown> {
-  const s = useApp.getState() as unknown as Record<string, unknown>;
-  const plain = Object.fromEntries(Object.entries(s).filter(([, v]) => typeof v !== "function"));
-  return JSON.parse(JSON.stringify(plain, (_k, x) => (x === Infinity ? "__inf" : x))) as Record<string, unknown>;
-}
-const revive = (state: Record<string, unknown>) => JSON.parse(JSON.stringify(state), (_k, x) => (x === "__inf" ? Infinity : x)) as Record<string, unknown>;
+/** The saved part of the app state, as plain data. */
+const plainState = (): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(useApp.getState() as unknown as Record<string, unknown>).filter(([, v]) => typeof v !== "function"));
 
 let userId: string | null = null;
 let applying = false;
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let started = false;
 
-async function fetchRemote(): Promise<RemoteDoc | null> {
-  const sb = await supabase();
-  if (!sb || !userId) return null;
-  const { data, error } = await sb.from("profiles").select("settings").eq("id", userId).maybeSingle();
-  if (error) throw error;
-  return isRemoteDoc(data?.settings) ? data.settings : null;
-}
-
-async function push() {
-  const sb = await supabase();
-  if (!sb || !userId) return;
-  const doc: RemoteDoc = { v: 1, savedAt: Math.max(Date.now(), readMeta().localAt), state: snapshot() };
-  const { error } = await sb.from("profiles").upsert({ id: userId, settings: doc });
-  if (error) throw error;
-  writeMeta({ userId, remoteAt: doc.savedAt, localAt: doc.savedAt });
-}
-
-function pull(doc: RemoteDoc) {
-  applying = true;
-  try { useApp.setState(revive(doc.state) as never); } finally { applying = false; }
-  writeMeta({ userId, remoteAt: doc.savedAt, localAt: doc.savedAt });
-}
+const local: Local = {
+  read: plainState,
+  write: (patch) => {
+    applying = true;
+    try { useApp.setState(patch as never); } finally { applying = false; }
+  },
+  localAt: readLocalAt,
+};
 
 /** Brings this device and the account into step. Safe to call any time. */
 let inflight: Promise<void> | null = null;
@@ -78,14 +71,18 @@ export function syncNow(): Promise<void> {
 }
 
 async function runSync(): Promise<void> {
-  if (!userId) return;
+  const sb = await supabase();
+  if (!sb || !userId) return;
   useAccount.setState({ syncing: true, error: null });
+  const remote = supabaseRemote(sb, userId, () => useApp.getState().profile.zip);
   try {
-    const remote = await fetchRemote();
-    const action = decide(readMeta(), userId, remote, useApp.getState().onboarded);
-    if (action === "pull" && remote) pull(remote);
-    else if (action === "push") await push();
-    else writeMeta({ userId });
+    // another device saving at the same moment makes a save bounce; merge again, a few times at most
+    for (let i = 0; i < 3; i++) {
+      const r = await syncOnce(userId, readBase(), local, remote);
+      if (r.base) writeBase(r.base);
+      if (r.pulled) track("sync_pulled");
+      if (!r.again) break;
+    }
     useAccount.setState({ syncing: false, lastSynced: Date.now() });
   } catch (e) {
     reportError(e, { where: "sync" });
@@ -110,7 +107,7 @@ export async function initAccount() {
 
   useApp.subscribe(() => {
     if (applying) return;
-    writeMeta({ localAt: Date.now() });
+    safeStorage.setItem(LOCAL_AT_KEY, String(Date.now()));
     schedulePush();
   });
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void syncNow(); });
@@ -157,4 +154,36 @@ export async function signOut() {
   if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
   if (userId) { try { await syncNow(); } catch { /* best effort */ } }
   await sb?.auth.signOut();
+}
+
+/** Signs in with Google. Only offered once the Google provider is set up in Supabase (googleSignIn flag). */
+export async function signInWithGoogle(): Promise<string | null> {
+  const sb = await supabase();
+  if (!sb) return "Accounts aren't available in this version.";
+  const { error } = await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: redirectTo() } });
+  if (error) { reportError(error, { where: "google" }); return "Couldn't start Google sign-in. Please try again or use your email."; }
+  return null;
+}
+
+/**
+ * Deletes the account and everything stored with it in the cloud. Nothing on this device changes
+ * unless eraseDevice is set, so someone can leave the service and keep using the app offline.
+ */
+export async function deleteAccount(eraseDevice: boolean): Promise<string | null> {
+  const sb = await supabase();
+  if (!sb || !userId) return "You're not signed in.";
+  if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
+  try { await inflight; } catch { /* the delete matters more */ }
+  const { error } = await sb.rpc("delete_account");
+  if (error) {
+    reportError(error, { where: "deleteAccount" });
+    return /fetch|network/i.test(error.message) ? "Couldn't reach the server. Check your connection and try again." : "Something went wrong deleting your account. Please try again.";
+  }
+  track("account_deleted", { erased: eraseDevice });
+  userId = null;
+  writeBase(null);
+  await sb.auth.signOut({ scope: "local" });
+  if (eraseDevice) useApp.getState().reset();
+  useAccount.setState({ status: "signedOut", email: null, lastSynced: null, error: null, notice: eraseDevice ? "Your account was deleted, and this device was cleared." : "Your account was deleted. Everything is still on this device." });
+  return null;
 }
