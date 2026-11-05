@@ -58,7 +58,7 @@ before(async () => {
     base = `http://localhost:${server.address().port}`;
   }
   browser = await chromium.launch();
-  ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, acceptDownloads: true });
   page = await ctx.newPage();
   watch(page, "phone");
 });
@@ -136,6 +136,59 @@ test("recipe search narrows the list and a recipe page opens", async () => {
   await page.locator("main ul > li a").first().click();
   await page.waitForURL("**/recipes/*/");
   assert.ok(await page.getByRole("heading", { level: 1 }).isVisible());
+});
+
+/** The recipe names in "Recipes this week", in order. */
+async function planRecipes(p) {
+  await p.getByText("Recipes this week").first().waitFor({ timeout: 45000 });
+  return (await p.getByRole("button", { name: /^Skip .+ this week$/ }).evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")))).map((l) => l.replace(/^Skip | this week$/g, ""));
+}
+async function waitForReplan(p, before) {
+  await p.waitForFunction((prev) => {
+    const now = [...document.querySelectorAll("button[aria-label^='Skip '][aria-label$=' this week']")].map((e) => e.getAttribute("aria-label")).join("|");
+    return now && now !== prev;
+  }, before.map((n) => `Skip ${n} this week`).join("|"), { timeout: 45000 });
+}
+
+test("skipping a recipe re-plans without it, and Try another plan changes the week", async () => {
+  await page.goto(base + "/plan/");
+  const before = await planRecipes(page);
+  assert.ok(before.length >= 2, `a week has several recipes, got ${before}`);
+  await page.getByRole("button", { name: `Skip ${before[0]} this week` }).click();
+  await waitForReplan(page, before);
+  const skipped = await planRecipes(page);
+  assert.ok(!skipped.includes(before[0]), `${before[0]} is gone after skipping`);
+  await page.getByRole("button", { name: "Try another plan" }).click();
+  await waitForReplan(page, skipped);
+});
+
+test("in-store mode ticks items into the cart", async () => {
+  await page.goto(base + "/shop/");
+  const count = page.getByText(/ of \d+ in the cart/).first();
+  await count.waitFor();
+  assert.match(await count.innerText(), /^0 of/);
+  await page.getByText("Mark as in the cart").first().locator("xpath=..").click();
+  await page.waitForFunction(() => /^1 of/.test([...document.querySelectorAll("main span")].find((e) => / in the cart$/.test(e.textContent ?? ""))?.textContent ?? ""));
+});
+
+test("prep day exports a calendar file", async () => {
+  await page.goto(base + "/prep/");
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: /calendar/i }).first().click()]);
+  const body = require("node:fs").readFileSync(await download.path(), "utf8");
+  assert.match(body, /BEGIN:VEVENT/);
+  assert.match(body, /END:VCALENDAR/);
+});
+
+test("adding takeout on Eat out takes that meal out of the prep", async () => {
+  await page.goto(base + "/eat-out/");
+  await page.getByRole("button", { name: /^Add takeout for Friday (Dinner|Main meal|Meal 3)/ }).first().click();
+  await page.locator("main button", { hasText: /bowl|sandwich|wrap/i }).first().click();
+  await page.getByRole("button", { name: /^Remove takeout on Friday/ }).first().waitFor();
+  await page.goto(base + "/plan/");
+  await page.getByText("Recipes this week").first().waitFor({ timeout: 45000 });
+  await page.waitForFunction(() => /takeout/i.test(document.querySelector("main")?.innerText ?? ""), null, { timeout: 45000 });
+  await page.goto(base + "/eat-out/");
+  await page.getByRole("button", { name: /^Remove takeout on Friday/ }).first().click();
 });
 
 test("every main page renders on a phone without errors or sideways scrolling", async () => {
