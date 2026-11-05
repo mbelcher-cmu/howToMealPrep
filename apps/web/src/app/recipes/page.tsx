@@ -5,7 +5,7 @@ import { Plus, Search } from "lucide-react";
 import { CUISINES, DIETS, MOODS, RECIPES, type Cuisine, type Diet, type MealType, type Mood } from "@prep-cart/catalog";
 import { hardRejection } from "@prep-cart/planner";
 import { RecipeCard } from "@/components/food";
-import { Chip, PageHeader } from "@/components/ui";
+import { Chip, EmptyState, PageHeader } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
 
@@ -86,6 +86,14 @@ export default function Recipes() {
           </li>
         ))}
       </ul>
+      {list.length === 0 && (
+        <EmptyState
+          title={mineOnly ? "No saved recipes yet" : "Nothing matches"}
+          action={<button type="button" className="btn" onClick={() => { setQ(""); setMeal("all"); setCuisine(""); setMood(""); setDiet(""); setFitsMe(false); setMineOnly(false); }}>Show all recipes</button>}
+        >
+          {mineOnly ? "Rate a recipe or add your own and it shows up here." : "Try fewer words, or loosen a filter."}
+        </EmptyState>
+      )}
     </>
   );
 }

@@ -33,7 +33,7 @@ export function RecipeDetail({ id }: { id: string }) {
 
   return (
     <article>
-      <Link href="/recipes/" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"><ArrowLeft size={16} aria-hidden /> All recipes</Link>
+      <Link href="/recipes/" className="-ml-1 mb-2 inline-flex min-h-[44px] items-center gap-1.5 px-1 text-sm font-medium text-muted hover:text-ink"><ArrowLeft size={16} aria-hidden /> All recipes</Link>
       <RecipeArt recipe={r} className="mb-4 aspect-[16/9] w-full rounded-card sm:aspect-[5/2]" />
       <header className="mb-5 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div className="min-w-0">

@@ -67,10 +67,10 @@ export function MacroChips({ recipe, portion = 1 }: { recipe: Recipe; portion?: 
 /** Image-led recipe card for rails and grids. */
 export function RecipeCard({ recipe, portion = 1, eyebrow, footer, wide }: { recipe: Recipe; portion?: number; eyebrow?: ReactNode; footer?: ReactNode; wide?: boolean }) {
   return (
-    <article className={cx("card group relative flex flex-col overflow-hidden", wide ? "w-full" : "w-[220px] shrink-0 sm:w-[240px]")}>
-      <RecipeArt recipe={recipe} className="aspect-[4/3] w-full" />
+    <article className={cx("card tap-card group relative flex flex-col overflow-hidden", wide ? "w-full" : "w-[220px] shrink-0 sm:w-[240px]")}>
+      <RecipeArt recipe={recipe} className="art-zoom aspect-[4/3] w-full" />
       <div className="flex flex-1 flex-col gap-1.5 p-3">
-        {eyebrow && <p className="label">{eyebrow}</p>}
+        {eyebrow && <p className="label truncate">{eyebrow}</p>}
         <h3 className="line-clamp-2 font-display text-[16px] font-bold leading-snug" title={recipe.name}>
           <Link href={recipeHref(recipe.id)} className="after:absolute after:inset-0 hover:underline">{recipe.name}</Link>
         </h3>
