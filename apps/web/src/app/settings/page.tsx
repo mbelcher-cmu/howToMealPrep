@@ -33,6 +33,7 @@ export default function Settings() {
   const [msg, setMsg] = useState("");
   const plus = useFlag("plus");
   const accounts = useFlag("accounts");
+  const training = useFlag("fitnessSync");
   const account = useAccount();
   const signedIn = account.status === "signedIn";
   const [noAnalytics, setNoAnalytics] = useState(() => typeof window !== "undefined" && analyticsOptedOut());
@@ -93,6 +94,7 @@ export default function Settings() {
         </Card>
         <Section id="fitness" title="Fitness apps" lead="Use what your watch or tracker measured instead of an estimate.">
           <FitnessSync />
+          {training && <p className="mt-4 border-t border-line pt-4 text-sm">Train on some days and rest on others? Set your <Link href="/plan/" className="font-semibold text-accent underline">training days on the Plan page</Link> and import Strava, Garmin or Apple Health workouts there.</p>}
         </Section>
         {plus && <Section id="plus" title="MacroAisle Plus" lead="AI meal swaps, live prices and more, coming later.">
           <Link href="/plus/" className="btn">See what's in Plus</Link>

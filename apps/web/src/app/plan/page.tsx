@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { ChevronDown, Lock, LockOpen, Shuffle, X } from "lucide-react";
 import { MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID, type MealType } from "@prep-cart/catalog";
 import { FavoritesEditor } from "@/components/favorites";
+import { TrainingWeekEditor } from "@/components/training";
 import { useFlag } from "@/lib/flags";
 import { BudgetEditor, MealStructureEditor, MoodEditor, RulesEditor, StoresEditor, TargetsEditor } from "@/components/editors";
 import { BudgetBar, LockedTag, PerServing, PlanMacros, PlanStatus, RecipeMeta, RecipeTile, SolvingNote } from "@/components/plan-bits";
@@ -79,6 +80,7 @@ export default function PlanPage() {
   const { plan, status, tryAnother } = usePlanner();
   const s = useApp();
   const ranking = useFlag("mealRanking");
+  const training = useFlag("fitnessSync");
   const [favMeal, setFavMeal] = useState<MealType | undefined>(undefined);
   if (!hydrated) return null;
   const excluded = s.prefs.excludeRecipes ?? [];
@@ -89,6 +91,7 @@ export default function PlanPage() {
         <div className="order-2 grid min-w-0 grid-cols-1 content-start gap-3 lg:order-1">
           <h2 className="px-1 font-display text-lg font-bold lg:sr-only">Change your week</h2>
           <Panel title="Calories and macros"><TargetsEditor showSuggest /></Panel>
+          {training && <Panel title="Training days"><TrainingWeekEditor /></Panel>}
           <Panel title="Meals and rotation"><MealStructureEditor /></Panel>
           <Panel title="Budget and days"><BudgetEditor /></Panel>
           {ranking && <Panel title="Your favorites"><FavoritesEditor meal={favMeal} onMeal={setFavMeal} /></Panel>}

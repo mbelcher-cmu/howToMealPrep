@@ -37,10 +37,12 @@ const LOCAL_KEY = "prep-cart-flags";
 export function parseFlags(raw: string | null | undefined): Partial<Record<Flag, boolean>> {
   const out: Partial<Record<Flag, boolean>> = {};
   for (const part of (raw ?? "").split(",")) {
-    const [k, v] = part.split("=").map((x) => x?.trim().toLowerCase());
-    if (!k || !(k in FLAG_DEFAULTS)) continue;
-    if (v === "on" || v === "true" || v === "1") out[k as Flag] = true;
-    else if (v === "off" || v === "false" || v === "0") out[k as Flag] = false;
+    const [raw, v] = part.split("=").map((x) => x?.trim().toLowerCase());
+    // flag names are camelCase ("nextWeek"); match them whatever the case in the address
+    const k = (Object.keys(FLAG_DEFAULTS) as Flag[]).find((f) => f.toLowerCase() === raw);
+    if (!k) continue;
+    if (v === "on" || v === "true" || v === "1") out[k] = true;
+    else if (v === "off" || v === "false" || v === "0") out[k] = false;
   }
   return out;
 }

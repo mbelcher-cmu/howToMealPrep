@@ -203,6 +203,23 @@ test("adding takeout on Eat out takes that meal out of the prep", async () => {
   await page.getByRole("button", { name: /^Remove takeout on Friday/ }).first().click();
 });
 
+test("training days move calories to the days you train", async () => {
+  // behind the fitnessSync flag (off in production): turn it on for this device, then back off
+  await page.goto(base + "/plan/?flags=fitnessSync=on");
+  await page.getByRole("button", { name: "Training days" }).click();
+  await page.getByRole("button", { name: "Add workout on Thursday" }).click();
+  await page.getByLabel("Thursday workout 1", { exact: true }).selectOption("ruck");
+  await page.getByLabel("Thursday workout 1 minutes").selectOption("120");
+  await page.getByText(/1 training day burning about/).waitFor();
+  const text = await page.locator("main").innerText();
+  assert.match(text, /Training days get up to \+[\d,]+ kcal/);
+  const found = await axeScan(page, "/plan/ training days");
+  assert.deepEqual(found.filter((v) => v.impact === "serious" || v.impact === "critical"), [], "training days panel accessibility");
+  await page.getByRole("button", { name: /^Remove ruck/ }).click();
+  await page.goto(base + "/plan/?flags=reset");
+  await page.locator("main").waitFor();
+});
+
 test("every main page renders on a phone without errors or sideways scrolling", async () => {
   for (const p of PAGES) {
     await page.goto(base + "/" + p);
