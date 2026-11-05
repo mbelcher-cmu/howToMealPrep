@@ -121,6 +121,38 @@ test("changing calories re-plans live and the new target survives a reload", asy
   assert.ok(Math.abs((await calories(page)).target - 2800) <= 30);
 });
 
+test("locking calories and fat: raising carbs takes from protein and nothing locked moves", async () => {
+  if (!(await page.getByLabel("Calories per day").isVisible())) await page.getByRole("button", { name: "Calories and macros" }).click();
+  const lockBtn = page.getByRole("button", { name: "Lock calories" });
+  if (!(await lockBtn.count())) return; // macroLocks flag is off in this build
+  const num = async (label) => Number((await page.getByLabel(label, { exact: true }).inputValue()).replace(/,/g, ""));
+  const ensure = async (name, on) => {
+    const b = page.getByRole("button", { name: `Lock ${name}` });
+    if ((await b.getAttribute("aria-pressed")) !== String(on)) await b.click();
+  };
+  await ensure("calories", true);
+  await ensure("fat", true);
+  await ensure("protein", false);
+  await ensure("carbs", false);
+  const [kcal, protein, carbs, fat] = [await num("Calories per day"), await num("Protein"), await num("Carbs"), await num("Fat")];
+  const c = page.getByLabel("Carbs", { exact: true });
+  await c.fill(String(carbs + 20));
+  await c.blur();
+  await page.waitForFunction((p) => Number(document.getElementById([...document.querySelectorAll("label")].find((l) => l.textContent === "Protein")?.htmlFor ?? "")?.value) === p, protein - 20);
+  assert.equal(await num("Fat"), fat, "locked fat holds");
+  assert.ok(Math.abs((await num("Calories per day")) - kcal) <= 9, "locked calories hold");
+  // with protein locked too, nothing can make room, so a carb change is refused
+  await ensure("protein", true);
+  await c.fill(String(carbs + 40));
+  await c.blur();
+  await page.getByText("Nothing else is unlocked to make room").waitFor();
+  assert.equal(await num("Carbs"), carbs + 20);
+  await ensure("fat", false);
+  await ensure("carbs", false);
+  await page.reload();
+  await page.getByText("Recipes this week").first().waitFor({ timeout: 45000 });
+});
+
 test("the grocery list has items, and checking one off survives a reload", async () => {
   await page.goto(base + "/groceries/");
   const boxes = page.locator('main input[type="checkbox"]');
