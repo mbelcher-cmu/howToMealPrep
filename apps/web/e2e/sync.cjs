@@ -66,7 +66,8 @@ async function handleSupabase(route) {
       p.settings = body.doc;
       return json(true);
     }
-    if (name === "household_info") return json(joined ? { role: "member", ownerName: "michael", members: [{ id: "x", name: "tester" }], invites: [] } : invites.length ? { role: "owner", ownerName: "tester", members: [], invites: invites.map((code) => ({ code, expiresAt: new Date(Date.now() + 7 * 864e5).toISOString() })) } : null);
+    const who = (req.headers()["authorization"] || "").replace("Bearer ", "");
+    if (name === "household_info") return json(joined && who === "token-B" ? { role: "member", ownerName: "michael", members: [{ id: "x", name: "tester" }], invites: [] } : invites.length && who === "token-A" ? { role: "owner", ownerName: "tester", members: [], invites: invites.map((code) => ({ code, expiresAt: new Date(Date.now() + 7 * 864e5).toISOString() })) } : null);
     if (name === "create_household_invite") { invites.push("ABCD1234"); return json("ABCD1234"); }
     if (name === "join_household") { if (body.invite !== "HOME5678") return json({ message: "invite not valid" }, 400); joined = true; return json("michael"); }
     if (name === "household_plan") return json(joined ? { ownerName: "michael", weekOf: "2026-11-09", checked: {}, plan: { id: "household-plan-1", key: "", createdAt: new Date().toISOString(), days: 7, result: sharedPlan.result, schedule: sharedPlan.schedule } } : null);
@@ -103,7 +104,7 @@ async function handleSupabase(route) {
 async function device(browser, name, base) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 } });
   await ctx.route(`${SUPABASE}/**`, handleSupabase);
-  const session = { access_token: "fake", token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: "fake", user: USER };
+  const session = { access_token: `token-${name}`, token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: "fake", user: USER };
   await ctx.addInitScript(([key, s]) => { if (!localStorage.getItem(key)) localStorage.setItem(key, s); }, [`sb-${REF}-auth-token`, JSON.stringify(session)]);
   const page = await ctx.newPage();
   const errors = [];
