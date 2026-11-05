@@ -150,6 +150,20 @@ test("recipe search narrows the list and a recipe page opens", async () => {
   assert.ok(await page.getByRole("heading", { level: 1 }).isVisible());
 });
 
+test("rating a recipe brings picks like it, with a match and the reason", async () => {
+  await page.goto(base + "/recipes/");
+  await page.getByText("Get recipes picked for you.").waitFor();
+  await page.goto(base + "/recipes/chickpea_curry/");
+  await page.getByRole("radio", { name: /^5 stars/ }).click();
+  await page.goto(base + "/recipes/");
+  const rail = page.getByRole("group", { name: "Picked for you" });
+  await rail.waitFor();
+  assert.ok(await rail.getByText(/\d+% match/).first().isVisible(), "picks show a match");
+  assert.ok(await rail.getByText("Because you liked Chickpea spinach coconut curry").first().isVisible(), "picks say why");
+  await page.goto(base + "/recipes/chicken_tikka/");
+  await page.getByText(/\d+% match/).first().waitFor();
+});
+
 /** The recipe names in "Recipes this week", in order. */
 async function planRecipes(p) {
   await p.getByText("Recipes this week").first().waitFor({ timeout: 45000 });
