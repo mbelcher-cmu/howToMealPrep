@@ -8,7 +8,6 @@ import { ACTIVITY_LEVELS, customOverflow, cmToFeetInches, editMealCalories, edit
 import { useFlag } from "@/lib/flags";
 import { useOccasions } from "@/lib/meal-styles";
 import { useApp } from "@/lib/store";
-import { useFlag } from "@/lib/flags";
 import { Chip, NumberField, Segmented, Slider, Stepper, Toggle, WishChip } from "./ui";
 import { cx, isPittsburghZip, money } from "@/lib/format";
 import { Lock, LockOpen, SlidersHorizontal } from "lucide-react";
