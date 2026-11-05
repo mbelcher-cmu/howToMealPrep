@@ -74,7 +74,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-dvh md:grid md:grid-cols-[232px_minmax(0,1fr)]">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-surface focus:p-2">Skip to content</a>
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-surface px-3 py-5 md:flex">
+      <aside aria-label="App menu" className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-surface px-3 py-5 md:flex">
         <Link href="/" className="mb-6 px-3 font-display text-xl font-bold tracking-tight">
           Macro<span className="text-accent">Aisle</span>
         </Link>
@@ -131,7 +131,7 @@ function ShellV2({ path, solving, children }: { path: string; solving: boolean; 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[248px_minmax(0,1fr)]">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-surface focus:p-2">Skip to content</a>
-      <aside className="sticky top-0 hidden h-dvh flex-col px-4 py-6 md:flex">
+      <aside aria-label="App menu" className="sticky top-0 hidden h-dvh flex-col px-4 py-6 md:flex">
         <Link href="/" className="mb-8 px-3"><Wordmark className="text-[19px]" /></Link>
         <nav aria-label="Main" className="grid gap-1">
           {NAV.map(({ href, label, icon: Icon }) => {

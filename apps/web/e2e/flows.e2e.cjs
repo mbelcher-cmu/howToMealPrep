@@ -202,7 +202,7 @@ test("every main page renders on a phone without errors or sideways scrolling", 
   }
 });
 
-test("no serious accessibility problems on any page, light or dark", async () => {
+test("no serious accessibility problems on any page, light, dark and desktop", async () => {
   const found = [];
   for (const scheme of ["light", "dark"]) {
     await page.emulateMedia({ colorScheme: scheme });
@@ -214,6 +214,15 @@ test("no serious accessibility problems on any page, light or dark", async () =>
     }
   }
   await page.emulateMedia({ colorScheme: "light" });
+  // desktop has its own layout (sidebar, two columns)
+  await page.setViewportSize({ width: 1280, height: 860 });
+  for (const p of ["", "plan/", "groceries/", "eat-out/", "recipes/import/", "settings/"]) {
+    await page.goto(base + "/" + p);
+    await page.locator("main").waitFor();
+    await page.waitForTimeout(600);
+    found.push(...(await axeScan(page, `desktop /${p}`)));
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   const blocking = found.filter((v) => v.impact === "serious" || v.impact === "critical");
   for (const v of found.filter((v) => !blocking.includes(v))) console.log(`  a11y (${v.impact}) ${v.page} ${v.id} x${v.count}: ${v.example}`);
   assert.deepEqual(blocking, [], "serious or critical accessibility violations");
