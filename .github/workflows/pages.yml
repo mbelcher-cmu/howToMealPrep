@@ -60,6 +60,10 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: End-to-end tests
         run: npm run e2e:ci -w @prep-cart/web
+        timeout-minutes: 10
+        env:
+          # the production build above uses this base path, so the test server must too
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
       - name: Add staging under /staging/
         if: github.event_name != 'pull_request'
         run: mv "$RUNNER_TEMP/staging" apps/web/out/staging
