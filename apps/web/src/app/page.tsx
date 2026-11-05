@@ -1,15 +1,15 @@
 "use client";
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
-import { INGREDIENTS, MENU_BY_ID, PREP_PACKS, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
+import { INGREDIENTS, MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
 import { usualPrice } from "@/components/deals";
 import { BudgetBar, MacroRings, PlanMacros, PlanStatus, SolvingNote, usePreppedTargets } from "@/components/plan-bits";
 import { ItemCard, RecipeArt, RecipeCard, Rail } from "@/components/food";
-import { PrepPackCard, usePackCost } from "@/components/preps";
+import { PrepPackCard, usePackCost, useVisiblePacks } from "@/components/preps";
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
-import { chainName, isPittsburghZip, money, plural, recipeHref, PITTSBURGH_ONLY } from "@/lib/format";
+import { chainName, money, plural, recipeHref } from "@/lib/format";
 import { useDays } from "@/lib/days";
 import { useFlag } from "@/lib/flags";
 import { NextWeekCard } from "@/components/next-week";
@@ -20,7 +20,6 @@ export default function Home() {
   const { DAY_LONG, weekStart } = useDays();
   const hydrated = useHydrated();
   const { plan, status } = usePlanner();
-  const zip = useApp((s) => s.profile.zip);
   const checked = useApp((s) => s.checked);
   const deals = useApp((s) => s.deals);
   const overrides = useApp((s) => s.priceOverrides);
@@ -29,6 +28,7 @@ export default function Home() {
   const v2 = useFlag("redesign");
   const nextWeekOn = useFlag("nextWeek");
   const calendarOn = useFlag("calendar");
+  const { packs } = useVisiblePacks();
   const week = useWeek();
   const lastWeek = useApp((s) => s.lastWeek);
   if (!hydrated) return null;
@@ -145,9 +145,11 @@ export default function Home() {
         )}
 
 
-        <Rail title="Featured meal preps" href="/preps/" lead="Ready-made weeks with their macros. Use one and the plan builds around it.">
-          {PREP_PACKS.filter((p) => isPittsburghZip(zip) || !PITTSBURGH_ONLY.has(p.id)).map((p) => <PrepPackCard key={p.id} pack={p} cost={packCost(p)} />)}
-        </Rail>
+        {packs.length > 0 && (
+          <Rail title="Featured meal preps" href="/preps/" lead="Ready-made weeks with their macros. Use one and the plan builds around it.">
+            {packs.map((p) => <PrepPackCard key={p.id} pack={p} cost={packCost(p)} />)}
+          </Rail>
+        )}
       </div>
     </>
   );

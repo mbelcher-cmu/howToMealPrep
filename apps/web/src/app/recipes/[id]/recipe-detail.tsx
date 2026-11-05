@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ArrowLeft, Droplet, Drumstick, Flame, Lock, LockOpen, Trash2, Wheat } from "lucide-react";
 import { useFlag } from "@/lib/flags";
-import { ALLERGENS, CHAINS, DIETS, EQUIPMENT, formatAmount, INGREDIENTS, MOODS, RECIPES_BY_ID } from "@prep-cart/catalog";
+import { ALLERGENS, CHAINS, DIETS, EQUIPMENT, formatAmount, INGREDIENTS, MOODS, processedIn, RECIPES_BY_ID } from "@prep-cart/catalog";
 import { macroShares } from "@prep-cart/nutrition";
 import { buildPriceTable, hardRejection, servingCost } from "@prep-cart/planner";
 import { RecipeMeta } from "@/components/plan-bits";
@@ -20,6 +20,8 @@ export function RecipeDetail({ id }: { id: string }) {
   const s = useApp();
   const [servings, setServings] = useState(r.servings);
   const v2 = useFlag("redesign");
+  const wholeOn = useFlag("wholeFoods");
+  const processed = processedIn(r).map((i) => INGREDIENTS[i]?.name ?? i);
   const scale = servings / r.servings;
   const prices = useMemo(() => buildPriceTable(s.priceOverrides), [s.priceOverrides]);
   const n = r.perServing;
@@ -113,6 +115,7 @@ export function RecipeDetail({ id }: { id: string }) {
             <SectionTitle>Good to know</SectionTitle>
             <ul className="grid gap-1.5 text-sm">
               <li><span className="text-muted">Fits:</span> {r.diets.filter((d) => d !== "omnivore").map((d) => DIETS[d].label).join(", ") || "No special diets"}</li>
+              {wholeOn && processed.length > 0 && <li><span className="text-muted">Processed:</span> {processed.join(", ")}, so it's left out of whole-foods plans</li>}
               <li><span className="text-muted">Contains:</span> {r.allergens.map((a) => ALLERGENS[a]).join(", ") || "None of the 9 major allergens"}</li>
               <li><span className="text-muted">Equipment:</span> {r.equipment.map((e) => EQUIPMENT[e]).join(", ")}</li>
               <li><span className="text-muted">Storage:</span> {r.fridgeDays} days in the fridge{r.freezerFriendly ? ", freezes well" : ""}</li>
