@@ -101,8 +101,10 @@ export interface AppState {
   weekStart: number;
   /** prep session start, HH:MM */
   prepTime: string;
-  /** takeout meals placed on the week */
+  /** takeout meals placed on the week; they repeat every week unless marked once */
   eatingOut: EatOut[];
+  /** takeout chains found near the person on OpenStreetMap: closest distance in miles by chain id */
+  nearbyRestaurants: { zip: string; on: string; miles: Record<string, number> } | null;
   /** sales the person entered from a weekly ad or the shelf */
   deals: (Deal & { id: string; addedOn: string })[];
   /** every price the person recorded, newest last */
@@ -141,7 +143,7 @@ export interface AppState {
   planNextWeek: () => void;
   /** set up next week: keep some recipes, rest the others, carry the leftovers over */
   startNextWeek: (o: { startsOn: string; locked: string[]; resting: string[]; shopped: boolean }) => void;
-  setTakeout: (day: number, occasionId: string, itemId: string | null) => void;
+  setTakeout: (day: number, occasionId: string, itemId: string | null, once?: boolean) => void;
   addDeal: (d: Deal) => void;
   removeDeal: (id: string) => void;
   reset: () => void;
@@ -181,6 +183,7 @@ function initial(): Omit<AppState, keyof Actions> {
     lastWeek: null,
     checked: {},
     eatingOut: [],
+    nearbyRestaurants: null,
     fitness: null,
     household: [],
     aisleOrder: {},
@@ -371,12 +374,14 @@ export const useApp = create<AppState>()(
           held: [],
           pantryForPlan: null,
           checked: {},
+          // "just this week" takeout ends with the week; the rest repeats
+          eatingOut: get().eatingOut.filter((e) => !e.once),
         });
         track("next_week_planned", { kept: locked.length, swapped: resting.length, shopped });
       },
-      setTakeout: (day, occasionId, itemId) => {
+      setTakeout: (day, occasionId, itemId, once) => {
         const rest = get().eatingOut.filter((e) => !(e.day === day && e.occasionId === occasionId));
-        set({ eatingOut: itemId ? [...rest, { day, occasionId, itemId }] : rest });
+        set({ eatingOut: itemId ? [...rest, { day, occasionId, itemId, ...(once ? { once: true } : {}) }] : rest });
       },
       addDeal: (d) => {
         const deals = get().deals.filter((x) => !(x.ingredientId === d.ingredientId && x.chain === d.chain));

@@ -26,7 +26,7 @@ export function BodyStatsEditor() {
     <div className="grid gap-4">
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-1">
-          <span className="text-[13px] text-muted">Sex (for the energy formula)</span>
+          <span className="text-[13px] text-muted">Sex</span>
           <Segmented label="Sex" value={p.sex} onChange={(sex) => setProfile({ sex })} options={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }]} />
         </div>
         <NumberField label="Age" value={p.ageYears} min={13} max={100} onChange={(ageYears) => setProfile({ ageYears })} suffix="yr" />
@@ -377,7 +377,7 @@ export function RotationPicker() {
     <div className="grid gap-1.5">
       <span className="text-[13px] text-muted">Lunches and dinners</span>
       <Segmented size="sm" label="Lunches and dinners" value={value === "custom" ? "mix" : value} onChange={pick}
-        options={[{ value: "same", label: "Same all week" }, { value: "blocks", label: "Switch mid-week" }, { value: "mix", label: "Alternate" }]} />
+        options={[{ value: "same", label: "Same" }, { value: "blocks", label: "Split week" }, { value: "mix", label: "Alternate" }]} />
       <p className="text-xs text-muted">{hint}</p>
     </div>
   );

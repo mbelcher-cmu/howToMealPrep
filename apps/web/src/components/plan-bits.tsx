@@ -133,8 +133,8 @@ export function PlanStatus() {
       <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
       <div>
         <p className="font-semibold">{r.status === "over_budget" ? "This is the cheapest plan that fits your rules, and it's over budget." : "No recipes fit your rules."}</p>
-        {r.message && <p className="mt-0.5 text-muted">{r.message}</p>}
-        <p className="mt-1 text-muted">
+        {r.message && <p className="mt-0.5">{r.message}</p>}
+        <p className="mt-1">
           {r.status === "over_budget"
             ? "Raise the budget, move the slider toward lowest cost, or allow more stores in "
             : "Loosen a diet, allergen, dislike or Must choice in "}
@@ -156,7 +156,7 @@ function CalorieGap({ off, actual, target, maxedOut }: { off: number; actual: nu
       <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
       <div>
         <p className="font-semibold">{short ? `Your prep is about ${gap} calories a day short of your target.` : `Your prep is about ${gap} calories a day over your target.`}</p>
-        <p className="mt-0.5 text-muted">
+        <p className="mt-0.5">
           {short && maxedOut
             ? "Portions already top out at 2½ servings a meal. Add a meal or snack a day in Meals and rotation, or raise the budget."
             : short
@@ -175,7 +175,7 @@ export function SolvingNote() {
 }
 
 /** A simple colored monogram tile in place of photos. */
-export function RecipeTile({ recipe, size = 44 }: { recipe: Recipe; size?: number }) {
+export function RecipeTile({ recipe, size = 64 }: { recipe: Recipe; size?: number }) {
   return <span className="shrink-0 overflow-hidden rounded-xl" style={{ width: size, height: size }}><RecipeArt recipe={recipe} className="h-full w-full" badges={size >= 80} /></span>;
 }
 

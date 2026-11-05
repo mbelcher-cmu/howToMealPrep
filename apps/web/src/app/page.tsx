@@ -15,6 +15,7 @@ import { useFlag } from "@/lib/flags";
 import { NextWeekCard } from "@/components/next-week";
 import { useWeek } from "@/lib/use-week";
 import { SwapButton } from "@/components/swap";
+import { PicksRail } from "@/components/picks";
 
 export default function Home() {
   const { DAY_LONG, weekStart } = useDays();
@@ -105,8 +106,8 @@ export default function Home() {
 
 
         <section aria-label="Your prep this week">
-          <div className="mb-2 flex items-end justify-between gap-3">
-            <div>
+          <div className="mb-2 flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+            <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
               <h2 className="font-display text-xl font-bold">Your prep this week</h2>
               {nextSession && <p className="text-sm text-muted">Cook {plural(nextSession.batches.length, "recipe")} before {DAY_LONG[nextSession.beforeDay]}.{plan.schedule.sessions.slice(1).map((x) => <span key={x.index}> Then {x.batches.length} more before {DAY_LONG[x.beforeDay]}, so it stays fresh.</span>)}</p>}
             </div>
@@ -144,6 +145,8 @@ export default function Home() {
           </Rail>
         )}
 
+
+        <PicksRail />
 
         <Rail title="Featured meal preps" href="/preps/" lead="Ready-made weeks with their macros. Use one and the plan builds around it.">
           {PREP_PACKS.filter((p) => isPittsburghZip(zip) || !PITTSBURGH_ONLY.has(p.id)).map((p) => <PrepPackCard key={p.id} pack={p} cost={packCost(p)} />)}
