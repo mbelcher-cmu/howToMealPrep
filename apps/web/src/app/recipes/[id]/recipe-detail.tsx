@@ -4,11 +4,12 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ArrowLeft, Droplet, Drumstick, Flame, Lock, LockOpen, PenLine, Trash2, Wheat } from "lucide-react";
 import { useFlag } from "@/lib/flags";
-import { ALLERGENS, CHAINS, DIETS, EQUIPMENT, formatAmount, INGREDIENTS, MOODS, RECIPES_BY_ID } from "@prep-cart/catalog";
+import { ALLERGENS, CHAINS, DIETS, EQUIPMENT, formatAmount, INGREDIENTS, MOODS, processedIn, RECIPES_BY_ID } from "@prep-cart/catalog";
 import { macroShares } from "@prep-cart/nutrition";
 import { buildPriceTable, hardRejection, servingCost } from "@prep-cart/planner";
 import { RecipeMeta } from "@/components/plan-bits";
 import { RecipeArt } from "@/components/food";
+import { MatchLine } from "@/components/picks";
 import { Card, SectionTitle, Stars, Stepper, Tag } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
@@ -20,6 +21,8 @@ export function RecipeDetail({ id }: { id: string }) {
   const s = useApp();
   const [servings, setServings] = useState(r.servings);
   const v2 = useFlag("redesign");
+  const wholeOn = useFlag("wholeFoods");
+  const processed = processedIn(r).map((i) => INGREDIENTS[i]?.name ?? i);
   const importV2 = useFlag("recipeImportV2");
   const scale = servings / r.servings;
   const prices = useMemo(() => buildPriceTable(s.priceOverrides), [s.priceOverrides]);
@@ -34,7 +37,7 @@ export function RecipeDetail({ id }: { id: string }) {
 
   return (
     <article>
-      <Link href="/recipes/" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"><ArrowLeft size={16} aria-hidden /> All recipes</Link>
+      <Link href="/recipes/" className="-ml-1 mb-2 inline-flex min-h-[44px] items-center gap-1.5 px-1 text-sm font-medium text-muted hover:text-ink"><ArrowLeft size={16} aria-hidden /> All recipes</Link>
       <RecipeArt recipe={r} className="mb-4 aspect-[16/9] w-full rounded-card sm:aspect-[5/2]" />
       <header className="mb-5 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div className="min-w-0">
@@ -49,6 +52,7 @@ export function RecipeDetail({ id }: { id: string }) {
               {source?.source && /^https?:\/\//i.test(source.source) && <a className="text-xs text-muted underline" href={source.source} target="_blank" rel="noreferrer">Original recipe</a>}
             </div>
           )}
+          {hydrated && <div className="mt-1"><MatchLine id={r.id} /></div>}
         </div>
         {hydrated && (
           <button className={locked ? "btn btn-primary w-full sm:w-auto" : "btn w-full sm:w-auto"} onClick={() => s.toggleLock(r.id)} aria-pressed={locked} disabled={!!rejected && !locked}>
@@ -115,6 +119,7 @@ export function RecipeDetail({ id }: { id: string }) {
             <SectionTitle>Good to know</SectionTitle>
             <ul className="grid gap-1.5 text-sm">
               <li><span className="text-muted">Fits:</span> {r.diets.filter((d) => d !== "omnivore").map((d) => DIETS[d].label).join(", ") || "No special diets"}</li>
+              {wholeOn && processed.length > 0 && <li><span className="text-muted">Processed:</span> {processed.join(", ")}, so it's left out of whole-foods plans</li>}
               <li><span className="text-muted">Contains:</span> {r.allergens.map((a) => ALLERGENS[a]).join(", ") || "None of the 9 major allergens"}</li>
               <li><span className="text-muted">Equipment:</span> {r.equipment.map((e) => EQUIPMENT[e]).join(", ")}</li>
               <li><span className="text-muted">Storage:</span> {r.fridgeDays} days in the fridge{r.freezerFriendly ? ", freezes well" : ""}</li>

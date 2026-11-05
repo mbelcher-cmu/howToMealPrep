@@ -6,6 +6,18 @@ describe("feature flags", () => {
     expect(parseFlags("accounts=on, plus=off,bogus=on,analytics=maybe")).toEqual({ accounts: true, plus: false });
     expect(parseFlags("")).toEqual({});
     expect(parseFlags(undefined)).toEqual({});
+    expect(parseFlags("pricetrends=on,NEXTWEEK=off")).toEqual({ priceTrends: true, nextWeek: false });
+  });
+
+  it("reads camelCase flag names in any case", () => {
+    expect(parseFlags("eatOutPlus=on,NEXTWEEK=off")).toEqual({ eatOutPlus: true, nextWeek: false });
+  });
+
+  it("matches camelCase flag names in any case", () => {
+    expect(parseFlags("householdGoals=on,NEXTWEEK=off")).toEqual({ householdGoals: true, nextWeek: false });
+    expect(parseFlags("plusTier=on,NEXTWEEK=off")).toEqual({ plusTier: true, nextWeek: false });
+    // camelCase flags work in any case (they used to be lowercased and then ignored)
+    expect(parseFlags("fitnessSync=on,NEXTWEEK=off")).toEqual({ fitnessSync: true, nextWeek: false });
   });
 
   it("falls back to the development defaults outside the browser", () => {

@@ -2,8 +2,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PlanResult, Schedule } from "@prep-cart/planner";
 import { daysUntil, isoDay, periodBudget, useApp, type AppState } from "./store";
-import { memberKcal } from "@/components/household";
+import { memberRequest } from "./household";
+import { flag } from "./flags";
 import { reportError, track } from "./telemetry";
+import { styledOccasions } from "./meal-styles";
+import { plannerRecommendations, refreshCommunity } from "./recommend";
+import { dayScalesOf } from "./training";
 
 export type PlannerStatus = "idle" | "solving" | "error";
 
@@ -19,9 +23,9 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
   return {
     days: s.days,
     targets: s.targets,
-    occasions: s.occasions,
+    occasions: styledOccasions(s.occasions),
     budget: periodBudget(s),
-    prefs: { ...s.prefs, ratings: s.ratings, rankings: rankingsOf(s.favorites), ...(resting.length ? { excludeRecipes: [...(s.prefs.excludeRecipes ?? []), ...resting] } : {}) },
+    prefs: { ...s.prefs, ratings: s.ratings, rankings: rankingsOf(s.favorites), recommended: plannerRecommendations(s.ratings), ...(resting.length ? { excludeRecipes: [...(s.prefs.excludeRecipes ?? []), ...resting] } : {}) },
     customRecipes: s.customRecipes,
     variety: s.variety,
     stores: s.stores,
@@ -35,13 +39,18 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
     priceOverrides: s.priceOverrides,
     deals: s.deals.filter((d) => d.endsOn >= isoDay()).map(({ ingredientId, chain, price, endsOn }) => ({ ingredientId, chain, price, endsOn })),
     today: isoDay(),
+    favorDeals: flag("priceTrends"),
     timeLimit: 2,
-    household: (s.household ?? []).map((m) => ({ id: m.id, name: m.name.trim() || "Someone", kcal: memberKcal(m) })),
-    eatingOut: s.eatingOut.filter((e) => e.day < s.days && s.occasions.some((o) => o.id === e.occasionId)),
+    household: (s.household ?? []).map((m) => memberRequest(m, flag("householdGoals"))),
+    eatingOut: s.eatingOut.filter((e) => e.day < s.days && s.occasions.some((o) => o.id === e.occasionId)).map(({ day, occasionId, itemId }) => ({ day, occasionId, itemId })),
+    // training days get bigger portions, rest days smaller; the food cooked stays the same
+    dayScales: dayScalesOf(s),
   };
 }
 type Req = ReturnType<typeof requestFrom>;
-const keyOf = (r: Req) => JSON.stringify({ ...r, avoidSets: undefined, preferRecipes: undefined }, (_k, v) => (v === Infinity ? "inf" : v));
+// recommendations follow the ratings already in the key; leaving them out means fresh community
+// numbers shape the next plan without reshuffling the week the person is looking at
+const keyOf = (r: Req) => JSON.stringify({ ...r, prefs: { ...r.prefs, recommended: undefined }, avoidSets: undefined, preferRecipes: undefined }, (_k, v) => (v === Infinity ? "inf" : v));
 
 type Reply = { ok: boolean; result?: PlanResult; schedule?: Schedule; error?: string };
 let worker: Worker | null = null;
@@ -97,6 +106,7 @@ export function usePlannerSync() {
   const state = useApp();
   const key = useMemo(() => keyOf(requestFrom(state)), [state]);
   const hydrated = useHydrated();
+  useEffect(() => { void refreshCommunity(); }, []);
   useEffect(() => {
     if (!hydrated || !state.onboarded) return;
     if (state.current?.key === key) return;
