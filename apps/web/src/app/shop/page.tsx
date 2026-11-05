@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Check, ChevronLeft, ListOrdered, Sun, Undo2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ChevronLeft, ListOrdered, SearchX, Sun, Undo2 } from "lucide-react";
 import { formatAmount, INGREDIENTS, type Aisle, type ChainId } from "@prep-cart/catalog";
 import type { CartLine } from "@prep-cart/planner";
 import { useApp } from "@/lib/store";
@@ -9,28 +9,14 @@ import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { AISLE_ORDER, aisleOrderFor } from "@/lib/aisles";
 import { chainName, cx, money } from "@/lib/format";
 import { ItemArt } from "@/components/food";
+import { useWakeLock } from "@/lib/wake-lock";
+import { useFlag } from "@/lib/flags";
+import { safeStorage } from "@/lib/storage";
 
 const lineKey = (l: CartLine) => `${l.chain}:${l.ingredientId}`;
-
-/** Keeps the phone screen on while the list is open, where the browser allows it. */
-function useWakeLock(on: boolean) {
-  const [ok, setOk] = useState<boolean | null>(null);
-  useEffect(() => {
-    if (!on) return;
-    let lock: { release: () => Promise<void> } | null = null;
-    let gone = false;
-    const nav = navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } };
-    const get = async () => {
-      if (!nav.wakeLock || document.visibilityState !== "visible") { setOk(!!nav.wakeLock); return; }
-      try { lock = await nav.wakeLock.request("screen"); if (gone) void lock.release(); setOk(true); } catch { setOk(false); }
-    };
-    void get();
-    const vis = () => { if (document.visibilityState === "visible") void get(); };
-    document.addEventListener("visibilitychange", vis);
-    return () => { gone = true; document.removeEventListener("visibilitychange", vis); void lock?.release().catch(() => {}); };
-  }, [on]);
-  return ok;
-}
+const aisleId = (a: Aisle) => `aisle-${a.toLowerCase().replace(/[^a-z]+/g, "-")}`;
+const missingKey = (planId: string) => `prep-cart-missing:${planId}`;
+const buzz = () => { try { navigator.vibrate?.(12); } catch { /* not supported */ } };
 
 export default function Shop() {
   const hydrated = useHydrated();
@@ -44,6 +30,20 @@ export default function Shop() {
   const last = useRef<string | null>(null);
   const [undo, setUndo] = useState<string | null>(null);
   const cur = chain ?? stores[0] ?? null;
+  const aisleMode = useFlag("aisleMode");
+  // items the person couldn't find in this store, kept on this device for this plan
+  const [missing, setMissing] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (!plan) return;
+    try { setMissing(JSON.parse(safeStorage.getItem(missingKey(plan.id)) ?? "{}") as Record<string, boolean>); } catch { setMissing({}); }
+  }, [plan?.id]);
+  const toggleMissing = (k: string) => {
+    if (!plan) return;
+    const n = { ...missing };
+    if (n[k]) delete n[k]; else n[k] = true;
+    setMissing(n);
+    safeStorage.setItem(missingKey(plan.id), JSON.stringify(n));
+  };
 
   if (!hydrated) return null;
   if (!plan || !cur) {
@@ -58,7 +58,8 @@ export default function Shop() {
 
   const order = aisleOrderFor(cur, s.aisleOrder);
   const lines = plan.result.cart.filter((l) => l.chain === cur && INGREDIENTS[l.ingredientId]);
-  const todo = lines.filter((l) => !s.checked[lineKey(l)]);
+  const notFound = aisleMode ? lines.filter((l) => missing[lineKey(l)] && !s.checked[lineKey(l)]) : [];
+  const todo = lines.filter((l) => !s.checked[lineKey(l)] && !notFound.includes(l));
   const done = lines.filter((l) => s.checked[lineKey(l)]);
   const byAisle = new Map<Aisle, CartLine[]>();
   for (const l of todo) {
@@ -71,6 +72,7 @@ export default function Shop() {
 
   const tick = (l: CartLine) => {
     const k = lineKey(l);
+    if (aisleMode) { buzz(); if (missing[k]) toggleMissing(k); }
     s.toggleChecked(k);
     if (!s.checked[k]) { last.current = k; setUndo(INGREDIENTS[l.ingredientId]!.name); setTimeout(() => setUndo((u) => (last.current === k ? null : u)), 4000); }
   };
@@ -102,6 +104,15 @@ export default function Shop() {
           <span className="num text-muted">{money(inCart)} of {money(total)}</span>
         </div>
         <div className="mt-1.5 h-2 rounded-full bg-sunk"><div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${lines.length ? (done.length / lines.length) * 100 : 0}%` }} /></div>
+        {aisleMode && !arranging && byAisle.size > 1 && (
+          <nav aria-label="Jump to aisle" className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none]">
+            {order.filter((a) => byAisle.has(a)).map((a) => (
+              <a key={a} href={`#${aisleId(a)}`} className="shrink-0 whitespace-nowrap rounded-full border border-line bg-surface px-3 py-1.5 text-[13px] font-semibold">
+                {a} <span className="num font-normal text-muted">{byAisle.get(a)!.length}</span>
+              </a>
+            ))}
+          </nav>
+        )}
       </header>
 
       {arranging ? (
@@ -138,16 +149,16 @@ export default function Shop() {
             </div>
           )}
           {order.filter((a) => byAisle.has(a)).map((a) => (
-            <section key={a} aria-labelledby={`aisle-${a}`}>
-              <h2 id={`aisle-${a}`} className="label mb-1.5">{a}</h2>
+            <section key={a} aria-labelledby={`aisle-${a}`} id={aisleMode ? aisleId(a) : undefined} className="scroll-mt-48">
+              <h2 id={`aisle-${a}`} className="label mb-1.5">{a}{aisleMode && <span className="ml-2 normal-case tracking-normal">· {byAisle.get(a)!.length} left</span>}</h2>
               <ul className="grid gap-2">
                 {byAisle.get(a)!.map((l) => {
                   const ing = INGREDIENTS[l.ingredientId]!;
                   return (
-                    <li key={lineKey(l)}>
-                      <button className="flex min-h-[64px] w-full items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-left active:bg-sunk" onClick={() => tick(l)}>
+                    <li key={lineKey(l)} className={aisleMode ? "flex items-stretch gap-2" : undefined}>
+                      <button className={cx("flex min-h-[64px] w-full min-w-0 items-center rounded-xl border border-line bg-surface py-3 text-left active:bg-sunk", aisleMode ? "gap-2.5 px-3" : "gap-3 px-4")} onClick={() => tick(l)}>
                         <span aria-hidden className="grid h-7 w-7 shrink-0 place-items-center rounded-md border-2 border-line" />
-                        <ItemArt ingredientId={ing.id} size={56} />
+                        <ItemArt ingredientId={ing.id} size={aisleMode ? 44 : 56} />
                         <span className="min-w-0 flex-1">
                           <span className="block text-[17px] font-semibold">{ing.name}</span>
                           <span className="block text-sm text-muted">{l.packages} × {ing.pkg.label} · need {formatAmount(ing.id, l.needGrams, s.profile.units)}</span>
@@ -155,12 +166,31 @@ export default function Shop() {
                         <span className="num shrink-0 text-sm text-muted">{money(l.cost)}</span>
                         <span className="sr-only">Mark as in the cart</span>
                       </button>
+                      {aisleMode && (
+                        <button className="grid w-11 shrink-0 place-items-center rounded-xl border border-line bg-surface text-muted active:bg-sunk" onClick={() => toggleMissing(lineKey(l))} aria-label={`Can't find ${ing.name}`} title="Can't find it">
+                          <SearchX size={20} aria-hidden />
+                        </button>
+                      )}
                     </li>
                   );
                 })}
               </ul>
             </section>
           ))}
+          {notFound.length > 0 && (
+            <section aria-labelledby="not-found">
+              <h2 id="not-found" className="label mb-1.5">Couldn&apos;t find</h2>
+              <ul className="divide-y divide-line rounded-xl border border-warn/40 bg-warn-soft">
+                {notFound.map((l) => (
+                  <li key={lineKey(l)} className="flex items-center gap-3 px-4 py-2">
+                    <span className="flex-1 text-sm"><b>{INGREDIENTS[l.ingredientId]!.name}</b>{stores.length > 1 ? <span className="text-muted"> · try the other store</span> : null}</span>
+                    <button className="btn btn-sm" onClick={() => tick(l)}>Found it</button>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1.5 text-xs text-muted">After shopping, swap the recipe that needs it on <Link href="/plan/" className="underline">your plan</Link>, or mark it in the pantry if you already have some.</p>
+            </section>
+          )}
           {done.length > 0 && (
             <section aria-labelledby="in-cart">
               <h2 id="in-cart" className="label mb-1.5">In the cart</h2>

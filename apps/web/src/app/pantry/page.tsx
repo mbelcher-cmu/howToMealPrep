@@ -3,10 +3,13 @@ import { useMemo, useState } from "react";
 import { Infinity as InfinityIcon, Plus, Trash2 } from "lucide-react";
 import { CHAINS, formatAmount, INGREDIENTS, type ChainId } from "@prep-cart/catalog";
 import { DealsPanel, PriceHistoryLine } from "@/components/deals";
+import { PriceTrendLine } from "@/components/price-trends";
+import { useFlag } from "@/lib/flags";
 import { Card, Chip, NumberField, PageHeader, Segmented } from "@/components/ui";
 import { daysUntil, useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
 import { cx, money } from "@/lib/format";
+import { PantryTracker } from "@/components/pantry-tracker";
 
 function PriceCell({ ingredientId, chain }: { ingredientId: string; chain: ChainId }) {
   const s = useApp();
@@ -41,12 +44,14 @@ function PriceCell({ ingredientId, chain }: { ingredientId: string; chain: Chain
 }
 
 export default function Pantry() {
+  const trendsOn = useFlag("priceTrends");
   const hydrated = useHydrated();
   const s = useApp();
   const [tab, setTab] = useState<"pantry" | "prices" | "deals">("pantry");
   const [q, setQ] = useState("");
   const [priceQ, setPriceQ] = useState("");
   const [onlyCart, setOnlyCart] = useState(true);
+  const tracker = useFlag("pantryV2");
   const have = new Map(s.pantry.map((p) => [p.ingredientId, p.grams]));
   const matches = q.length >= 2 ? Object.values(INGREDIENTS).filter((i) => i.name.toLowerCase().includes(q.toLowerCase()) && !have.has(i.id)).slice(0, 8) : [];
   const cartIds = useMemo(() => new Set(s.current?.result.cart.map((l) => l.ingredientId) ?? []), [s.current]);
@@ -68,7 +73,7 @@ export default function Pantry() {
       <div className="mb-4 max-w-[480px]">
         <Segmented label="Section" value={tab} onChange={setTab} options={[{ value: "pantry", label: "What I have" }, { value: "prices", label: `Prices${overrideCount ? ` (${overrideCount})` : ""}` }, { value: "deals", label: `Sales${activeDeals ? ` (${activeDeals})` : ""}` }]} />
       </div>
-      {tab === "deals" ? <DealsPanel /> : tab === "pantry" ? (
+      {tab === "deals" ? <DealsPanel /> : tab === "pantry" && tracker ? <PantryTracker /> : tab === "pantry" ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           <Card>
             {soon.length > 0 && (
@@ -139,7 +144,7 @@ export default function Pantry() {
                     <th scope="row" className="py-1 pr-2 text-left font-normal">
                       <span className="block font-medium">{i.name}</span>
                       <span className="block text-xs text-muted">{i.pkg.label}</span>
-                      <PriceHistoryLine ingredientId={i.id} />
+                      {trendsOn ? <PriceTrendLine ingredientId={i.id} /> : <PriceHistoryLine ingredientId={i.id} />}
                     </th>
                     {CHAINS.map((c) => <PriceCell key={c.id} ingredientId={i.id} chain={c.id} />)}
                   </tr>

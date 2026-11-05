@@ -121,7 +121,9 @@ export default function PlanPage() {
                     <ul className="grid gap-1 text-sm">
                       <li className="flex justify-between gap-3"><span>You</span><span className="num text-muted">{Math.round(plan.result.daily.kcal).toLocaleString()} kcal · {Math.round(plan.result.daily.protein)} g protein</span></li>
                       {plan.result.household.members.map((m) => (
-                        <li key={m.id} className="flex justify-between gap-3"><span>{m.name} <span className="text-xs text-muted">({Math.round(m.scale * 100)}% portions)</span></span><span className="num text-muted">{Math.round(m.daily.kcal).toLocaleString()} kcal · {Math.round(m.daily.protein)} g protein from prep</span></li>
+                        m.target
+                          ? <li key={m.id} className="flex justify-between gap-3"><span>{m.name}{m.meals ? <span className="text-xs text-muted"> ({m.sharedMeals === m.meals ? "all shared" : `${m.sharedMeals} of ${m.meals} meals shared`})</span> : null}</span><span className="num text-muted">{Math.round(m.daily.kcal).toLocaleString()} of {m.target.kcal.toLocaleString()} kcal · {Math.round(m.daily.protein)} of {m.target.protein} g protein</span></li>
+                          : <li key={m.id} className="flex justify-between gap-3"><span>{m.name} <span className="text-xs text-muted">({Math.round(m.scale * 100)}% portions)</span></span><span className="num text-muted">{Math.round(m.daily.kcal).toLocaleString()} kcal · {Math.round(m.daily.protein)} g protein from prep</span></li>
                       ))}
                     </ul>
                   </div>
@@ -142,12 +144,18 @@ export default function PlanPage() {
                           <div className="min-w-0 flex-1 basis-[180px]">
                             <div className="flex flex-wrap items-center gap-2">
                               <Tag>{p.slot}</Tag>
+                              {p.household && !p.household.mine && <Tag>Just for {p.household.eaters.map((e) => e.name).join(" and ")}</Tag>}
                               {locked && <LockedTag />}
                             </div>
                             <Link href={recipeHref(p.recipe.id)} className="mt-0.5 block font-semibold hover:underline">{p.recipe.name}</Link>
                             <div className="text-sm">
-                              {p.meals} meal{p.meals === 1 ? "" : "s"} · {fmtServings(p.portion)} {(plan.result.household?.members.length ?? 0) > 0 ? "a meal for you" : "each"} · <PerServing recipe={p.recipe} portion={p.portion} />
+                              {p.meals > 0
+                                ? <>{p.meals} meal{p.meals === 1 ? "" : "s"} · {fmtServings(p.portion)} {(plan.result.household?.members.length ?? 0) > 0 ? "a meal for you" : "each"} · <PerServing recipe={p.recipe} portion={p.portion} /></>
+                                : <>Not for you this week · {fmtServings(p.servings)} to cook</>}
                             </div>
+                            {p.household && p.household.eaters.length > 0 && (
+                              <p className="text-xs text-muted">{p.household.mine ? "Also for " : "For "}{p.household.eaters.map((e) => `${e.name} (${e.meals} meal${e.meals === 1 ? "" : "s"}, ${fmtServings(e.portion)} each)`).join(", ")}</p>
+                            )}
                             <RecipeMeta recipe={p.recipe} />
                             {p.reasons.length > 0 && <p className="mt-1 text-xs text-muted">Why: {p.reasons.join(" · ")}</p>}
                           </div>

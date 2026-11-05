@@ -2,10 +2,11 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { Check, Timer } from "lucide-react";
-import { packDay, packRecipes, type PrepPack } from "@prep-cart/catalog";
+import { PREP_PACKS, packDay, packFits, packRecipes, type PrepPack } from "@prep-cart/catalog";
 import { buildPriceTable, servingCost } from "@prep-cart/planner";
 import { useApp } from "@/lib/store";
-import { cx, money, recipeHref } from "@/lib/format";
+import { cx, isPittsburghZip, money, PITTSBURGH_ONLY, recipeHref } from "@/lib/format";
+import { useFlag } from "@/lib/flags";
 import { RecipeArt } from "./food";
 
 /** Cheapest estimated cost of one day of the pack across the person's stores. */
@@ -18,6 +19,19 @@ export function usePackCost() {
     const per = stores.map((c) => rs.reduce((a, r) => a + servingCost(r, prices, [c], new Set()), 0)).filter((x) => x > 0 && Number.isFinite(x));
     return per.length ? Math.min(...per) : null;
   };
+}
+
+/**
+ * Meal preps to show: local ones only near Pittsburgh, and (with the wholeFoods flag) only packs whose
+ * recipes all fit the person's diets, since the planner would drop the rest. hidden counts the diet misses.
+ */
+export function useVisiblePacks(): { packs: PrepPack[]; hidden: number } {
+  const zip = useApp((s) => s.profile.zip);
+  const diets = useApp((s) => s.prefs.diets);
+  const byDiet = useFlag("wholeFoods");
+  const local = PREP_PACKS.filter((p) => isPittsburghZip(zip) || !PITTSBURGH_ONLY.has(p.id));
+  const packs = byDiet ? local.filter((p) => packFits(p, diets)) : local;
+  return { packs, hidden: local.length - packs.length };
 }
 
 export function usePack() {

@@ -25,7 +25,19 @@ export interface Ingredient {
   each?: { grams: number; one: string; many: string };
   /** true for staples most kitchens keep (oil, soy sauce); pre-ticked in the pantry */
   staple?: boolean;
+  /** how far the item is from its natural state; see Processing */
+  processing: Processing;
 }
+
+/**
+ * Processing level, loosely after the NOVA groups. "whole": as it grows or is raised, maybe frozen,
+ * dried or cut (NOVA 1). "simple": a few recognizable ingredients made into a pantry food, such as
+ * oil, cheese, canned beans, whole-grain bread or soy sauce (NOVA 2 and 3). "processed": what a
+ * whole-foods eater skips, such as processed meats, refined grains, snack foods and sauces with added
+ * sugar, starches or gums (NOVA 3 and 4). Whole foods plans use only the first two.
+ */
+export type Processing = "whole" | "simple" | "processed";
+export const PROCESSING_LABELS: Record<Processing, string> = { whole: "Whole food", simple: "Simply made", processed: "Processed" };
 
 export type Aisle = "Produce" | "Meat and seafood" | "Dairy and eggs" | "Bakery" | "Grains and pasta" | "Canned and jarred" | "Sauces and condiments" | "Oils and nuts" | "Frozen" | "Deli";
 
@@ -171,12 +183,26 @@ const ROWS: Record<string, Row> = {
 const GLUTEN_RISK = new Set(["oats", "granola"]);
 /**
  * Processed or refined ingredients a whole-foods eater skips: processed meats, refined grains,
- * snack foods and sugary or additive-heavy sauces. Whole-grain breads, plain dairy, canned
- * beans and tomatoes, and simple condiments still count as whole foods here.
+ * snack foods and sauces with added sugar, starches or gums. Whole-grain breads, plain dairy, canned
+ * beans and tomatoes, and simple condiments still count as whole foods here ("simple").
  */
 export const PROCESSED = new Set([
   "chicken_sausage", "deli_turkey", "bacon", "string_cheese", "pasta_white", "egg_noodles", "rice", "jasmine_rice",
   "rice_noodles", "couscous", "pierogies", "granola", "teriyaki_sauce", "bbq_sauce", "enchilada_sauce", "taco_seasoning", "curry_paste",
+  // corn syrup in most store brands; thickeners in light sour cream
+  "gochujang", "sour_cream",
+]);
+/** Made from a few recognizable ingredients: fine for whole foods, but not as found in nature. */
+const SIMPLE = new Set([
+  // dairy made from milk, plus pressed or fermented soy
+  "cheddar", "mozzarella", "feta", "parmesan", "butter", "ricotta", "cottage_cheese", "greek_yogurt", "tofu", "tempeh",
+  // whole-grain breads and pasta
+  "pasta", "tortillas", "corn_tortillas", "pita", "bread", "english_muffins",
+  // canned and jarred basics
+  "tuna", "black_beans", "chickpeas", "pinto_beans", "kidney_beans", "cannellini", "refried_beans", "diced_tomatoes", "pineapple",
+  "marinara", "salsa", "coconut_milk", "chicken_broth", "veg_broth", "hummus", "pesto", "sauerkraut", "egg_whites",
+  // oils, nut butters and condiments
+  "olive_oil", "sesame_oil", "peanut_butter", "soy_sauce", "honey",
 ]);
 
 const CHAIN_ORDER: ChainId[] = ["aldi", "gianteagle", "walmart", "traderjoes"];
@@ -195,6 +221,7 @@ export const INGREDIENTS: Record<string, Ingredient> = Object.fromEntries(
       estPrice: Object.fromEntries(CHAIN_ORDER.map((ch, i) => [ch, prices[i] ?? null])) as Record<ChainId, number | null>,
       ...(each ? { each: { grams: each[0], one: each[1], many: each[2] } } : {}),
       ...(staple ? { staple } : {}),
+      processing: PROCESSED.has(id) ? "processed" : SIMPLE.has(id) ? "simple" : "whole",
     };
     return [id, ing];
   }),

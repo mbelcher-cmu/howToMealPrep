@@ -2,8 +2,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CalendarDays, Check, Copy, ExternalLink, House, PackageCheck, Store } from "lucide-react";
-import { CHAINS, formatUseAndLeftover, INGREDIENTS, type Aisle, type ChainId } from "@prep-cart/catalog";
-import type { CartLine } from "@prep-cart/planner";
+import { CHAINS, formatAmount, formatUseAndLeftover, INGREDIENTS, type Aisle, type ChainId } from "@prep-cart/catalog";
+import { cartSavings, type CartLine } from "@prep-cart/planner";
 import { BudgetBar, PlanStatus, SolvingNote } from "@/components/plan-bits";
 import { ItemArt } from "@/components/food";
 import { NearbyFinder } from "@/components/nearby";
@@ -13,6 +13,7 @@ import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { chainName, cx, money } from "@/lib/format";
 import { aisleOrderFor } from "@/lib/aisles";
 import { useFlag } from "@/lib/flags";
+import { DealTag, hintFor } from "@/components/price-trends";
 
 const SOURCE_LABEL = { estimate: "Estimate", receipt: "Receipt", manual: "Your price", live: "Live", sale: "On sale" } as const;
 const lineKey = (l: CartLine) => `${l.chain}:${l.ingredientId}`;
@@ -24,6 +25,8 @@ export default function Groceries() {
   const [copied, setCopied] = useState(false);
   const nextWeekOn = useFlag("nextWeek");
   const calendarOn = useFlag("calendar");
+  const pantryOn = useFlag("pantryV2");
+  const trendsOn = useFlag("priceTrends");
   const done = !!s.current && s.shoppedPlanId === s.current.id;
 
   const byStore = useMemo(() => {
@@ -46,7 +49,12 @@ export default function Groceries() {
 
   const r = plan.result;
   const total = r.cart.length;
+  const hints = new Map(trendsOn ? r.cart.map((l) => [lineKey(l), hintFor(s, l.ingredientId, l.chain, l.unitPrice)]) : []);
+  const saved = cartSavings(r.cart.map((l) => ({ price: l.unitPrice, packages: l.packages, hint: hints.get(lineKey(l)) ?? null })));
   const got = r.cart.filter((l) => s.checked[lineKey(l)]).length;
+  // food the plan takes from home (staples left out), shown on each line it shortens
+  const staples = new Set((s.pantryForPlan ?? s.pantry).filter((p) => p.grams === Infinity).map((p) => p.ingredientId));
+  const fromHome = new Map(r.pantryUsed.filter((u) => !staples.has(u.ingredientId) && u.grams > 0).map((u) => [u.ingredientId, u.grams]));
 
   const copy = async () => {
     const text = [...byStore].map(([chain, aisles]) =>
@@ -86,8 +94,9 @@ export default function Groceries() {
                                 <span className={cx("min-w-0", on && "text-muted line-through")}>
                                   <span className="block font-medium">{ing.name}</span>
                                   <span className="block text-xs text-muted">
-                                    {(() => { const u = formatUseAndLeftover(ing.id, l.needGrams, l.leftoverGrams, s.profile.units); return <>{l.packages} × {ing.pkg.label} · recipes use {u.use}{u.left && <> · {u.left} left over</>}</>; })()}
+                                    {(() => { const u = formatUseAndLeftover(ing.id, l.needGrams, l.leftoverGrams, s.profile.units); return <>{l.packages} × {ing.pkg.label} · recipes use {u.use}{u.left && <> · {u.left} left over</>}{pantryOn && fromHome.has(ing.id) && <> · <span className="font-semibold text-accent">{formatAmount(ing.id, fromHome.get(ing.id)!, s.profile.units)} from home</span></>}</>; })()}
                                   </span>
+                                  <DealTag hint={hints.get(k) ?? null} />
                                 </span>
                               </label>
                               <div className="shrink-0 text-right">
@@ -115,7 +124,7 @@ export default function Groceries() {
             <Card>
               <SectionTitle>Already in your pantry</SectionTitle>
               <ul className="flex flex-wrap gap-2">
-                {r.pantryUsed.map((u) => <li key={u.ingredientId}><Tag>{INGREDIENTS[u.ingredientId]?.name ?? u.ingredientId}</Tag></li>)}
+                {r.pantryUsed.map((u) => <li key={u.ingredientId}><Tag>{INGREDIENTS[u.ingredientId]?.name ?? u.ingredientId}{pantryOn && fromHome.has(u.ingredientId) && `: ${formatAmount(u.ingredientId, u.grams, s.profile.units)}`}</Tag></li>)}
               </ul>
             </Card>
           )}
@@ -125,6 +134,7 @@ export default function Groceries() {
           <Card>
             <SectionTitle>Total</SectionTitle>
             <BudgetBar cost={r.cost} budget={r.budget} takeout={r.takeout?.cost ?? 0} />
+            {saved > 0 && <p className="mt-2 text-sm font-medium text-accent">Deals save about {money(saved)} on this trip</p>}
             <p className="mt-3 text-sm text-muted">{got} of {total} in the cart</p>
             <div className="mt-1 h-1.5 rounded-full bg-sunk"><div className="h-full rounded-full bg-accent" style={{ width: `${total ? (got / total) * 100 : 0}%` }} /></div>
             <div className="mt-4 grid gap-2">
