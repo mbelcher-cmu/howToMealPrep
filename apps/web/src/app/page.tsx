@@ -27,6 +27,7 @@ export default function Home() {
   const packCost = usePackCost();
   const v2 = useFlag("redesign");
   const nextWeekOn = useFlag("nextWeek");
+  const calendarOn = useFlag("calendar");
   const week = useWeek();
   const lastWeek = useApp((s) => s.lastWeek);
   if (!hydrated) return null;
@@ -97,6 +98,7 @@ export default function Home() {
             <p className="mt-3 text-sm text-muted">{bought} of {plural(r.cart.length, "item")} in the cart · about {money(r.cost / Math.max(1, plan.days * Math.max(1, plan.schedule.days[0]?.meals.length ?? 1)))} a meal</p>
             <Link href="/shop/" className="btn btn-primary mt-3 w-full"><ShoppingCart size={16} aria-hidden /> Shop in store</Link>
             <Link href="/groceries/" className="btn mt-2 w-full">Full list</Link>
+            {calendarOn && <Link href="/calendar/" className="mt-3 block text-center text-sm font-semibold text-accent hover:underline">Shopping calendar</Link>}
           </Card>
         </div>
 
