@@ -16,6 +16,8 @@ export const FLAG_DEFAULTS = {
   redesign: { production: true, staging: true, development: true },
   /** "Plan next week" review: keep or swap each recipe, carry leftovers over (staging first) */
   nextWeek: { production: false, staging: true, development: true },
+  /** multi-week shopping calendar with bulk-buy hints (staging first) */
+  calendar: { production: false, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */
