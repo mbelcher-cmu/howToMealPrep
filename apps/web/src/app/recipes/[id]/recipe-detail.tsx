@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { ArrowLeft, Droplet, Drumstick, Flame, Lock, LockOpen, Trash2, Wheat } from "lucide-react";
+import { ArrowLeft, Droplet, Drumstick, Flame, Lock, LockOpen, PenLine, Trash2, Wheat } from "lucide-react";
 import { useFlag } from "@/lib/flags";
 import { ALLERGENS, CHAINS, DIETS, EQUIPMENT, formatAmount, INGREDIENTS, MOODS, RECIPES_BY_ID } from "@prep-cart/catalog";
 import { macroShares } from "@prep-cart/nutrition";
@@ -20,6 +20,7 @@ export function RecipeDetail({ id }: { id: string }) {
   const s = useApp();
   const [servings, setServings] = useState(r.servings);
   const v2 = useFlag("redesign");
+  const importV2 = useFlag("recipeImportV2");
   const scale = servings / r.servings;
   const prices = useMemo(() => buildPriceTable(s.priceOverrides), [s.priceOverrides]);
   const n = r.perServing;
@@ -44,7 +45,8 @@ export function RecipeDetail({ id }: { id: string }) {
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <Stars value={s.ratings[r.id]} onChange={(v) => { const { [r.id]: _old, ...rest } = s.ratings; void _old; s.set({ ratings: v ? { ...rest, [r.id]: v } : rest }); }} />
               {mine && <button className="btn btn-sm text-warn" onClick={() => { if (window.confirm(`Delete ${r.name}?`)) { s.set({ customRecipes: s.customRecipes.filter((c) => c.id !== r.id), locked: s.locked.filter((x) => x !== r.id) }); router.push("/recipes/"); } }}><Trash2 size={14} aria-hidden /> Delete my recipe</button>}
-              {source?.source && <a className="text-xs text-muted underline" href={source.source} target="_blank" rel="noreferrer">Original recipe</a>}
+              {mine && importV2 && <Link href={`/recipes/import/?edit=${encodeURIComponent(r.id)}`} className="btn btn-sm"><PenLine size={14} aria-hidden /> Edit</Link>}
+              {source?.source && /^https?:\/\//i.test(source.source) && <a className="text-xs text-muted underline" href={source.source} target="_blank" rel="noreferrer">Original recipe</a>}
             </div>
           )}
         </div>

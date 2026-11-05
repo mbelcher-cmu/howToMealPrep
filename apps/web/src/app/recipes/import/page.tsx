@@ -1,16 +1,23 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { ArrowLeft, Link2, Plus, Trash2, Wand2 } from "lucide-react";
 import { CUISINES, draftToSeed, INGREDIENTS, nutritionOf, parseLine, parseRecipe, type MealType, type RecipeDraft } from "@prep-cart/catalog";
 import { Card, NumberField, PageHeader, SectionTitle, Segmented } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { recipeHref } from "@/lib/format";
+import { useFlag } from "@/lib/flags";
+import { ImportV2 } from "./import-v2";
 
 const ING_OPTIONS = Object.values(INGREDIENTS).sort((a, b) => a.name.localeCompare(b.name));
 
 export default function ImportRecipe() {
+  const v2 = useFlag("recipeImportV2");
+  return v2 ? <Suspense fallback={null}><ImportV2 /></Suspense> : <ImportV1 />;
+}
+
+function ImportV1() {
   const s = useApp();
   const router = useRouter();
   const [url, setUrl] = useState("");

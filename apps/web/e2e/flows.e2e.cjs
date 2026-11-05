@@ -289,6 +289,38 @@ test("a new phone can open pages offline it never visited, once the app has load
   }
 });
 
+test("recipe import v2: paste, fix matches, save to the plan, edit, and the bookmark", async () => {
+  await page.goto(base + "/recipes/import/?flags=recipeImportV2=on");
+  await page.getByLabel("Paste a recipe or a link").fill("Chicken Broccoli Bake\nServes 4\nIngredients\n2 lb chicken breast\n1 cup brown rice\n1 head brocoli\nMozarella 100 g\n1 tsp salt\nInstructions\n1. Bake everything at 400°F for 30 minutes.");
+  await page.getByRole("button", { name: "Read recipe" }).click();
+  await page.getByRole("button", { name: "Frozen broccoli florets" }).click();
+  await page.getByRole("button", { name: "Shredded part-skim mozzarella" }).click();
+  assert.equal(await page.getByText("Did you mean").count(), 0);
+  await page.getByLabel("New ingredient line").fill("2 cups spinach");
+  await page.getByLabel("New ingredient line").press("Enter");
+  assert.equal(await page.getByLabel("Store item for 2 cups spinach").inputValue(), "spinach");
+  assert.match(await page.locator("main aside").last().innerText(), /a serving at your stores/);
+  const v = await axeScan(page, "import v2 review");
+  assert.deepEqual(v.filter((x) => ["serious", "critical"].includes(x.impact)), []);
+  await page.getByRole("button", { name: "Save and add to my plan" }).click();
+  await page.waitForURL("**/recipes/mine/**");
+  await page.getByRole("button", { name: /In every plan/ }).waitFor();
+  await page.getByRole("link", { name: "Edit" }).click();
+  await page.getByRole("heading", { name: "Edit recipe" }).waitFor();
+  assert.equal(await page.getByLabel(/^Store item for .*spinach/).inputValue(), "spinach");
+  await page.getByLabel("Name").fill("Cheesy Chicken Broccoli Bake");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await page.getByRole("heading", { level: 1, name: "Cheesy Chicken Broccoli Bake" }).waitFor();
+  // the bookmark's data arrives in the address fragment
+  const sent = { url: "https://recipes.example/fajitas", recipe: { name: "Sheet Pan Fajitas", recipeYield: "6", recipeIngredient: ["2 lb chicken breast", "3 bell peppers", "1 onion"], recipeInstructions: [{ "@type": "HowToStep", text: "Roast at 425°F for 20 minutes." }] } };
+  await page.goto(base + "/recipes/import/#data=" + encodeURIComponent(JSON.stringify(sent)));
+  await page.getByLabel("Name").waitFor();
+  assert.equal(await page.getByLabel("Name").inputValue(), "Sheet Pan Fajitas");
+  assert.doesNotMatch(page.url(), /#data=/);
+  await page.goto(base + "/recipes/import/?flags=recipeImportV2=off");
+  await page.getByLabel("Recipe link").waitFor();
+});
+
 test("a damaged or odd-shaped save never leaves the app blank or crashed", async () => {
   for (const saved of ["not json{", JSON.stringify({ state: { onboarded: true, budget: null, stores: "aldi", occasions: {}, targets: null }, version: 1 })]) {
     const fresh = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });

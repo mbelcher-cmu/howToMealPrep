@@ -22,6 +22,8 @@ export const FLAG_DEFAULTS = {
   calendar: { production: true, staging: true, development: true },
   /** setup asks the person to rank about 10 options for breakfast, lunch and dinner, and snacks, on in production since Nov 5 2026 */
   mealRanking: { production: true, staging: true, development: true },
+  /** recipe import v2: one box for a link or text, a bookmark for any site, smarter matching, edit, cost, add to plan */
+  recipeImportV2: { production: false, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */
@@ -35,8 +37,10 @@ const LOCAL_KEY = "prep-cart-flags";
 export function parseFlags(raw: string | null | undefined): Partial<Record<Flag, boolean>> {
   const out: Partial<Record<Flag, boolean>> = {};
   for (const part of (raw ?? "").split(",")) {
-    const [k, v] = part.split("=").map((x) => x?.trim().toLowerCase());
-    if (!k || !(k in FLAG_DEFAULTS)) continue;
+    const [raw, v] = part.split("=").map((x) => x?.trim().toLowerCase());
+    // names match regardless of case: "nextWeek" and "nextweek" are the same flag
+    const k = Object.keys(FLAG_DEFAULTS).find((f) => f.toLowerCase() === raw);
+    if (!k) continue;
     if (v === "on" || v === "true" || v === "1") out[k as Flag] = true;
     else if (v === "off" || v === "false" || v === "0") out[k as Flag] = false;
   }
