@@ -54,7 +54,7 @@ export default function ImportRecipe() {
 
   return (
     <>
-      <Link href="/recipes/" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"><ArrowLeft size={16} aria-hidden /> All recipes</Link>
+      <Link href="/recipes/" className="-ml-1 mb-2 inline-flex min-h-[44px] items-center gap-1.5 px-1 text-sm font-medium text-muted hover:text-ink"><ArrowLeft size={16} aria-hidden /> All recipes</Link>
       <PageHeader title="Add a recipe" lead="Bring in a recipe from a link or paste it. Each ingredient is matched to the store catalog so the planner can price it and count its macros." />
       {!draft ? (
         <div className="grid max-w-[760px] gap-4">

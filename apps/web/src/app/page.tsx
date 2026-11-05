@@ -105,8 +105,8 @@ export default function Home() {
 
 
         <section aria-label="Your prep this week">
-          <div className="mb-2 flex items-end justify-between gap-3">
-            <div>
+          <div className="mb-2 flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+            <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
               <h2 className="font-display text-xl font-bold">Your prep this week</h2>
               {nextSession && <p className="text-sm text-muted">Cook {plural(nextSession.batches.length, "recipe")} before {DAY_LONG[nextSession.beforeDay]}.{plan.schedule.sessions.slice(1).map((x) => <span key={x.index}> Then {x.batches.length} more before {DAY_LONG[x.beforeDay]}, so it stays fresh.</span>)}</p>}
             </div>
@@ -121,7 +121,7 @@ export default function Home() {
                 <Link href={recipeHref(p.recipe.id)} className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3">
                   <RecipeArt recipe={p.recipe} badges={false} className="h-12 w-12 shrink-0 rounded-lg" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold">{p.recipe.name}</span>
+                    <span className="line-clamp-2 font-semibold leading-snug">{p.recipe.name}</span>
                     <span className="block text-xs text-muted">{p.meals} meal{p.meals === 1 ? "" : "s"} · {p.slot === "main" ? "lunch or dinner" : p.slot}</span>
                   </span>
                 </Link>
