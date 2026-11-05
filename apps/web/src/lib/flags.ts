@@ -10,6 +10,8 @@ import { APP_ENV } from "./env";
 export const FLAG_DEFAULTS = {
   /** sign-in and cloud sync (sprint 2) */
   accounts: { production: false, staging: true, development: true },
+  /** "Continue with Google" on the sign-in form; turn on once the Google provider is set up in Supabase */
+  googleSignIn: { production: false, staging: false, development: false },
   /** Plus page (swaps are free for everyone) */
   plus: { production: true, staging: true, development: true },
   /** November 2026 visual redesign (skin v2). Mirrored in app/layout.tsx so the first paint is right. */

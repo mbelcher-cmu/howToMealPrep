@@ -25,9 +25,32 @@ Until a value is set, its feature stays off and the app works as before.
    an hour; before the pilot, connect a free SMTP sender (Resend) under Authentication → Emails → SMTP.
 4. In each project, Authentication → URL Configuration: set Site URL to the production address
    below and add the staging address as a redirect URL.
-5. The **Database schema** workflow applies `supabase/migrations` to staging, then production, using
+5. Google sign-in (optional, free): in Google Cloud Console create an OAuth client (Web application),
+   with authorized redirect URI `https://<project-ref>.supabase.co/auth/v1/callback`. Paste its client ID and
+   secret into Supabase → Authentication → Sign In / Providers → Google. Then turn the button on with the
+   flag `googleSignIn=on` (in `FLAGS` / `STAGING_FLAGS`, or `?flags=googleSignIn=on` to try it on one device).
+6. The **Database schema** workflow applies `supabase/migrations` to staging, then production, using
    the secrets above. It runs whenever a migration changes on main, or by hand from the Actions tab.
    The privacy rules are tested in `apps/web/test/rls.test.ts`.
+
+## How sync works
+
+Each kind of data has its own table: settings in `profiles.settings`, pantry rows in `pantry_items`,
+saved plans in `plans` (one row each), and recorded prices in `price_observations`. Every device keeps
+a copy of what the cloud held after its last sync, so a merge can tell who changed what: edits to
+different things on two devices both survive, and when both changed the same thing the more recent edit
+wins. Settings are saved with a compare-and-swap (`save_settings`), so two devices saving at once never
+overwrite each other. Accounts from the first version (everything in one document) move to the tables
+on their next sync. Rules: `apps/web/src/lib/sync-rules.ts`, `sync-engine.ts`; tests:
+`apps/web/test/sync.test.ts`, and `apps/web/e2e/sync.cjs` for two browsers against a stand-in server.
+
+Household sharing (Settings → Household): the person who plans makes a one-time invite code (good for 7
+days) and sends the link. Whoever joins sees the planner's current plan, week and grocery ticks on their own
+phone after each sync; nothing else of the planner's is visible to them, and their own settings stay private.
+It all goes through database functions (`create_household_invite`, `join_household`, `household_plan`, …),
+tested in `apps/web/test/households.test.ts`.
+
+People can delete their account in Settings → Account (`delete_account` removes every row they own).
 
 ## Sentry (error reports)
 

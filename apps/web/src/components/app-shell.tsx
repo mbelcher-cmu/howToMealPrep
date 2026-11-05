@@ -7,7 +7,7 @@ import { shoppedShare, useApp } from "@/lib/store";
 import { useHydrated, usePlanner, usePlannerSync } from "@/lib/use-planner";
 import { cx } from "@/lib/format";
 import { initTelemetry } from "@/lib/telemetry";
-import { initAccount } from "@/lib/account";
+import { initAccount, useAccount } from "@/lib/account";
 import { useFlag } from "@/lib/flags";
 
 const NAV = [
@@ -62,9 +62,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (useApp.getState().pantryForPlan) st.planNextWeek();
   }, [hydrated]);
 
+  // a signed-in device that hasn't synced yet may be about to receive its setup from the account,
+  // so it waits for the first sync before sending anyone to the welcome screen
+  const account = useAccount();
   useEffect(() => {
-    if (hydrated && !onboarded && !isOnboarding) router.replace("/welcome/");
-  }, [hydrated, onboarded, isOnboarding, router]);
+    // read the live store: sign-in handling starts in an effect just above, in this same render
+    const a = useAccount.getState();
+    const awaitingCloud = a.status === "loading" || (a.status === "signedIn" && !a.lastSynced && !a.error);
+    if (hydrated && !onboarded && !isOnboarding && !awaitingCloud) router.replace("/welcome/");
+  }, [hydrated, onboarded, isOnboarding, account, router]);
 
   const v2 = useFlag("redesign");
   if (isOnboarding || isShopping) return <main id="main" className="min-h-dvh">{children}</main>;
