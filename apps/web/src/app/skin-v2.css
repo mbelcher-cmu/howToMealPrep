@@ -103,3 +103,18 @@
 [data-skin="v2"] .stepper { border: 0; border-radius: 999px; background: rgb(var(--sunk)); }
 [data-skin="v2"] .wordmark { font-family: var(--font-wide), system-ui, sans-serif; font-stretch: 125%; font-weight: 800; text-transform: uppercase; font-size: 18px; letter-spacing: -0.01em; }
 [data-skin="v2"] .wordmark span { color: rgb(var(--muted)); }
+
+/* Final design pass (sprint 3) ------------------------------------------------------------ */
+
+/* Boxes nested inside a card follow the card's curve (22px outside, 16px inside) and drop the hard line */
+[data-skin="v2"] .card :is(li, fieldset, ul).rounded-lg.border { border-radius: 16px; border-color: rgb(var(--line) / 0.7); }
+[data-skin="v2"] .tag { border-radius: 999px; padding-inline: 8px; letter-spacing: 0.04em; }
+
+/* Whole-card links press like buttons, unless the press is on a button inside the card */
+[data-skin="v2"] .tap-card { transition: transform 160ms var(--ease-out), box-shadow 200ms ease; }
+[data-skin="v2"] .tap-card:active:not(:has(button:active)) { transform: scale(0.98); }
+@media (hover: hover) and (pointer: fine) {
+  [data-skin="v2"] .tap-card:hover { box-shadow: var(--shadow-float); }
+  [data-skin="v2"] .tap-card .art-zoom > img:first-child { transition: transform 300ms var(--ease-out); }
+  [data-skin="v2"] .tap-card:hover .art-zoom > img:first-child { transform: scale(1.04); }
+}
