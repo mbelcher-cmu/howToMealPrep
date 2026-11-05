@@ -10,6 +10,8 @@ import { HouseholdShare } from "@/components/household-share";
 import { BodyStatsEditor } from "@/components/editors";
 import { FitnessSync } from "@/components/fitness";
 import { HouseholdEditor } from "@/components/household";
+import { PlusBadge, PlusGate } from "@/components/paywall";
+import { useEntitlements } from "@/lib/entitlements";
 import { Card, PageHeader, Segmented, SectionTitle } from "@/components/ui";
 import { useAccount } from "@/lib/account";
 import { useApp } from "@/lib/store";
@@ -32,6 +34,7 @@ export default function Settings() {
   const file = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState("");
   const plus = useFlag("plus");
+  const ent = useEntitlements();
   const accounts = useFlag("accounts");
   const training = useFlag("fitnessSync");
   const account = useAccount();
@@ -59,9 +62,9 @@ export default function Settings() {
   return (
     <>
       <PageHeader title="Settings" lead={signedIn ? "Saved on this device and synced to your account." : "Everything here is saved on this device only."} />
-      <nav aria-label="Settings sections" className="mb-4 flex flex-wrap gap-2 text-sm">
+      <nav aria-label="Settings sections" className="rail mb-4 text-sm">
         {[...(accounts && account.status !== "off" ? [["account", "Account"]] : []), ["you", "You"], ["household", "Household"], ["fitness", "Fitness apps"], ["plus", "MacroAisle Plus"], ["data", "Data"]].map(([id, label]) => (
-          <a key={id} href={`#${id}`} className="rounded-full border border-line bg-surface px-3 py-1 hover:bg-sunk">{label}</a>
+          <a key={id} href={`#${id}`} className="press inline-flex min-h-[40px] shrink-0 items-center whitespace-nowrap rounded-full bg-surface px-4 font-semibold shadow-[var(--shadow-card)] hover:bg-sunk">{label}</a>
         ))}
       </nav>
       <div className="grid max-w-[760px] gap-4">
@@ -93,10 +96,17 @@ export default function Settings() {
           <p className="text-sm">Calories, meals, diet, moods and stores are on the <Link href="/plan/" className="font-semibold text-accent underline">Plan page</Link>, next to the plan they change.</p>
         </Card>
         <Section id="fitness" title="Fitness apps" lead="Use what your watch or tracker measured instead of an estimate.">
-          <FitnessSync />
+          <PlusGate feature="fitnessSync"><FitnessSync /></PlusGate>
           {training && <p className="mt-4 border-t border-line pt-4 text-sm">Train on some days and rest on others? Set your <Link href="/plan/" className="font-semibold text-accent underline">training days on the Plan page</Link> and import Strava, Garmin or Apple Health workouts there.</p>}
         </Section>
-        {plus && <Section id="plus" title="MacroAisle Plus" lead="AI meal swaps, live prices and more, coming later.">
+        {ent.gating ? (
+          <Section id="plus" title="MacroAisle Plus" lead={ent.isPlus ? "You have Plus on this device (test mode)." : "Household plans for more people, unlimited recipe imports and fitness app sync. Planning stays free."}>
+            <div className="flex flex-wrap items-center gap-3">
+              {ent.isPlus && <PlusBadge />}
+              <Link href="/plus/" className="btn">{ent.isPlus ? "Manage Plus" : "See Plus"}</Link>
+            </div>
+          </Section>
+        ) : plus && <Section id="plus" title="MacroAisle Plus" lead="AI meal swaps, live prices and more, coming later.">
           <Link href="/plus/" className="btn">See what's in Plus</Link>
         </Section>}
         <Section id="data" title="Your data" lead={signedIn ? "Your data syncs to your account. You can also keep a backup file." : "Back up your settings and plans to a file to move them to another device."}>

@@ -1,27 +1,27 @@
 "use client";
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
-import { INGREDIENTS, MENU_BY_ID, PREP_PACKS, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
+import { INGREDIENTS, MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
 import { usualPrice } from "@/components/deals";
 import { BudgetBar, MacroRings, PlanMacros, PlanStatus, SolvingNote, usePreppedTargets } from "@/components/plan-bits";
 import { ItemCard, RecipeArt, RecipeCard, Rail } from "@/components/food";
-import { PrepPackCard, usePackCost } from "@/components/preps";
+import { PrepPackCard, usePackCost, useVisiblePacks } from "@/components/preps";
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
-import { chainName, isPittsburghZip, money, plural, recipeHref, PITTSBURGH_ONLY } from "@/lib/format";
+import { chainName, money, plural, recipeHref } from "@/lib/format";
 import { useDays } from "@/lib/days";
 import { useFlag } from "@/lib/flags";
 import { NextWeekCard } from "@/components/next-week";
 import { useWeek } from "@/lib/use-week";
 import { SwapButton } from "@/components/swap";
+import { PicksRail } from "@/components/picks";
 import { TrainingToday } from "@/components/training";
 
 export default function Home() {
   const { DAY_LONG, weekStart } = useDays();
   const hydrated = useHydrated();
   const { plan, status } = usePlanner();
-  const zip = useApp((s) => s.profile.zip);
   const checked = useApp((s) => s.checked);
   const deals = useApp((s) => s.deals);
   const overrides = useApp((s) => s.priceOverrides);
@@ -30,6 +30,7 @@ export default function Home() {
   const v2 = useFlag("redesign");
   const nextWeekOn = useFlag("nextWeek");
   const calendarOn = useFlag("calendar");
+  const { packs } = useVisiblePacks();
   const week = useWeek();
   const lastWeek = useApp((s) => s.lastWeek);
   if (!hydrated) return null;
@@ -107,8 +108,8 @@ export default function Home() {
 
 
         <section aria-label="Your prep this week">
-          <div className="mb-2 flex items-end justify-between gap-3">
-            <div>
+          <div className="mb-2 flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+            <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
               <h2 className="font-display text-xl font-bold">Your prep this week</h2>
               {nextSession && <p className="text-sm text-muted">Cook {plural(nextSession.batches.length, "recipe")} before {DAY_LONG[nextSession.beforeDay]}.{plan.schedule.sessions.slice(1).map((x) => <span key={x.index}> Then {x.batches.length} more before {DAY_LONG[x.beforeDay]}, so it stays fresh.</span>)}</p>}
             </div>
@@ -124,7 +125,7 @@ export default function Home() {
                   <RecipeArt recipe={p.recipe} badges={false} className="h-12 w-12 shrink-0 rounded-lg" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">{p.recipe.name}</span>
-                    <span className="block text-xs text-muted">{p.meals} meal{p.meals === 1 ? "" : "s"} · {p.slot === "main" ? "lunch or dinner" : p.slot}</span>
+                    <span className="block text-xs text-muted">{p.meals > 0 ? `${p.meals} meal${p.meals === 1 ? "" : "s"}` : `for ${p.household?.eaters.map((e) => e.name).join(" and ") ?? "the household"}`} · {p.slot === "main" ? "lunch or dinner" : p.slot}</span>
                   </span>
                 </Link>
                 <SwapButton recipeId={p.recipe.id} label="always" />
@@ -147,9 +148,13 @@ export default function Home() {
         )}
 
 
-        <Rail title="Featured meal preps" href="/preps/" lead="Ready-made weeks with their macros. Use one and the plan builds around it.">
-          {PREP_PACKS.filter((p) => isPittsburghZip(zip) || !PITTSBURGH_ONLY.has(p.id)).map((p) => <PrepPackCard key={p.id} pack={p} cost={packCost(p)} />)}
-        </Rail>
+        <PicksRail />
+
+        {packs.length > 0 && (
+          <Rail title="Featured meal preps" href="/preps/" lead="Ready-made weeks with their macros. Use one and the plan builds around it.">
+            {packs.map((p) => <PrepPackCard key={p.id} pack={p} cost={packCost(p)} />)}
+          </Rail>
+        )}
       </div>
     </>
   );
