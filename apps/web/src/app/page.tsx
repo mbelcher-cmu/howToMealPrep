@@ -15,6 +15,7 @@ import { useFlag } from "@/lib/flags";
 import { NextWeekCard } from "@/components/next-week";
 import { useWeek } from "@/lib/use-week";
 import { SwapButton } from "@/components/swap";
+import { PicksRail } from "@/components/picks";
 
 export default function Home() {
   const { DAY_LONG, weekStart } = useDays();
@@ -144,6 +145,8 @@ export default function Home() {
           </Rail>
         )}
 
+
+        <PicksRail />
 
         <Rail title="Featured meal preps" href="/preps/" lead="Ready-made weeks with their macros. Use one and the plan builds around it.">
           {PREP_PACKS.filter((p) => isPittsburghZip(zip) || !PITTSBURGH_ONLY.has(p.id)).map((p) => <PrepPackCard key={p.id} pack={p} cost={packCost(p)} />)}

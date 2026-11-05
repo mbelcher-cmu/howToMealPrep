@@ -8,8 +8,10 @@ import { RecipeCard } from "@/components/food";
 import { Chip, EmptyState, PageHeader } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
+import { PicksRail } from "@/components/picks";
+import { useRecommendations } from "@/lib/recommend";
 
-type Sort = "protein" | "fast" | "name";
+type Sort = "protein" | "fast" | "name" | "match";
 
 export default function Recipes() {
   const hydrated = useHydrated();
@@ -25,6 +27,7 @@ export default function Recipes() {
   const [diet, setDiet] = useState<Diet | "">("");
   const [fitsMe, setFitsMe] = useState(true);
   const [sort, setSort] = useState<Sort>("protein");
+  const { on: recsOn, recs } = useRecommendations();
 
   const list = useMemo(() => {
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
@@ -37,15 +40,17 @@ export default function Recipes() {
       (!mineOnly || r.id.startsWith("custom_") || (ratings[r.id] ?? 0) >= 4) &&
       words.every((w) => r.name.toLowerCase().includes(w) || r.lines.some((l) => l.ingredientId.includes(w))),
     ).sort((a, b) =>
-      sort === "name" ? a.name.localeCompare(b.name)
+      sort === "match" ? (recs[b.id]?.affinity ?? (ratings[b.id] ? (ratings[b.id]! - 3) / 2 : 0)) - (recs[a.id]?.affinity ?? (ratings[a.id] ? (ratings[a.id]! - 3) / 2 : 0))
+        : sort === "name" ? a.name.localeCompare(b.name)
         : sort === "fast" ? a.activeMinutes - b.activeMinutes
           : b.perServing.protein / b.perServing.kcal - a.perServing.protein / a.perServing.kcal);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, meal, cuisine, mood, diet, fitsMe, prefs, sort, mineOnly, ratings, custom]);
+  }, [q, meal, cuisine, mood, diet, fitsMe, prefs, sort, mineOnly, ratings, custom, recs]);
 
   return (
     <>
       <PageHeader title="Recipes" lead={`${RECIPES.length} meal-prep recipes. Calories are worked out from the ingredients, per serving.`} action={<div className="flex flex-wrap gap-2"><Link href="/preps/" className="btn">Meal preps</Link><Link href="/recipes/import/" className="btn btn-primary"><Plus size={16} aria-hidden /> Add a recipe</Link></div>} />
+      <PicksRail prompt />
       <div className="mb-5 grid gap-3">
         <div className="relative">
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
@@ -74,6 +79,7 @@ export default function Recipes() {
             <option value="protein">Most protein per calorie</option>
             <option value="fast">Least hands-on time</option>
             <option value="name">A to Z</option>
+            {recsOn && <option value="match">Best match for you</option>}
           </select>
         </div>
       </div>
@@ -82,7 +88,7 @@ export default function Recipes() {
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
         {list.map((r) => (
           <li key={r.id} className="flex">
-            <RecipeCard wide recipe={r} eyebrow={<>{r.cuisines.map((c) => CUISINES[c]).join(", ")}{ratings[r.id] ? <span className="text-carbs"> · {"★".repeat(ratings[r.id]!)}</span> : null}</>} />
+            <RecipeCard wide recipe={r} eyebrow={<>{r.cuisines.map((c) => CUISINES[c]).join(", ")}{ratings[r.id] ? <span className="text-carbs"> · {"★".repeat(ratings[r.id]!)}</span> : recsOn && (recs[r.id]?.affinity ?? 0) >= 0.15 ? <span className="text-accent"> · {recs[r.id]!.match}% match</span> : null}</>} />
           </li>
         ))}
       </ul>
