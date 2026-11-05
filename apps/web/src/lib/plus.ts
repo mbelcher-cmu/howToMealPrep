@@ -8,7 +8,7 @@ import { hardRejection, type Preferences } from "@prep-cart/planner";
 export interface PlusFeature { id: string; title: string; body: string; today: string; needs: string }
 
 export const PLUS_FEATURES: PlusFeature[] = [
-  { id: "swaps", title: "Smart meal swaps", body: "Swap any recipe for one with nearly the same macros, and the plan rebalances around it.", today: "Works now as a preview, matching recipes by their macros.", needs: "AI-written swaps and new recipes need a paid model API." },
+  { id: "swaps", title: "AI meal swaps", body: "Describe what you feel like and get a new recipe written to fit your macros.", today: "Swapping for a recipe with similar macros is free for everyone.", needs: "AI-written swaps and new recipes need a paid model API." },
   { id: "live", title: "Live store prices", body: "Prices and stock from your actual store, refreshed every week.", today: "Uses estimates plus the prices and sales you enter.", needs: "A grocery data partner, such as the Instacart Developer Platform." },
   { id: "stores", title: "Every store near you", body: "Plan with Kroger, Target, Safeway, Publix, Wegmans and more, not just four chains.", today: "Stores are found nationwide, but only four chains have prices.", needs: "Price data for more chains (same partner as live prices)." },
   { id: "sync", title: "Sync across devices", body: "Your plans, pantry and household on your phone and laptop, with community ratings on recipes.", today: "Everything stays in this browser. Backups move it by hand.", needs: "Accounts and a small database, which free tiers can cover at first." },

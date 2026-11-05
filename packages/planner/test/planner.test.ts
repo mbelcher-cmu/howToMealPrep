@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { adherence } from "@prep-cart/nutrition";
-import { plan, schedule } from "../src";
+import { adherence, targetsFromSplit, SPLIT_PRESETS } from "@prep-cart/nutrition";
+import { RECIPES } from "@prep-cart/catalog";
+import { hardRejection, plan, schedule } from "../src";
 import { baseRequest, highsPromise } from "./fixtures";
 
 describe("planner", async () => {
@@ -70,6 +71,26 @@ describe("planner", async () => {
   it("keeps locked recipes", () => {
     const r = plan(baseRequest({ lockedRecipes: ["jerk_chicken"] }), highs);
     expect(r.recipes.map((p) => p.recipe.id)).toContain("jerk_chicken");
+  });
+
+  it("a swap changes only the swapped recipe when the rest of the week still fits", () => {
+    let checked = 0;
+    for (const kcal of [1800, 2200, 2800]) {
+      const req = baseRequest({ targets: targetsFromSplit(kcal, SPLIT_PRESETS.highProtein.split) });
+      const before = plan(req, highs).recipes;
+      for (const out of before) {
+        const to = RECIPES.find((x) => x.mealType === out.slot && !before.some((p) => p.recipe.id === x.id) && !hardRejection(x, req.prefs));
+        if (!to) continue;
+        const rest = before.filter((p) => p !== out).map((p) => p.recipe.id);
+        const swapReq = { ...req, prefs: { ...req.prefs, excludeRecipes: [out.recipe.id] }, lockedRecipes: [to.id] };
+        // if the old week plus the new recipe breaks the budget, the planner may change more: that's fine
+        if (plan({ ...swapReq, lockedRecipes: [to.id, ...rest] }, highs).status !== "ok") continue;
+        checked++;
+        const after = plan({ ...swapReq, preferRecipes: rest }, highs);
+        expect(after.recipes.map((p) => p.recipe.id).sort()).toEqual([...rest, to.id].sort());
+      }
+    }
+    expect(checked).toBeGreaterThan(4);
   });
 
   it("buys whole packages that cover what the plan uses", () => {
