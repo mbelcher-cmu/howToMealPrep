@@ -10,7 +10,7 @@ import { APP_ENV } from "./env";
 export const FLAG_DEFAULTS = {
   /** sign-in and cloud sync (sprint 2) */
   accounts: { production: false, staging: true, development: true },
-  /** Plus page and smart swaps preview */
+  /** Plus page (swaps are free for everyone) */
   plus: { production: true, staging: true, development: true },
   /** November 2026 visual redesign (skin v2). Mirrored in app/layout.tsx so the first paint is right. */
   redesign: { production: true, staging: true, development: true },

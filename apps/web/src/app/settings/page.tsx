@@ -92,7 +92,7 @@ export default function Settings() {
         <Section id="fitness" title="Fitness apps" lead="Use what your watch or tracker measured instead of an estimate.">
           <FitnessSync />
         </Section>
-        {plus && <Section id="plus" title="MacroAisle Plus" lead="Smart swaps and more, coming later.">
+        {plus && <Section id="plus" title="MacroAisle Plus" lead="AI meal swaps, live prices and more, coming later.">
           <Link href="/plus/" className="btn">See what's in Plus</Link>
         </Section>}
         <Section id="data" title="Your data" lead={signedIn ? "Your data syncs to your account. You can also keep a backup file." : "Back up your settings and plans to a file to move them to another device."}>

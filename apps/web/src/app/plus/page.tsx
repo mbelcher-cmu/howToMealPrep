@@ -33,7 +33,7 @@ export default function Plus() {
             ))}
           </ul>
           <div className="mt-4 border-t border-line pt-3">
-            <Toggle checked={s.plusPreview} onChange={(plusPreview) => s.set({ plusPreview })} label="Preview Plus on this device" detail="Turns on the features that already work, such as smart swaps. Free while MacroAisle is in testing." />
+            <Toggle checked={s.plusPreview} onChange={(plusPreview) => s.set({ plusPreview })} label="Preview Plus on this device" detail="Turns on Plus features as they become ready. Free while MacroAisle is in testing." />
           </div>
         </Card>
       </div>

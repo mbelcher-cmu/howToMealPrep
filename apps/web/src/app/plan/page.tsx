@@ -77,11 +77,10 @@ export default function PlanPage() {
   const { plan, status, tryAnother } = usePlanner();
   const s = useApp();
   if (!hydrated) return null;
-  const exclude = (id: string) => s.set({ prefs: { ...s.prefs, excludeRecipes: [...(s.prefs.excludeRecipes ?? []), id] }, locked: s.locked.filter((x) => x !== id) });
   const excluded = s.prefs.excludeRecipes ?? [];
   return (
     <>
-      <PageHeader title="Plan" lead="Every change re-plans on its own. Lock recipes you want to keep, skip the ones you don't." action={<SolvingNote />} />
+      <PageHeader title="Plan" lead="Every change re-plans on its own. Keep recipes you like, swap or skip the ones you don't." action={<SolvingNote />} />
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
         <div className="order-2 grid min-w-0 grid-cols-1 content-start gap-3 lg:order-1">
           <h2 className="px-1 font-display text-lg font-bold lg:sr-only">Change your week</h2>
@@ -133,9 +132,9 @@ export default function PlanPage() {
                     const locked = s.locked.includes(p.recipe.id);
                     return (
                       <li key={p.recipe.id} className="rounded-lg border border-line p-3">
-                        <div className="flex items-start gap-3">
+                        <div className="flex flex-wrap items-start gap-3">
                           <RecipeTile recipe={p.recipe} />
-                          <div className="min-w-0 flex-1">
+                          <div className="min-w-0 flex-1 basis-[180px]">
                             <div className="flex flex-wrap items-center gap-2">
                               <Tag>{p.slot}</Tag>
                               {locked && <LockedTag />}
@@ -147,13 +146,14 @@ export default function PlanPage() {
                             <RecipeMeta recipe={p.recipe} />
                             {p.reasons.length > 0 && <p className="mt-1 text-xs text-muted">Why: {p.reasons.join(" · ")}</p>}
                           </div>
-                          <div className="flex shrink-0 flex-col gap-1.5">
+                          {/* phone: a labeled row under the recipe; wider screens: a column on the right */}
+                          <div className="flex w-full shrink-0 gap-1.5 sm:w-auto sm:flex-col">
                             <button className="btn btn-sm" onClick={() => s.toggleLock(p.recipe.id)} aria-pressed={locked} aria-label={locked ? `Unlock ${p.recipe.name}` : `Keep ${p.recipe.name}`}>
-                              {locked ? <Lock size={14} aria-hidden /> : <LockOpen size={14} aria-hidden />}<span className="hidden sm:inline">{locked ? "Locked" : "Keep"}</span>
+                              {locked ? <Lock size={14} aria-hidden /> : <LockOpen size={14} aria-hidden />}<span>{locked ? "Locked" : "Keep"}</span>
                             </button>
-                            <SwapButton recipeId={p.recipe.id} />
-                            <button className="btn btn-sm" onClick={() => exclude(p.recipe.id)} aria-label={`Skip ${p.recipe.name} this week`}>
-                              <X size={14} aria-hidden /><span className="hidden sm:inline">Skip</span>
+                            <SwapButton recipeId={p.recipe.id} label="always" />
+                            <button className="btn btn-sm" onClick={() => s.skipRecipe(p.recipe.id)} aria-label={`Skip ${p.recipe.name} this week`}>
+                              <X size={14} aria-hidden /><span>Skip</span>
                             </button>
                           </div>
                         </div>

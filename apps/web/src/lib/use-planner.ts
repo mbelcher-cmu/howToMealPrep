@@ -23,6 +23,7 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
     pantry: (s.pantryForPlan ?? s.pantry).filter((p) => !p.useBy || daysUntil(p.useBy) >= 0).map(({ useBy, ...p }) => (useBy ? { ...p, daysLeft: daysUntil(useBy) } : p)),
     weights: { costVsMacros: s.costVsMacros },
     lockedRecipes: s.locked,
+    preferRecipes: (s.held ?? []).filter((id) => !(s.prefs.excludeRecipes ?? []).includes(id)),
     avoidSets,
     priceOverrides: s.priceOverrides,
     deals: s.deals.filter((d) => d.endsOn >= isoDay()).map(({ ingredientId, chain, price, endsOn }) => ({ ingredientId, chain, price, endsOn })),
@@ -33,7 +34,7 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
   };
 }
 type Req = ReturnType<typeof requestFrom>;
-const keyOf = (r: Req) => JSON.stringify({ ...r, avoidSets: undefined }, (_k, v) => (v === Infinity ? "inf" : v));
+const keyOf = (r: Req) => JSON.stringify({ ...r, avoidSets: undefined, preferRecipes: undefined }, (_k, v) => (v === Infinity ? "inf" : v));
 
 type Reply = { ok: boolean; result?: PlanResult; schedule?: Schedule; error?: string };
 let worker: Worker | null = null;
@@ -104,7 +105,10 @@ export function usePlanner() {
   const state = useApp();
   const key = useMemo(() => keyOf(requestFrom(state)), [state]);
   const tryAnother = useCallback(() => {
-    const cur = useApp.getState().current;
+    const app = useApp.getState();
+    const cur = app.current;
+    // "try another" wants a fresh menu, so stop holding the week from the last swap (not part of the plan key)
+    if (app.held?.length) app.set({ held: [] });
     if (cur) shownSets.push(cur.result.recipes.map((p) => p.recipe.id));
     void run(shownSets.slice(-6));
   }, []);
