@@ -84,7 +84,10 @@ describe("planner", async () => {
         const rest = before.filter((p) => p !== out).map((p) => p.recipe.id);
         const swapReq = { ...req, prefs: { ...req.prefs, excludeRecipes: [out.recipe.id] }, lockedRecipes: [to.id] };
         // if the old week plus the new recipe breaks the budget, the planner may change more: that's fine
-        if (plan({ ...swapReq, lockedRecipes: [to.id, ...rest] }, highs).status !== "ok") continue;
+        const kept = plan({ ...swapReq, lockedRecipes: [to.id, ...rest] }, highs);
+        if (kept.status !== "ok") continue;
+        // same for a real macro miss (over 12% off a target), which may move one more recipe
+        if ((["protein", "carbs", "fat"] as const).some((k) => Math.abs(kept.daily[k] - req.targets[k]) > 0.12 * req.targets[k])) continue;
         checked++;
         const after = plan({ ...swapReq, preferRecipes: rest }, highs);
         expect(after.recipes.map((p) => p.recipe.id).sort()).toEqual([...rest, to.id].sort());

@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { INGREDIENTS, RECIPES, formatAmount, CUISINES } from "../src";
+import { INGREDIENTS, RECIPES, formatAmount, CUISINES, MOODS } from "../src";
 
 describe("catalog", () => {
   it("loads every recipe with valid ingredients and tags", () => {
-    expect(RECIPES.length).toBeGreaterThanOrEqual(75);
+    expect(RECIPES.length).toBeGreaterThanOrEqual(130);
+    expect(new Set(RECIPES.map((r) => r.id)).size).toBe(RECIPES.length);
   });
   it("derives calories from macros", () => {
     for (const r of RECIPES) {
@@ -34,6 +35,30 @@ describe("catalog", () => {
     const used = new Set(RECIPES.flatMap((r) => r.cuisines));
     expect([...Object.keys(CUISINES)].filter((c) => !used.has(c as never))).toEqual([]);
     for (const m of ["breakfast", "main", "snack"]) expect(RECIPES.some((r) => r.mealType === m && r.diets.includes("vegetarian"))).toBe(true);
+  });
+  it("has a real vegetarian choice in every meal slot and a vegan one for every slot", () => {
+    const count = (m: string, d: string) => RECIPES.filter((r) => r.mealType === m && r.diets.includes(d as never)).length;
+    expect(count("main", "vegetarian")).toBeGreaterThanOrEqual(30);
+    expect(count("breakfast", "vegetarian")).toBeGreaterThanOrEqual(10);
+    expect(count("snack", "vegetarian")).toBeGreaterThanOrEqual(10);
+    for (const m of ["breakfast", "main", "snack"]) expect(count(m, "vegan"), m).toBeGreaterThanOrEqual(3);
+  });
+  it("covers every mood", () => {
+    const used = new Set(RECIPES.flatMap((r) => r.moods));
+    expect(Object.keys(MOODS).filter((m) => !used.has(m as never))).toEqual([]);
+  });
+  it("ingredient nutrition is physically possible (protein + carbs + fat + fiber fit in 100 g)", () => {
+    for (const ing of Object.values(INGREDIENTS)) {
+      const { protein, carbs, fat, fiber } = ing.per100g;
+      expect(protein + carbs + fat, ing.id).toBeLessThanOrEqual(100);
+      expect(fiber, ing.id).toBeLessThanOrEqual(carbs);
+    }
+  });
+  it("every recipe can be bought at Walmart, so plans work outside Pittsburgh", () => {
+    // Testers outside Pittsburgh shop Walmart and Aldi; Walmart must carry every ingredient.
+    for (const ing of Object.values(INGREDIENTS)) expect(ing.estPrice.walmart, ing.id).not.toBeNull();
+    const aldiShort = RECIPES.filter((r) => r.lines.some((l) => INGREDIENTS[l.ingredientId]!.estPrice.aldi == null)).length;
+    expect(aldiShort / RECIPES.length).toBeLessThan(0.15);
   });
   it("every ingredient is used or priced somewhere", () => {
     for (const ing of Object.values(INGREDIENTS)) expect(Object.values(ing.estPrice).some((p) => p != null)).toBe(true);

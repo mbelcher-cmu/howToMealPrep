@@ -147,6 +147,24 @@ const ROWS: Record<string, Row> = {
   almonds: ["Whole almonds", "Oils and nuts", 21, 22, 50, 12.5, 1, "", "treenut", 454, "16 oz bag", [4.99, 7.99, 5.48, 5.99]],
   olive_oil: ["Olive oil", "Oils and nuts", 0, 0, 100, 0, 2, "", "", 460, "17 oz bottle", [4.99, 7.99, 5.48, 6.99], undefined, true],
   sesame_oil: ["Toasted sesame oil", "Oils and nuts", 0, 0, 100, 0, 0, "", "sesame", 207, "7 oz bottle", [2.49, 4.49, 2.98, 2.99]],
+  // Added Nov 2026 for the larger recipe book. Every item is stocked at Walmart (and most at Aldi), so
+  // recipes plan anywhere in the US, not just Pittsburgh.
+  pork_chops: ["Boneless pork loin chops", "Meat and seafood", 21.5, 0, 6, 0, 50, "pork", "", 680, "1.5 lb pack", [4.99, 6.99, 5.24, 6.49]],
+  ricotta: ["Part-skim ricotta", "Dairy and eggs", 11.4, 5.1, 7.9, 0, 99, "dairy", "milk", 425, "15 oz tub", [2.49, 3.79, 2.72, 3.49]],
+  cannellini: ["Canned cannellini beans", "Canned and jarred", 7.3, 21.9, 0.3, 6.3, 240, "", "", 255, "15 oz can (drained)", [0.79, 1.29, 0.88, 0.99], [255, "can", "cans"]],
+  refried_beans: ["Canned fat-free refried beans", "Canned and jarred", 5.5, 15, 0.5, 5, 400, "", "", 454, "16 oz can", [0.99, 1.49, 1.08, 1.69], [454, "can", "cans"]],
+  english_muffins: ["Whole wheat English muffins", "Bakery", 8.8, 40, 2, 6.7, 420, "", "wheat", 342, "6 count", [1.69, 2.99, 1.98, 2.49], [57, "muffin", "muffins"]],
+  cabbage: ["Green cabbage", "Produce", 1.3, 5.8, 0.1, 2.5, 18, "", "", 900, "1 head", [1.29, 1.99, 1.38, null]],
+  cauliflower: ["Frozen cauliflower florets", "Frozen", 1.6, 3.7, 0.3, 2, 30, "", "", 340, "12 oz bag", [1.29, 1.99, 1.24, 1.99]],
+  cauliflower_rice: ["Frozen riced cauliflower", "Frozen", 1.9, 4, 0.3, 2, 25, "", "", 340, "12 oz bag", [1.79, 2.99, 1.97, 2.29]],
+  frozen_spinach: ["Frozen chopped spinach", "Frozen", 3.6, 4.2, 0.6, 3, 75, "", "", 340, "12 oz bag", [1.19, 1.79, 1.24, 1.79]],
+  eggplant: ["Eggplant", "Produce", 1, 5.9, 0.2, 3, 2, "", "", 450, "1 each", [1.49, 1.99, 1.57, 1.79], [450, "eggplant", "eggplants"]],
+  plantains: ["Plantains", "Produce", 1.3, 32, 0.4, 2.3, 4, "", "", 681, "3 count", [null, 1.99, 1.29, null], [227, "plantain", "plantains"]],
+  parsley: ["Flat-leaf parsley", "Produce", 3, 6.3, 0.8, 3.3, 56, "", "", 60, "1 bunch", [0.89, 1.29, 0.88, 1.99]],
+  mango: ["Frozen mango chunks", "Frozen", 0.8, 15, 0.4, 1.6, 1, "", "", 454, "16 oz bag", [2.49, 3.99, 2.72, 2.99]],
+  sauerkraut: ["Sauerkraut", "Canned and jarred", 0.9, 4.3, 0.1, 2.9, 660, "", "", 907, "32 oz jar", [1.79, 2.99, 1.98, null]],
+  chia: ["Chia seeds", "Oils and nuts", 16.5, 42, 31, 34, 16, "", "", 340, "12 oz bag", [3.99, 5.99, 4.48, 4.49]],
+  cashews: ["Unsalted cashews", "Oils and nuts", 18, 30, 44, 3.3, 12, "", "treenut", 283, "10 oz bag", [4.29, 6.99, 4.98, 5.49]],
 };
 
 /** Not wheat, but not safe for a gluten-free diet unless certified (cross-contact). */
@@ -190,7 +208,7 @@ export const SHELF_LIFE_DAYS: Record<Aisle, number> = {
 /** A few items keep much longer or shorter than their aisle. */
 const SHELF_OVERRIDES: Record<string, number> = {
   eggs: 28, potatoes: 30, sweet_potato: 30, onion: 30, garlic: 60, apples: 21, carrots: 21, limes: 14, lemons: 14,
-  cheddar: 28, parmesan: 60, mozzarella: 21, feta: 21, butter: 60, bananas: 5, berries: 4, spinach: 5, avocado: 4, cilantro: 6,
+  cheddar: 28, parmesan: 60, cabbage: 21, plantains: 7, ricotta: 10, mozzarella: 21, feta: 21, butter: 60, bananas: 5, berries: 4, spinach: 5, avocado: 4, cilantro: 6,
 };
 export function shelfLifeDays(id: string): number {
   const ing = INGREDIENTS[id];

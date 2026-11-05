@@ -28,13 +28,15 @@ export const CUISINES = {
   latin: "Latin American", italian: "Italian", greek: "Greek", spanish: "Spanish", french: "French",
   middleEastern: "Middle Eastern", northAfrican: "North African", ethiopian: "Ethiopian", indian: "Indian",
   thai: "Thai", vietnamese: "Vietnamese", chinese: "Chinese", korean: "Korean", japanese: "Japanese",
-  filipino: "Filipino", hawaiian: "Hawaiian", easternEuropean: "Eastern European", pittsburgh: "Pittsburgh classics",
+  filipino: "Filipino", hawaiian: "Hawaiian", indonesian: "Indonesian", westAfrican: "West African", turkish: "Turkish",
+  german: "German", easternEuropean: "Eastern European", pittsburgh: "Pittsburgh classics",
 } as const;
 export type Cuisine = keyof typeof CUISINES;
 
 export const MOODS = {
   comfort: "Comfort food", fresh: "Light and fresh", spicy: "Spicy", soupy: "Soups and stews", bowls: "Bowls",
   handheld: "Wraps and handhelds", pasta: "Pasta night", grill: "Grill and smoke", breakfastForDinner: "Breakfast anytime", sweet: "Sweet tooth",
+  onePan: "One pan, less cleanup", salads: "Big salads",
 } as const;
 export type Mood = keyof typeof MOODS;
 
