@@ -26,7 +26,8 @@ describe("catalog integrity", () => {
       expect(r.activeMinutes, r.id).toBeGreaterThan(0);
       expect(r.totalMinutes, r.id).toBeGreaterThanOrEqual(r.activeMinutes);
       expect(r.fridgeDays, r.id).toBeGreaterThanOrEqual(1);
-      expect(r.fridgeDays, r.id).toBeLessThanOrEqual(7);
+      // cooked food keeps a week at most; shelf-stable snacks (nut packs) can say longer
+      expect(r.fridgeDays, r.id).toBeLessThanOrEqual(r.mealType === "snack" ? 90 : 7);
       expect(RECIPES_BY_ID[r.id]).toBe(r);
     }
   });
