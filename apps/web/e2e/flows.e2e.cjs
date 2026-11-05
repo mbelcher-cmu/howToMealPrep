@@ -215,7 +215,8 @@ test("every main page renders on a phone without errors or sideways scrolling", 
 });
 
 test("the pantry tracker files food by where it lives and quick amounts stick", async () => {
-  await page.goto(base + "/pantry/");
+  // behind the pantryV2 flag (off in production); it stays on so the accessibility scan below covers the tracker
+  await page.goto(base + "/pantry/?flags=pantryV2=on");
   await page.getByLabel("Add to pantry").fill("frozen salmon");
   await page.getByRole("button", { name: /Frozen salmon fillets/ }).click();
   await page.getByLabel("Add to pantry").fill("large eggs");
