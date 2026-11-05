@@ -52,7 +52,14 @@ export default function NextWeekPage() {
   const [moreMoods, setMoreMoods] = useState(false);
 
   if (!hydrated) return null;
-  if (!on) return <EmptyState title="Coming soon">Planning next week from here is still being tested. <Link className="underline" href="/plan/">Open Plan</Link> to change your food.</EmptyState>;
+  if (!on) {
+    return (
+      <>
+        <PageHeader title="Next week" />
+        <EmptyState title="Coming soon">Planning next week from here is still being tested. <Link className="underline" href="/plan/">Open Plan</Link> to change your food.</EmptyState>
+      </>
+    );
+  }
   if (!plan || !reviewed) {
     return (
       <>

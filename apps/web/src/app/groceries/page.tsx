@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Check, Copy, ExternalLink, House, PackageCheck, Store } from "lucide-react";
-import { CHAINS, formatAmount, INGREDIENTS, type Aisle, type ChainId } from "@prep-cart/catalog";
+import { CalendarDays, Check, Copy, ExternalLink, House, PackageCheck, Store } from "lucide-react";
+import { CHAINS, formatUseAndLeftover, INGREDIENTS, type Aisle, type ChainId } from "@prep-cart/catalog";
 import type { CartLine } from "@prep-cart/planner";
 import { BudgetBar, PlanStatus, SolvingNote } from "@/components/plan-bits";
 import { ItemArt } from "@/components/food";
@@ -23,6 +23,7 @@ export default function Groceries() {
   const s = useApp();
   const [copied, setCopied] = useState(false);
   const nextWeekOn = useFlag("nextWeek");
+  const calendarOn = useFlag("calendar");
   const done = !!s.current && s.shoppedPlanId === s.current.id;
 
   const byStore = useMemo(() => {
@@ -85,8 +86,7 @@ export default function Groceries() {
                                 <span className={cx("min-w-0", on && "text-muted line-through")}>
                                   <span className="block font-medium">{ing.name}</span>
                                   <span className="block text-xs text-muted">
-                                    {l.packages} × {ing.pkg.label} · recipes use {formatAmount(ing.id, l.needGrams, s.profile.units)}
-                                    {l.leftoverGrams >= 10 && <> · {formatAmount(ing.id, l.leftoverGrams, s.profile.units)} left over</>}
+                                    {(() => { const u = formatUseAndLeftover(ing.id, l.needGrams, l.leftoverGrams, s.profile.units); return <>{l.packages} × {ing.pkg.label} · recipes use {u.use}{u.left && <> · {u.left} left over</>}</>; })()}
                                   </span>
                                 </span>
                               </label>
@@ -141,6 +141,12 @@ export default function Groceries() {
               : null}
             <p className="mt-3 text-xs text-muted">{done ? "Your leftovers are in the pantry. This week's plan stays as it is until you plan next week." : "Done shopping moves what's left of each package into your pantry, so next week's plan uses it first."}</p>
           </Card>
+          {calendarOn && (
+            <Link href="/calendar/" className="card flex items-center gap-3 p-4 hover:bg-sunk">
+              <CalendarDays size={20} className="shrink-0 text-accent" aria-hidden />
+              <span className="min-w-0 text-sm"><span className="block font-semibold">Plan 4 weeks of shopping</span><span className="block text-muted">See each trip and what&apos;s worth buying in bulk.</span></span>
+            </Link>
+          )}
           {s.nearby.length === 0 && (
             <Card>
               <SectionTitle>Stores near you</SectionTitle>

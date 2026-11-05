@@ -7,7 +7,7 @@ import { shoppedShare, useApp } from "@/lib/store";
 import { useHydrated, usePlanner, usePlannerSync } from "@/lib/use-planner";
 import { cx } from "@/lib/format";
 import { initTelemetry } from "@/lib/telemetry";
-import { initAccount } from "@/lib/account";
+import { initAccount, useAccount } from "@/lib/account";
 import { useFlag } from "@/lib/flags";
 
 const NAV = [
@@ -62,9 +62,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (useApp.getState().pantryForPlan) st.planNextWeek();
   }, [hydrated]);
 
+  // a signed-in device that hasn't synced yet may be about to receive its setup from the account,
+  // so it waits for the first sync before sending anyone to the welcome screen
+  const account = useAccount();
   useEffect(() => {
-    if (hydrated && !onboarded && !isOnboarding) router.replace("/welcome/");
-  }, [hydrated, onboarded, isOnboarding, router]);
+    // read the live store: sign-in handling starts in an effect just above, in this same render
+    const a = useAccount.getState();
+    const awaitingCloud = a.status === "loading" || (a.status === "signedIn" && !a.lastSynced && !a.error);
+    if (hydrated && !onboarded && !isOnboarding && !awaitingCloud) router.replace("/welcome/");
+  }, [hydrated, onboarded, isOnboarding, account, router]);
 
   const v2 = useFlag("redesign");
   if (isOnboarding || isShopping) return <main id="main" className="min-h-dvh">{children}</main>;
@@ -74,7 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-dvh md:grid md:grid-cols-[232px_minmax(0,1fr)]">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-surface focus:p-2">Skip to content</a>
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-surface px-3 py-5 md:flex">
+      <aside aria-label="App menu" className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-surface px-3 py-5 md:flex">
         <Link href="/" className="mb-6 px-3 font-display text-xl font-bold tracking-tight">
           Macro<span className="text-accent">Aisle</span>
         </Link>
@@ -131,7 +137,7 @@ function ShellV2({ path, solving, children }: { path: string; solving: boolean; 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[248px_minmax(0,1fr)]">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-surface focus:p-2">Skip to content</a>
-      <aside className="sticky top-0 hidden h-dvh flex-col px-4 py-6 md:flex">
+      <aside aria-label="App menu" className="sticky top-0 hidden h-dvh flex-col px-4 py-6 md:flex">
         <Link href="/" className="mb-8 px-3"><Wordmark className="text-[19px]" /></Link>
         <nav aria-label="Main" className="grid gap-1">
           {NAV.map(({ href, label, icon: Icon }) => {
@@ -144,7 +150,7 @@ function ShellV2({ path, solving, children }: { path: string; solving: boolean; 
             );
           })}
         </nav>
-        <div className="mt-auto px-4 text-xs text-muted">
+        <div role="status" className="mt-auto px-4 text-xs text-muted">
           {solving ? <span className="inline-flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" aria-hidden /> Updating your plan</span> : "Prices are estimates until you add receipts."}
         </div>
       </aside>
@@ -159,8 +165,9 @@ function ShellV2({ path, solving, children }: { path: string; solving: boolean; 
         <main id="main" className="mx-auto w-full max-w-[1120px] px-4 pb-36 pt-3 sm:px-6 md:pb-12 md:pt-10">{children}</main>
       </div>
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 px-4 md:hidden" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
-        <nav aria-label="Main" className="pointer-events-auto grid flex-1 grid-cols-4 gap-1 rounded-full bg-surface/95 p-1.5 shadow-[var(--shadow-float)] backdrop-blur-xl">
+      {/* one landmark holds both the tab pill and the round Groceries button */}
+      <nav aria-label="Main" className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 px-4 md:hidden" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
+        <div className="pointer-events-auto grid flex-1 grid-cols-4 gap-1 rounded-full bg-surface/95 p-1.5 shadow-[var(--shadow-float)] backdrop-blur-xl">
           {tabs.map(({ href, label, icon: Icon }) => {
             const on = href === "/more/" ? active(path, href) || MORE_ROUTES.some((h) => active(path, h)) : active(path, href);
             return (
@@ -170,12 +177,12 @@ function ShellV2({ path, solving, children }: { path: string; solving: boolean; 
               </Link>
             );
           })}
-        </nav>
+        </div>
         <Link href="/groceries/" aria-label="Groceries" aria-current={groceriesOn ? "page" : undefined}
           className={cx("press pointer-events-auto grid h-16 w-16 shrink-0 place-items-center rounded-full bg-accent text-accent-ink shadow-[var(--shadow-float)]", groceriesOn && "ring-4 ring-ink/15")}>
           <ShoppingCart size={24} aria-hidden />
         </Link>
-      </div>
+      </nav>
     </div>
   );
 }

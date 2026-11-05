@@ -80,6 +80,8 @@ export interface PlanRequest {
   weights?: Partial<Weights>;
   /** recipe ids that must appear (locked by the user) */
   lockedRecipes?: string[];
+  /** recipe ids to keep when the plan still works with them (soft), e.g. the rest of the week after a swap */
+  preferRecipes?: string[];
   /** recipe sets already shown; the solver must differ from each by at least one recipe */
   avoidSets?: string[][];
   /** solver time limit in seconds */
