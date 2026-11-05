@@ -251,6 +251,53 @@ test("onboarding passes the accessibility scan too", async () => {
   assert.deepEqual(v.filter((x) => x.impact === "serious" || x.impact === "critical"), []);
 });
 
+test("Plus: paywalls stay off core flows, test-mode upgrade unlocks and cancels, upgrade page is accessible", async () => {
+  await page.goto(base + "/settings/?flags=plusTier=on");
+  const fitnessWall = page.locator('[data-paywall="fitnessSync"]');
+  await fitnessWall.waitFor();
+  // free covers one more person in the household, the second extra person hits the paywall
+  await page.getByRole("button", { name: "Add a person" }).click();
+  await page.locator('[data-paywall="household"]').waitFor();
+  assert.equal(await page.getByRole("button", { name: "Add a person" }).count(), 0);
+  // core flows never show a paywall
+  for (const p of ["", "plan/", "groceries/", "shop/", "prep/", "recipes/", "next-week/"]) {
+    await page.goto(base + "/" + p);
+    await page.locator("main").waitFor();
+    await page.waitForTimeout(300);
+    assert.equal(await page.locator("[data-paywall]").count(), 0, `/${p} shows a paywall`);
+  }
+  await page.goto(base + "/settings/");
+  await fitnessWall.getByRole("link", { name: "See Plus" }).click();
+  await page.waitForURL("**/plus/?from=fitnessSync");
+  await page.getByText("Fitness app sync").first().waitFor();
+  const found = [];
+  for (const scheme of ["light", "dark"]) {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.waitForTimeout(300);
+    found.push(...(await axeScan(page, `${scheme} /plus/`)));
+  }
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.getByRole("button", { name: "Start Plus (test mode)" }).click();
+  await page.getByText("You have Plus").waitFor();
+  await page.waitForTimeout(600);
+  found.push(...(await axeScan(page, "plus active /plus/")));
+  assert.deepEqual(found.filter((v) => v.impact === "serious" || v.impact === "critical"), [], "serious or critical accessibility violations");
+  // Plus survives a reload and lifts the paywalls
+  await page.goto(base + "/settings/");
+  await page.getByRole("link", { name: "Manage Plus" }).waitFor();
+  assert.equal(await page.locator("[data-paywall]").count(), 0);
+  await page.getByRole("button", { name: "Add a person" }).waitFor();
+  await page.goto(base + "/plus/");
+  await page.getByRole("button", { name: "Cancel Plus" }).click();
+  await page.getByText("Plus is off").waitFor();
+  // cancelling keeps what was made with Plus
+  await page.goto(base + "/settings/");
+  await page.locator('[data-paywall="household"]').waitFor();
+  await page.getByRole("button", { name: /^Remove Person/ }).first().click();
+  await page.goto(base + "/settings/?flags=reset");
+  await page.locator("main").waitFor();
+});
+
 test("the app opens offline after one visit", async () => {
   // the service worker caches pages as they load; give it a moment to install and claim the page
   await page.goto(base + "/");

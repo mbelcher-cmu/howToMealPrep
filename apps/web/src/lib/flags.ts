@@ -14,6 +14,8 @@ export const FLAG_DEFAULTS = {
   googleSignIn: { production: false, staging: false, development: false },
   /** Plus page (swaps are free for everyone) */
   plus: { production: true, staging: true, development: true },
+  /** Plus tier: free vs Plus entitlements, paywalls and a test-mode upgrade (no real payments). See docs/payments.md */
+  plusTier: { production: false, staging: true, development: true },
   /** November 2026 visual redesign (skin v2). Mirrored in app/layout.tsx so the first paint is right. */
   redesign: { production: true, staging: true, development: true },
   /** "Plan next week" review: keep or swap each recipe, carry leftovers over, on in production since Nov 5 2026 */

@@ -3,6 +3,8 @@ import { Trash2, UserPlus } from "lucide-react";
 import { ACTIVITY_LEVELS, kgToLb, lbToKg, suggestTargets, type ActivityLevel, type Goal } from "@prep-cart/nutrition";
 import { useApp, type Member } from "@/lib/store";
 import { NumberField, Segmented } from "./ui";
+import { Paywall } from "./paywall";
+import { useEntitlements } from "@/lib/entitlements";
 
 /** Daily calories for a household member: their own number, or an estimate from body stats and goal. */
 export function memberKcal(m: Member): number {
@@ -16,6 +18,9 @@ export function HouseholdEditor() {
   const s = useApp();
   const us = s.profile.units === "us";
   const people = s.household;
+  const ent = useEntitlements();
+  // free covers one more person; existing members are never removed when Plus ends
+  const atLimit = !ent.canAdd("household", people.length) && people.length < 5;
   const update = (id: string, patch: Partial<Member>) => s.set({ household: people.map((m) => (m.id === id ? { ...m, ...patch } : m)) });
   return (
     <div className="grid gap-4">
@@ -62,9 +67,10 @@ export function HouseholdEditor() {
         );
       })}
       <div className="flex flex-wrap items-center gap-3">
-        <button className="btn" onClick={() => s.set({ household: [...people, newMember(people.length)] })} disabled={people.length >= 5}><UserPlus size={16} aria-hidden /> Add a person</button>
+        {!atLimit && <button className="btn" onClick={() => s.set({ household: [...people, newMember(people.length)] })} disabled={people.length >= 5}><UserPlus size={16} aria-hidden /> Add a person</button>}
         {people.length > 0 && <p className="text-xs text-muted">Budget, meals and food rules are shared. The budget is for everyone.</p>}
       </div>
+      {atLimit && <Paywall feature="household">Free plans cover you and one more person. Plus cooks for up to 6 from one list, each with portions sized to their calories.</Paywall>}
     </div>
   );
 }
