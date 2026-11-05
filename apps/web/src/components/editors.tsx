@@ -8,6 +8,7 @@ import { ACTIVITY_LEVELS, customOverflow, cmToFeetInches, editMealCalories, edit
 import { useFlag } from "@/lib/flags";
 import { useOccasions } from "@/lib/meal-styles";
 import { useApp } from "@/lib/store";
+import { useFlag } from "@/lib/flags";
 import { Chip, NumberField, Segmented, Slider, Stepper, Toggle, WishChip } from "./ui";
 import { cx, isPittsburghZip, money } from "@/lib/format";
 import { Lock, LockOpen, SlidersHorizontal } from "lucide-react";
@@ -409,14 +410,19 @@ export function RulesEditor() {
   const s = useApp();
   const p = s.prefs;
   const toggle = <T extends string>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+  const wholeSwitch = useFlag("wholeFoods");
   const [q, setQ] = useState("");
   const matches = q.length >= 2 ? Object.values(INGREDIENTS).filter((i) => i.name.toLowerCase().includes(q.toLowerCase()) && !p.dislikes.includes(i.id)).slice(0, 6) : [];
   return (
     <div className="grid gap-5">
+      {wholeSwitch && (
+        <Toggle label="Whole foods only" detail="Skip processed meats, white rice and pasta, and sauces with added sugar"
+          checked={p.diets.includes("wholeFoods")} onChange={() => s.set({ prefs: { ...p, diets: toggle(p.diets, "wholeFoods") } })} />
+      )}
       <div className="grid gap-2">
         <span className="label">Diet</span>
         <div className="flex flex-wrap gap-2">
-          {(Object.keys(DIETS) as Diet[]).filter((d) => d !== "omnivore").map((d) => (
+          {(Object.keys(DIETS) as Diet[]).filter((d) => d !== "omnivore" && !(wholeSwitch && d === "wholeFoods")).map((d) => (
             <Chip key={d} selected={p.diets.includes(d)} onClick={() => s.set({ prefs: { ...p, diets: toggle(p.diets, d) } })} title={DIETS[d].detail}>{DIETS[d].label}</Chip>
           ))}
         </div>
