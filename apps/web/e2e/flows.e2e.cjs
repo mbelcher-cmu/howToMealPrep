@@ -336,6 +336,25 @@ test("Eat out can plan takeout for the week (eatOutPlus flag)", async () => {
   await page.goto(base + "/eat-out/?flags=eatOutPlus=off");
 });
 
+test("a household member with their own diet: vegetarian food for them, one shared plan (householdGoals flag)", async () => {
+  await page.goto(base + "/settings/?flags=householdGoals=on");
+  await page.getByRole("button", { name: "Add a person" }).click();
+  await page.getByRole("button", { name: /Person 2: Vegetarian$/ }).click();
+  await page.goto(base + "/plan/");
+  await page.getByText("Cooking for 2").first().waitFor({ timeout: 45000 });
+  // their line shows calories and protein against their own goals
+  await page.waitForFunction(() => /Person 2[\s\S]*of [\d,]+ kcal/.test(document.querySelector("main")?.innerText ?? ""), null, { timeout: 45000 });
+  const found = [...(await axeScan(page, "household /plan/"))];
+  await page.goto(base + "/settings/");
+  await page.getByRole("button", { name: /Person 2: Vegetarian$/ }).waitFor();
+  found.push(...(await axeScan(page, "household /settings/")));
+  assert.deepEqual(found.filter((v) => v.impact === "serious" || v.impact === "critical"), [], "serious or critical accessibility violations");
+  // back to one person and the build's own flags for the tests after this one
+  await page.getByRole("button", { name: "Remove Person 2" }).click();
+  await page.goto(base + "/settings/?flags=reset");
+  await page.locator("main").waitFor();
+});
+
 test("every main page renders on a phone without errors or sideways scrolling", async () => {
   for (const p of PAGES) {
     await page.goto(base + "/" + p);

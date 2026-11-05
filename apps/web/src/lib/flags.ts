@@ -38,6 +38,8 @@ export const FLAG_DEFAULTS = {
   pantryV2: { production: false, staging: true, development: true },
   /** "Whole foods only" switch, processed items named on recipes, meal preps filtered to fit your diet */
   wholeFoods: { production: false, staging: true, development: true },
+  /** household members with their own protein goal, diet and allergies; shared recipes, extra ones only when needed */
+  householdGoals: { production: false, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */

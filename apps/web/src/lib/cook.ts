@@ -9,8 +9,11 @@ export function sessionBatches(plan: SavedPlan): Batch[][] {
   const hh = plan.result.household ?? { people: 1, factor: 1 };
   return plan.schedule.sessions.map((sess) => sess.batches.flatMap((b) => {
     const recipe = RECIPES_BY_ID[b.recipeId];
-    const portion = plan.result.recipes.find((p) => p.recipe.id === b.recipeId)?.portion ?? 1;
-    return recipe ? [{ recipe, servings: b.servings, portion: (portion * hh.factor) / hh.people }] : [];
+    const p = plan.result.recipes.find((x) => x.recipe.id === b.recipeId);
+    const portion = p?.portion ?? 1;
+    // one container per person per meal: average container size across the household
+    const each = p?.household?.totalMeals ? p.servings / p.household.totalMeals : (portion * hh.factor) / hh.people;
+    return recipe ? [{ recipe, servings: b.servings, portion: each }] : [];
   }));
 }
 

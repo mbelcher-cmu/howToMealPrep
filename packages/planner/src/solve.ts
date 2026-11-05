@@ -2,7 +2,7 @@ import { CHAINS, INGREDIENTS, MENU_BY_ID, type ChainId, type MealType, type Reci
 import { splitTargets } from "@prep-cart/nutrition";
 import { LpModel } from "./lp";
 import { candidatePool, preferenceFit, servingCost, slotTypeFor } from "./filters";
-import type { CartLine, DayNutrition, EatOut, PlanRequest, PlanResult, PlannedRecipe, Weights } from "./types";
+import type { CartLine, DayNutrition, EatOut, HouseholdMember, HouseholdResult, PlanRequest, PlanResult, PlannedRecipe, Weights } from "./types";
 
 /** Minimal shape of the HiGHS solver object we use. */
 export interface HighsLike {
@@ -18,6 +18,11 @@ const PREFER_BONUS = 40;
 const POOL_SIZE: Record<MealType, number> = { breakfast: 6, main: 12, snack: 5 };
 const MIN_PORTION_Q = 2; // 0.5 serving, in quarter servings
 const MAX_PORTION_Q = 10; // 2.5 servings
+/** recipes added per slot for a household member whose diet the shared ones may not suit */
+const EXTRA_POOL: Record<MealType, number> = { breakfast: 2, main: 4, snack: 2 };
+/** objective cost of cooking a recipe only someone else eats: a shared recipe wins unless this one fits far better */
+const EXTRA_COST = 6;
+const MACROS = ["kcal", "protein", "carbs", "fat"] as const;
 
 const DEFAULT_WEIGHTS: Weights = { costVsMacros: 0.5, extraStopCost: 4 };
 
@@ -103,11 +108,23 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   }
   const groceryBudget = Math.max(0, req.budget - takeoutCost);
 
-  // -- Household: everyone eats the same prepped meals, in portions sized to their calories --
-  const members = (req.household ?? [])
-    .filter((p) => p.kcal >= 800 && p.kcal <= 6000)
+  // -- Household: people with only a calorie number eat the main person's meals, scaled by calories.
+  //    People with their own macros, diet or allergies get portions sized for them, their macros are
+  //    checked, and a recipe is cooked just for them only when no shared one suits them --
+  const valid = (req.household ?? []).filter((p) => p.kcal >= 800 && p.kcal <= 6000);
+  const members = valid.filter((p) => !hasOwnGoals(p))
     .map((p) => ({ ...p, scale: Math.round((p.kcal / Math.max(800, req.targets.kcal)) * 100) / 100 }));
   const factor = 1 + members.reduce((a, p) => a + p.scale, 0);
+  const owners = valid.filter(hasOwnGoals).map((p, pi) => {
+    const kr = p.kcal / Math.max(800, req.targets.kcal);
+    const of = (k: "protein" | "carbs" | "fat") => (p[k] != null ? p[k]! / Math.max(1, req.targets[k]) : kr);
+    return {
+      ...p, pi, scale: Math.round(kr * 100) / 100,
+      diets: (p.diets ?? []).filter((d) => d !== "omnivore"), allergens: p.allergens ?? [],
+      ratio: { kcal: kr, protein: of("protein"), carbs: of("carbs"), fat: of("fat") },
+    };
+  });
+  const fitsOwner = (r: Recipe, p: (typeof owners)[number]) => p.diets.every((d) => r.diets.includes(d)) && !p.allergens.some((a) => r.allergens.includes(a));
 
   // ── Free ingredients (pantry staples) and pantry amounts ──
   const pantryGrams = new Map<string, number>();
@@ -118,17 +135,11 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
 
   // ── Candidate pools ──
   const prefer = new Set(req.preferRecipes ?? []);
-  const pools: Record<MealType, { r: Recipe; fit: number; reasons: string[]; cost: number }[]> = { breakfast: [], main: [], snack: [] };
+  type Scored = { r: Recipe; fit: number; reasons: string[]; cost: number; rank: number };
+  const pools: Record<MealType, Scored[]> = { breakfast: [], main: [], snack: [] };
+  const xtraPools: Record<MealType, Scored[]> = { breakfast: [], main: [], snack: [] };
   const variety: Record<MealType, number> = { breakfast: 0, main: 0, snack: 0 };
-  for (const slot of SLOTS) {
-    const meals = slotCount[slot] * days - slotTakeout[slot];
-    if (!meals) continue;
-    const { ok, rejected } = candidatePool(slot, req.prefs);
-    if (!ok.length) {
-      const top = summarizeRejections(rejected.map((r) => r.reason));
-      return wrap(empty("no_recipes", `No ${slot === "main" ? "lunch or dinner" : slot} recipes fit your rules (${top}). Loosen a diet, allergy or time limit.`));
-    }
-    const scored = ok.map((r) => {
+  const scoreOf = (r: Recipe): Scored => {
       const pf = preferenceFit(r, req.prefs);
       let fit = pf.fit;
       const reasons = [...pf.reasons];
@@ -141,7 +152,17 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
       const targetShare = (dayTarget.protein * 4) / Math.max(1, dayTarget.kcal);
       const proteinMatch = -Math.abs(proteinShare - targetShare) * 10;
       return { r, fit, reasons, cost, rank: fit * 2 + proteinMatch - cost * (0.3 + weights.costVsMacros) };
-    });
+  };
+  for (const slot of SLOTS) {
+    const meals = slotCount[slot] * days - slotTakeout[slot];
+    if (!meals) continue;
+    const { ok, rejected } = candidatePool(slot, req.prefs);
+    const slotName = slot === "main" ? "lunch or dinner" : slot;
+    if (!ok.length) {
+      const top = summarizeRejections(rejected.map((r) => r.reason));
+      return wrap(empty("no_recipes", `No ${slotName} recipes fit your rules (${top}). Loosen a diet, allergy or time limit.`));
+    }
+    const scored = ok.map(scoreOf);
     const locked = new Set(req.lockedRecipes ?? []);
     // "must" wishes become hard rules for lunch and dinner when enough recipes qualify
     if (slot === "main") {
@@ -158,6 +179,20 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
     for (const x of scored) if (prefer.has(x.r.id) && !pool.includes(x)) pool.push(x);
     pools[slot] = pool;
     variety[slot] = Math.max(1, Math.min(req.variety[slot], pools[slot].length, meals));
+    // someone with their own diet: a few recipes that suit them, cooked only if no shared one does.
+    // The cook's kitchen rules (dislikes, equipment, time, allergies) still apply
+    const seenIds = new Set(pool.map((x) => x.r.id));
+    for (const p of owners) {
+      if (!p.diets.length && !p.allergens.length) continue;
+      const fitting = candidatePool(slot, { ...req.prefs, diets: p.diets, allergens: [...new Set([...req.prefs.allergens, ...p.allergens])] }).ok
+        .filter((r) => !seenIds.has(r.id)).map(scoreOf).sort((a, b) => b.rank - a.rank);
+      // the best few, plus any the person kept or still has in their week
+      const theirs = fitting.filter((x, i) => i < EXTRA_POOL[slot] || locked.has(x.r.id) || prefer.has(x.r.id));
+      for (const x of theirs) { seenIds.add(x.r.id); xtraPools[slot].push(x); }
+      if (![...pool, ...xtraPools[slot]].some((x) => fitsOwner(x.r, p))) {
+        return wrap(empty("no_recipes", `No ${slotName} recipes fit ${p.name}'s diet and allergies together with your kitchen rules. Loosen a rule for one of you.`));
+      }
+    }
   }
 
   // ── Model ──
@@ -225,13 +260,78 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
       }
     }
   }
-  for (const id of req.lockedRecipes ?? []) {
-    const a = all.find((x) => x.r.id === id);
-    if (a) m.addRow([[1, `y_${a.key}`]], "=", 1);
-  }
   for (const set of req.avoidSets ?? []) {
     const keys = set.map((id) => all.find((x) => x.r.id === id)?.key);
     if (keys.every(Boolean)) m.addRow(keys.map((k) => [1, `y_${k}`]), "<=", set.length - 1);
+  }
+
+  // ── Household members with their own goals ──
+  const xtra: typeof all = [];
+  for (const slot of SLOTS) xtraPools[slot].forEach((c, i) => xtra.push({ key: `x${slot[0]}${i}`, slot, ...c }));
+  const extraOnly = new Set(xtra.map((a) => a.key));
+  const cookable = [...all, ...xtra];
+  const ownerVars: { a: (typeof all)[number]; p: (typeof owners)[number]; v: string; portion: number }[] = [];
+  const extraVar = new Map<string, string>();
+  for (const slot of SLOTS) {
+    const N = slotCount[slot] * days - slotTakeout[slot];
+    if (!N || !owners.length) continue;
+    const perMealKcal = slotKcal[slot] / slotCount[slot];
+    const horizon = slot === "main" && req.variety.rotation === "blocks" ? Math.ceil(days / Math.max(1, variety.main)) + 1 : days;
+    for (const p of owners) {
+      const terms: [number, string][] = [];
+      for (const a of cookable) {
+        if (a.slot !== slot || !fitsOwner(a.r, p)) continue;
+        const v = `n_${a.key}_${p.pi}`;
+        // their portion of this recipe, sized to their calories for this kind of meal
+        const portion = Math.min(MAX_PORTION_Q, Math.max(MIN_PORTION_Q, Math.round((perMealKcal * p.ratio.kcal * 4) / Math.max(1, a.r.perServing.kcal)))) / 4;
+        m.integer(v); m.bound(v, 0, N);
+        let e = extraVar.get(a.key);
+        if (!e) {
+          // cooked just for the others (the main person doesn't eat it)
+          e = `e_${a.key}`;
+          extraVar.set(a.key, e);
+          m.binary(e);
+          m.addObjective(e, EXTRA_COST - 0.5 * a.fit - (prefer.has(a.r.id) ? PREFER_BONUS : 0));
+          if (a.r.fridgeDays < horizon && !a.r.freezerFriendly) m.addObjective(e, 1.5 * (horizon - a.r.fridgeDays));
+          if (!extraOnly.has(a.key)) m.addRow([[1, `y_${a.key}`], [1, e]], "<=", 1);
+        }
+        m.addRow([[1, v], [-N, e], ...(extraOnly.has(a.key) ? [] : [[-N, `y_${a.key}`] as [number, string]])], "<=", 0);
+        // variety for them too: past a fair share of lunches and dinners, more of one recipe costs a little
+        if (slot === "main" && variety.main >= 2) {
+          const over = `${v}_o`;
+          m.addRow([[1, v], [-1, over]], "<=", Math.ceil(N / variety.main) + 1);
+          m.bound(over, 0, N);
+          m.addObjective(over, 1.2);
+        }
+        terms.push([1, v]);
+        ownerVars.push({ a, p, v, portion });
+      }
+      m.addRow(terms, "=", N);
+    }
+  }
+  // a recipe cooked only for others is worth a batch: at least a few meals
+  for (const [key, e] of extraVar) {
+    const a = cookable.find((x) => x.key === key)!;
+    const N = slotCount[a.slot] * days - slotTakeout[a.slot];
+    m.addRow([...ownerVars.filter((o) => o.a.key === key).map((o): [number, string] => [1, o.v]), [-Math.min(N, 3), e]], ">=", 0);
+  }
+  // a kept recipe is cooked: for the main person, or (when it only suits others) for them
+  for (const id of req.lockedRecipes ?? []) {
+    const a = cookable.find((x) => x.r.id === id);
+    if (!a) continue;
+    const e = extraVar.get(a.key);
+    m.addRow([...(extraOnly.has(a.key) ? [] : [[1, `y_${a.key}`] as [number, string]]), ...(e ? [[1, e] as [number, string]] : [])], "=", 1);
+  }
+  // each of them gets close to their own calories and macros (prepped share, like the main person)
+  const ownerTarget = (p: (typeof owners)[number], k: (typeof MACROS)[number]) =>
+    Math.max(0, (dayTarget[k] * days - SLOTS.reduce((t, sl) => t + replacedSlot[sl][k], 0)) * p.ratio[k]);
+  const OWNER_W: Record<(typeof MACROS)[number], [number, number]> = { kcal: [0.002, 0.002], protein: [0.004, 0.08], carbs: [0.008, 0.008], fat: [0.016, 0.016] };
+  for (const p of owners) for (const k of MACROS) {
+    const mine = ownerVars.filter((o) => o.p === p);
+    if (!mine.length) continue;
+    const v = `h${p.pi}${k}`;
+    m.addRow([...mine.map((o): [number, string] => [o.portion * o.a.r.perServing[k], o.v]), [-1, `${v}_p`], [1, `${v}_n`]], "=", ownerTarget(p, k));
+    m.addObjective(`${v}_p`, OWNER_W[k][0] * macroW); m.addObjective(`${v}_n`, OWNER_W[k][1] * macroW);
   }
 
   // nutrition: two-tier deviation (inside the tolerance band is cheap, outside is expensive)
@@ -253,7 +353,7 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   }
 
   // groceries: whole packages at chosen stores cover what the plan uses beyond the pantry
-  const ingredientIds = new Set(all.flatMap((a) => a.r.lines.map((l) => l.ingredientId)));
+  const ingredientIds = new Set(cookable.flatMap((a) => a.r.lines.map((l) => l.ingredientId)));
   const costTerms: [number, string][] = [];
   const buyVars: { id: string; chain: ChainId; v: string; price: number }[] = [];
   let ii = 0;
@@ -266,6 +366,11 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
       const coef = (l.grams / a.r.servings / 4) * factor;
       useTerms.push([-coef, `s_${a.key}`]);
       maxNeed += coef * MAX_PORTION_Q * slotCount[a.slot] * days;
+    }
+    for (const o of ownerVars) for (const l of o.a.r.lines) if (l.ingredientId === id) {
+      const coef = (l.grams / o.a.r.servings) * o.portion;
+      useTerms.push([-coef, o.v]);
+      maxNeed += coef * slotCount[o.a.slot] * days;
     }
     const maxPk = Math.max(1, Math.ceil(maxNeed / ing.pkg.grams));
     const buyTerms: [number, string][] = [];
@@ -314,19 +419,29 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
 
   // ── Read the solution ──
   const recipes: PlannedRecipe[] = [];
-  for (const a of all) {
-    if (val(`y_${a.key}`) !== 1) continue;
-    const n = val(`n_${a.key}`);
-    const q = val(`s_${a.key}`);
-    if (!n) continue;
-    const servings = q / 4;
-    const cook = Math.round(servings * factor * 4) / 4;
-    const portion = Math.round((servings / n) * 100) / 100;
+  const ownerMeals = new Map<string, { o: (typeof ownerVars)[number]; n: number }[]>();
+  for (const o of ownerVars) {
+    const n = val(o.v);
+    if (n > 0) ownerMeals.set(o.a.key, [...(ownerMeals.get(o.a.key) ?? []), { o, n }]);
+  }
+  for (const a of cookable) {
+    const n = extraOnly.has(a.key) || val(`y_${a.key}`) !== 1 ? 0 : val(`n_${a.key}`);
+    const theirs = ownerMeals.get(a.key) ?? [];
+    if (!n && !theirs.length) continue;
+    const servings = n ? val(`s_${a.key}`) / 4 : 0;
+    const othersServings = theirs.reduce((t, x) => t + x.n * x.o.portion, 0);
+    const cook = Math.round((servings * factor + othersServings) * 4) / 4;
+    const othersMeals = theirs.reduce((t, x) => t + x.n, 0);
+    const portion = Math.round((n ? servings / n : othersServings / othersMeals) * 100) / 100;
     const reasons = [...a.reasons];
+    if (!n) reasons.unshift(`for ${theirs.map((x) => x.o.p.name).join(" and ")}`);
     // per meal as you eat it (your portion), matching the numbers shown next to it
     reasons.push(`${Math.round(a.r.perServing.protein * portion)} g protein a meal`);
     reasons.push(`about $${(a.cost * portion).toFixed(2)} a meal`);
-    recipes.push({ recipe: a.r, slot: a.slot, meals: n, servings: cook, portion, reasons });
+    recipes.push({
+      recipe: a.r, slot: a.slot, meals: n, servings: cook, portion, reasons,
+      ...(owners.length ? { household: { mine: n > 0, eaters: theirs.map((x) => ({ id: x.o.p.id, name: x.o.p.name, meals: x.n, portion: x.o.portion })), totalMeals: n * (1 + members.length) + othersMeals } } : {}),
+    });
   }
   const daily: DayNutrition = { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sodiumMg: 0 };
   // nutrition is the main person's share of what's cooked
@@ -334,9 +449,29 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   const preppedDaily = { ...daily };
   for (const k of ["kcal", "protein", "carbs", "fat"] as const) daily[k] += eaten[k] / days;
   for (const k of Object.keys(daily) as (keyof DayNutrition)[]) daily[k] = Math.round(daily[k] * 10) / 10;
+  const mainServings = recipes.reduce((t, p) => t + p.portion * p.meals, 0);
+  const cooked = recipes.reduce((t, p) => t + p.servings, 0);
   const household = {
-    people: 1 + members.length, factor: Math.round(factor * 100) / 100,
-    members: members.map((p) => ({ id: p.id, name: p.name, scale: p.scale, daily: Object.fromEntries(Object.entries(preppedDaily).map(([k, v]) => [k, Math.round(v * p.scale * 10) / 10])) as unknown as DayNutrition })),
+    people: 1 + members.length + owners.length,
+    // cooked food over the main person's share (for owners this is an average, not a recipe multiplier)
+    factor: Math.round((owners.length && mainServings > 0 ? cooked / mainServings : factor) * 100) / 100,
+    members: [
+      ...members.map((p): HouseholdResult => ({ id: p.id, name: p.name, scale: p.scale, daily: Object.fromEntries(Object.entries(preppedDaily).map(([k, v]) => [k, Math.round(v * p.scale * 10) / 10])) as unknown as DayNutrition })),
+      ...owners.map((p): HouseholdResult => {
+        const d: DayNutrition = { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sodiumMg: 0 };
+        let meals = 0;
+        let shared = 0;
+        for (const p2 of recipes) for (const e of p2.household?.eaters ?? []) {
+          if (e.id !== p.id) continue;
+          meals += e.meals;
+          if (p2.household!.mine) shared += e.meals;
+          for (const k of Object.keys(d) as (keyof DayNutrition)[]) d[k] += (p2.recipe.perServing[k] * e.portion * e.meals) / days;
+        }
+        for (const k of Object.keys(d) as (keyof DayNutrition)[]) d[k] = Math.round(d[k] * 10) / 10;
+        const target = Object.fromEntries(MACROS.map((k) => [k, Math.round(ownerTarget(p, k) / days)])) as HouseholdResult["target"];
+        return { id: p.id, name: p.name, scale: p.scale, daily: d, target, meals, sharedMeals: shared };
+      }),
+    ],
   };
 
   // groceries actually needed by the chosen plan
@@ -370,4 +505,9 @@ function summarizeRejections(reasons: string[]): string {
   const counts = new Map<string, number>();
   for (const r of reasons) counts.set(r, (counts.get(r) ?? 0) + 1);
   return [...counts].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([r]) => r).join(", ") || "none match";
+}
+
+/** True when a household member has their own macros, diet or allergies (not just a calorie number). */
+export function hasOwnGoals(p: HouseholdMember): boolean {
+  return p.protein != null || p.carbs != null || p.fat != null || !!p.diets?.some((d) => d !== "omnivore") || !!p.allergens?.length;
 }

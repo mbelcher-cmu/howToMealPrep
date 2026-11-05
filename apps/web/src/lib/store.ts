@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { STORE_KEY } from "./env";
 import { track } from "./telemetry";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
-import { buildRecipe, INGREDIENTS, registerRecipes, shelfLifeDays, type Aisle, type ChainId, type RecipeSeed, type UnitSystem } from "@prep-cart/catalog";
+import { buildRecipe, INGREDIENTS, registerRecipes, shelfLifeDays, type Aisle, type Allergen, type ChainId, type Diet, type RecipeSeed, type UnitSystem } from "@prep-cart/catalog";
 import {
   defaultOccasions, editCaloriesWithLocks, editMacroFree, editMacroWithLocks, editTargets, suggestTargets, targetsFromSplit,
   SPLIT_PRESETS, type ActivityLevel, type Balancer, type EatingOccasion, type Goal, type MacroGrams, type MacroKey, type Sex,
@@ -18,8 +18,14 @@ export interface Profile {
   units: UnitSystem; zip: string;
 }
 
-/** Someone else the food is cooked for. kcal null means estimate from body stats and goal. */
-export interface Member { id: string; name: string; sex: Sex; ageYears: number; heightCm: number; weightKg: number; activity: ActivityLevel; goal: Goal; kcal: number | null }
+/** Someone else the food is cooked for. kcal (and protein) null means estimate from body stats and goal. */
+export interface Member {
+  id: string; name: string; sex: Sex; ageYears: number; heightCm: number; weightKg: number; activity: ActivityLevel; goal: Goal; kcal: number | null;
+  /** grams a day; null or missing means estimate (householdGoals flag) */
+  protein?: number | null;
+  /** what they can't eat; the planner shares recipes that suit everyone (householdGoals flag) */
+  diets?: Diet[]; allergens?: Allergen[];
+}
 
 export type TargetMode = "calories" | "grams";
 export type BudgetPeriod = "week" | "month";
