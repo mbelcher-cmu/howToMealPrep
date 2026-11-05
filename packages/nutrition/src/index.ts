@@ -5,3 +5,5 @@ export * from "./targets";
 export * from "./occasions";
 export * from "./adherence";
 export * from "./health-import";
+export * from "./training";
+export * from "./workout-import";

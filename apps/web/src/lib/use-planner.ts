@@ -4,6 +4,7 @@ import type { PlanResult, Schedule } from "@prep-cart/planner";
 import { daysUntil, isoDay, periodBudget, useApp, type AppState } from "./store";
 import { memberKcal } from "@/components/household";
 import { reportError, track } from "./telemetry";
+import { dayScalesOf } from "./training";
 
 export type PlannerStatus = "idle" | "solving" | "error";
 
@@ -38,6 +39,8 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
     timeLimit: 2,
     household: (s.household ?? []).map((m) => ({ id: m.id, name: m.name.trim() || "Someone", kcal: memberKcal(m) })),
     eatingOut: s.eatingOut.filter((e) => e.day < s.days && s.occasions.some((o) => o.id === e.occasionId)),
+    // training days get bigger portions, rest days smaller; the food cooked stays the same
+    dayScales: dayScalesOf(s),
   };
 }
 type Req = ReturnType<typeof requestFrom>;
