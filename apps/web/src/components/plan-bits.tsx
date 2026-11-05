@@ -111,6 +111,7 @@ export function BudgetBar({ cost: groceries, budget, takeout = 0 }: { cost: numb
 /** Solving / stale / error / budget messages shown above a plan. */
 export function PlanStatus() {
   const { status, error, plan, replan } = usePlanner();
+  const t = usePreppedTargets();
   if (status === "error") {
     return (
       <div role="alert" className="card mb-4 flex flex-wrap items-center justify-between gap-3 border-warn p-4">
@@ -121,8 +122,12 @@ export function PlanStatus() {
   }
   if (!plan) return null;
   const r = plan.result;
-  if (r.status === "ok") return null;
+  // the solver can come back "ok" on budget yet well off the calories, e.g. one meal a day can't hold 3,000 kcal
+  const off = r.status !== "no_recipes" && t.kcal > 0 ? (r.daily.kcal - t.kcal) / t.kcal : 0;
+  const calorieNote = Math.abs(off) > 0.1 ? <CalorieGap off={off} actual={r.daily.kcal} target={t.kcal} maxedOut={r.recipes.some((p) => p.portion >= 2.5)} /> : null;
+  if (r.status === "ok") return calorieNote;
   return (
+    <>
     <div role="status" className="card mb-4 flex items-start gap-3 border-warn bg-warn-soft p-4 text-sm">
       <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
       <div>
@@ -133,6 +138,29 @@ export function PlanStatus() {
             ? "Raise the budget, move the slider toward lowest cost, or allow more stores in "
             : "Loosen a diet, allergen, dislike or Must choice in "}
           <Link href="/plan/" className="underline">Plan</Link> or <Link href="/settings/" className="underline">Settings</Link>.
+        </p>
+      </div>
+    </div>
+    {calorieNote}
+    </>
+  );
+}
+
+/** Explains a plan that lands more than 10% away from the calorie target, and what to change. */
+function CalorieGap({ off, actual, target, maxedOut }: { off: number; actual: number; target: number; maxedOut: boolean }) {
+  const short = off < 0;
+  const gap = Math.round(Math.abs(actual - target)).toLocaleString();
+  return (
+    <div role="status" className="card mb-4 flex items-start gap-3 border-warn bg-warn-soft p-4 text-sm">
+      <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+      <div>
+        <p className="font-semibold">{short ? `Your prep is about ${gap} calories a day short of your target.` : `Your prep is about ${gap} calories a day over your target.`}</p>
+        <p className="mt-0.5 text-muted">
+          {short && maxedOut
+            ? "Portions already top out at 2½ servings a meal. Add a meal or snack a day in Meals and rotation, or raise the budget."
+            : short
+              ? "Raise the budget or allow more stores so the plan can buy more food, or try another plan."
+              : "Lower the budget, try another plan, or loosen a Must choice so lighter recipes fit."}
         </p>
       </div>
     </div>

@@ -14,6 +14,7 @@ export interface HighsLike {
 }
 
 const SLOTS: MealType[] = ["breakfast", "main", "snack"];
+const PREFER_BONUS = 40;
 const POOL_SIZE: Record<MealType, number> = { breakfast: 6, main: 12, snack: 5 };
 const MIN_PORTION_Q = 2; // 0.5 serving, in quarter servings
 const MAX_PORTION_Q = 10; // 2.5 servings
@@ -115,6 +116,7 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   const useSoon = new Map(req.pantry.filter((p) => p.grams !== Infinity && p.grams > 0 && p.daysLeft != null && p.daysLeft <= Math.max(days, 4)).map((p) => [p.ingredientId, p.grams]));
 
   // ── Candidate pools ──
+  const prefer = new Set(req.preferRecipes ?? []);
   const pools: Record<MealType, { r: Recipe; fit: number; reasons: string[]; cost: number }[]> = { breakfast: [], main: [], snack: [] };
   const variety: Record<MealType, number> = { breakfast: 0, main: 0, snack: 0 };
   for (const slot of SLOTS) {
@@ -150,7 +152,10 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
       }
     }
     scored.sort((a, b) => Number(locked.has(b.r.id)) - Number(locked.has(a.r.id)) || b.rank - a.rank);
-    pools[slot] = scored.slice(0, Math.max(POOL_SIZE[slot], scored.filter((s) => locked.has(s.r.id)).length));
+    const pool = scored.slice(0, Math.max(POOL_SIZE[slot], scored.filter((s) => locked.has(s.r.id)).length));
+    // recipes the person already has in their week stay in the running, so a swap only changes what was swapped
+    for (const x of scored) if (prefer.has(x.r.id) && !pool.includes(x)) pool.push(x);
+    pools[slot] = pool;
     variety[slot] = Math.max(1, Math.min(req.variety[slot], pools[slot].length, meals));
   }
 
@@ -177,6 +182,9 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
       m.addRow([[1, `s_${a.key}`], [-MAX_PORTION_Q, `n_${a.key}`]], "<=", 0);
       // preference fit is a reward for choosing the recipe
       m.addObjective(`y_${a.key}`, -1.0 * a.fit);
+      // keeping the rest of the week as it was beats a cheaper or better-fitting reshuffle; only a
+      // real budget or macro problem (several dollars over) moves a preferred recipe out
+      if (prefer.has(a.r.id)) m.addObjective(`y_${a.key}`, -PREFER_BONUS);
       // food safety: recipes that don't keep the whole period and can't be frozen are less attractive
       // (in blocks, a lunch-and-dinner recipe only has to last its own block, since it's cooked fresh for it)
       const horizon = slot === "main" && req.variety.rotation === "blocks" ? Math.ceil(days / variety.main) + 1 : days;

@@ -33,10 +33,12 @@ export function SectionTitle({ children, aside }: { children: ReactNode; aside?:
  * (so plans recalculate live), and snaps to the allowed range when it loses focus.
  */
 export function NumberField({
-  label, value, onChange, min, max, step = 1, suffix, prefix, hint, id: idProp, compact,
+  label, value, onChange, min, max, step = 1, suffix, prefix, hint, id: idProp, compact, hideLabel,
 }: {
   label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; step?: number;
   suffix?: string; prefix?: string; hint?: ReactNode; id?: string; compact?: boolean;
+  /** keep the label for screen readers but show a blank line in its place (e.g. inches next to feet) */
+  hideLabel?: boolean;
 }) {
   const auto = useId();
   const id = idProp ?? auto;
@@ -46,7 +48,7 @@ export function NumberField({
   const clamp = (n: number) => Math.min(max ?? Infinity, Math.max(min ?? -Infinity, n));
   return (
     <div className="grid min-w-0 gap-1">
-      <label htmlFor={id} className={cx("text-[13px] text-muted", compact && "text-xs")}>{label}</label>
+      <label htmlFor={id} className={cx("text-[13px] text-muted", compact && "text-xs")}>{hideLabel ? <><span aria-hidden>&nbsp;</span><span className="sr-only">{label}</span></> : label}</label>
       <div className="relative flex items-center">
         {prefix && <span className="pointer-events-none absolute left-3 text-muted">{prefix}</span>}
         <input

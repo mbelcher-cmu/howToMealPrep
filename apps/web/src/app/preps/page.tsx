@@ -25,6 +25,7 @@ export default function Preps() {
       <div className="rail mb-4" role="group" aria-label="Sort">
         {([["featured", "Featured"], ["protein", "Most protein"], ["kcal", "Fewest calories"], ["cost", "Cheapest"]] as const).map(([v, l]) => <Chip key={v} selected={sort === v} onClick={() => setSort(v)}>{l}</Chip>)}
       </div>
+      <h2 className="sr-only">All meal preps</h2>
       <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {list.map(({ p, cost }) => <li key={p.id} className="flex"><PrepPackCard wide pack={p} cost={cost} /></li>)}
       </ul>

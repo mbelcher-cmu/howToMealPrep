@@ -21,6 +21,8 @@ export interface Preferences {
   excludeRecipes?: string[];
   /** the person's own star ratings, 1 to 5. 1 star means never plan it */
   ratings?: Record<string, number>;
+  /** the person's favorites from setup: recipe id -> place in their ranking for that meal (1 = top pick) */
+  rankings?: Record<string, number>;
 }
 
 export interface Variety {
@@ -78,6 +80,8 @@ export interface PlanRequest {
   weights?: Partial<Weights>;
   /** recipe ids that must appear (locked by the user) */
   lockedRecipes?: string[];
+  /** recipe ids to keep when the plan still works with them (soft), e.g. the rest of the week after a swap */
+  preferRecipes?: string[];
   /** recipe sets already shown; the solver must differ from each by at least one recipe */
   avoidSets?: string[][];
   /** solver time limit in seconds */
