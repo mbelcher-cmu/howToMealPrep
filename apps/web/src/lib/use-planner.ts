@@ -4,6 +4,7 @@ import type { PlanResult, Schedule } from "@prep-cart/planner";
 import { daysUntil, isoDay, periodBudget, useApp, type AppState } from "./store";
 import { memberKcal } from "@/components/household";
 import { reportError, track } from "./telemetry";
+import { styledOccasions } from "./meal-styles";
 
 export type PlannerStatus = "idle" | "solving" | "error";
 
@@ -19,7 +20,7 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
   return {
     days: s.days,
     targets: s.targets,
-    occasions: s.occasions,
+    occasions: styledOccasions(s.occasions),
     budget: periodBudget(s),
     prefs: { ...s.prefs, ratings: s.ratings, rankings: rankingsOf(s.favorites), ...(resting.length ? { excludeRecipes: [...(s.prefs.excludeRecipes ?? []), ...resting] } : {}) },
     customRecipes: s.customRecipes,

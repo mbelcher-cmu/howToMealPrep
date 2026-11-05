@@ -70,7 +70,8 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
     slotCount[t] += 1;
     slotKcal[t] += part.kcal;
     slotMacros[t].protein += part.protein; slotMacros[t].carbs += part.carbs; slotMacros[t].fat += part.fat;
-    if (o.macros) slotMacros[t].custom = true;
+    // hand-set grams or a meal style (high protein, low carb...) shape the recipes picked for that slot
+    if (o.macros || (o.style && o.style !== "balanced")) slotMacros[t].custom = true;
     dayTarget.kcal += part.kcal; dayTarget.protein += part.protein; dayTarget.carbs += part.carbs; dayTarget.fat += part.fat;
   });
   const totalMeals = SLOTS.reduce((a, s) => a + slotCount[s], 0);

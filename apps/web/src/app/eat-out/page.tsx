@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Plus, X } from "lucide-react";
 import { MENU_BY_ID, MENU_ITEMS, menuFit, RESTAURANTS, RESTAURANTS_BY_ID, type MenuItem } from "@prep-cart/catalog";
 import { splitTargets } from "@prep-cart/nutrition";
+import { useOccasions } from "@/lib/meal-styles";
 import { BudgetBar, PlanMacros, PlanStatus, SolvingNote } from "@/components/plan-bits";
 import { Card, Chip, PageHeader, SectionTitle, Tag } from "@/components/ui";
 import { useApp } from "@/lib/store";
@@ -19,7 +20,8 @@ export default function EatOut() {
   const { plan } = usePlanner();
   const [cell, setCell] = useState<{ day: number; occasionId: string } | null>(null);
   const [restaurant, setRestaurant] = useState<string>("");
-  const parts = useMemo(() => splitTargets(s.targets, s.occasions), [s.targets, s.occasions]);
+  const occasions = useOccasions();
+  const parts = useMemo(() => splitTargets(s.targets, occasions), [s.targets, occasions]);
   // on a phone the picker sits below the week, so bring it into view
   useEffect(() => { if (cell) document.getElementById("takeout-picker")?.scrollIntoView({ behavior: "smooth", block: "start" }); }, [cell]);
 

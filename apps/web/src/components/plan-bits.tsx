@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { AlertTriangle, Droplet, Drumstick, Flame, Loader2, Lock, RefreshCw, Snowflake, Timer, Wheat } from "lucide-react";
 import { CUISINES, type Recipe } from "@prep-cart/catalog";
 import { preppedShare } from "@prep-cart/nutrition";
+import { useOccasions } from "@/lib/meal-styles";
 import type { PlanResult } from "@prep-cart/planner";
 import { useApp } from "@/lib/store";
 import { usePlanner } from "@/lib/use-planner";
@@ -17,7 +18,7 @@ export const MACRO_COLORS = { kcal: "rgb(var(--ink) / 0.75)", protein: "rgb(var(
 /** Daily targets for the prepped occasions only (unprepped ones are an allowance). */
 export function usePreppedTargets() {
   const targets = useApp((s) => s.targets);
-  const occasions = useApp((s) => s.occasions);
+  const occasions = useOccasions();
   return useMemo(() => {
     const { prepped, allowanceKcal } = preppedShare(targets, occasions);
     const sum = prepped.reduce((a, o) => ({ kcal: a.kcal + o.kcal, protein: a.protein + o.protein, carbs: a.carbs + o.carbs, fat: a.fat + o.fat }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });

@@ -249,7 +249,7 @@ export const useApp = create<AppState>()(
         const prev = get().occasions;
         const next = defaultOccasions(meals, snacks).map((o) => {
           const old = prev.find((p) => p.id === o.id);
-          return old ? { ...o, prepped: old.prepped, ...(old.macros ? { macros: old.macros } : {}) } : o;
+          return old ? { ...o, prepped: old.prepped, ...(old.macros ? { macros: old.macros } : {}), ...(old.style ? { style: old.style } : {}) } : o;
         });
         set({ meals, snacks, occasions: next });
       },

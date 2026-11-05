@@ -203,6 +203,30 @@ test("adding takeout on Eat out takes that meal out of the prep", async () => {
   await page.getByRole("button", { name: /^Remove takeout on Friday/ }).first().click();
 });
 
+test("a lighter dinner moves calories to the other meals and the day still adds up", async () => {
+  await openPlan(page);
+  const { target: before } = await calories(page);
+  await page.getByRole("button", { name: "Meals and rotation" }).click();
+  const style = page.getByLabel("Dinner style");
+  if (!(await style.count())) return; // mealStyles flag is off in this build
+  const kcalOf = async (name) => Number((await page.locator("li", { has: page.getByLabel(`${name} style`) }).locator(".num").first().innerText()).match(/^([\d,]+) kcal/)[1].replace(/,/g, ""));
+  const dinner = await kcalOf("Dinner");
+  const lunch = await kcalOf("Lunch");
+  await style.selectOption("light");
+  await page.waitForFunction((d) => {
+    const li = [...document.querySelectorAll("li")].find((x) => x.querySelector('select[id^="style-"]') && x.querySelector("label")?.textContent === "Dinner style");
+    const m = /^([\d,]+) kcal/.exec(li?.querySelector(".num")?.textContent ?? "");
+    return m && Number(m[1].replace(/,/g, "")) < d * 0.85;
+  }, dinner);
+  assert.ok((await kcalOf("Lunch")) > lunch, "lunch picks up what dinner gives back");
+  await page.getByText("Recipes this week").first().waitFor({ timeout: 45000 });
+  assert.ok(Math.abs((await calories(page)).target - before) <= 1, "the day's calorie target doesn't change");
+  await page.reload();
+  await page.getByRole("button", { name: "Meals and rotation" }).click();
+  assert.equal(await page.getByLabel("Dinner style").inputValue(), "light");
+  await page.getByLabel("Dinner style").selectOption("balanced");
+});
+
 test("every main page renders on a phone without errors or sideways scrolling", async () => {
   for (const p of PAGES) {
     await page.goto(base + "/" + p);
