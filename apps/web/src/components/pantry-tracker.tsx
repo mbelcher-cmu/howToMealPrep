@@ -139,7 +139,7 @@ export function PantryTracker() {
                 <li key={m.recipe.id} className="flex items-start gap-2.5">
                   <ChefHat size={18} className="mt-0.5 shrink-0 text-accent" aria-hidden />
                   <div className="min-w-0 text-sm">
-                    <Link href={recipeHref(m.recipe.id)} className="font-semibold hover:underline">{m.recipe.name}</Link>
+                    <Link href={recipeHref(m.recipe.id)} prefetch={false} className="font-semibold hover:underline">{m.recipe.name}</Link>
                     <div className="text-xs text-muted">
                       {m.missing.length === 0 ? "You have everything" : `You have ${m.have.length} of ${m.have.length + m.missing.length} ingredients`}
                       {m.usesSoon.length > 0 && <> · uses up {m.usesSoon.map((id) => INGREDIENTS[id]!.name.toLowerCase()).join(", ")}</>}
