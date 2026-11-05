@@ -36,11 +36,14 @@ const LOCAL_KEY = "prep-cart-flags";
 /** Parses "a=on,b=off" into overrides; unknown flags and values are ignored. */
 export function parseFlags(raw: string | null | undefined): Partial<Record<Flag, boolean>> {
   const out: Partial<Record<Flag, boolean>> = {};
+  // names match in any case, so ?flags=plustier=on works as well as plusTier=on
+  const names = new Map((Object.keys(FLAG_DEFAULTS) as Flag[]).map((f) => [f.toLowerCase(), f]));
   for (const part of (raw ?? "").split(",")) {
     const [k, v] = part.split("=").map((x) => x?.trim().toLowerCase());
-    if (!k || !(k in FLAG_DEFAULTS)) continue;
-    if (v === "on" || v === "true" || v === "1") out[k as Flag] = true;
-    else if (v === "off" || v === "false" || v === "0") out[k as Flag] = false;
+    const name = k ? names.get(k) : undefined;
+    if (!name) continue;
+    if (v === "on" || v === "true" || v === "1") out[name] = true;
+    else if (v === "off" || v === "false" || v === "0") out[name] = false;
   }
   return out;
 }

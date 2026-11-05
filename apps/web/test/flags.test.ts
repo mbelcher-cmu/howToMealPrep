@@ -6,6 +6,7 @@ describe("feature flags", () => {
     expect(parseFlags("accounts=on, plus=off,bogus=on,analytics=maybe")).toEqual({ accounts: true, plus: false });
     expect(parseFlags("")).toEqual({});
     expect(parseFlags(undefined)).toEqual({});
+    expect(parseFlags("plusTier=on,NEXTWEEK=off")).toEqual({ plusTier: true, nextWeek: false });
   });
 
   it("falls back to the development defaults outside the browser", () => {
