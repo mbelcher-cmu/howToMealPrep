@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { adherence, defaultOccasions, suggestTargets, type Goal } from "@prep-cart/nutrition";
-import type { Diet } from "@prep-cart/catalog";
+import type { ChainId, Diet } from "@prep-cart/catalog";
 import { plan } from "../src";
 import { baseRequest, highsPromise } from "./fixtures";
 
 /** Fixed profiles that every optimizer change must keep within tolerance. */
-const PROFILES: { name: string; sex: "male" | "female"; age: number; cm: number; kg: number; goal: Goal; meals: number; snacks: number; diet: Diet[]; budget: number }[] = [
+const PROFILES: { name: string; sex: "male" | "female"; age: number; cm: number; kg: number; goal: Goal; meals: number; snacks: number; diet: Diet[]; budget: number; stores?: ChainId[] }[] = [
   { name: "lifter cutting", sex: "male", age: 28, cm: 180, kg: 86, goal: "lose", meals: 3, snacks: 2, diet: [], budget: 80 },
   { name: "lifter bulking", sex: "male", age: 24, cm: 178, kg: 75, goal: "gain", meals: 4, snacks: 2, diet: [], budget: 95 },
   { name: "student on a budget", sex: "female", age: 21, cm: 165, kg: 60, goal: "maintain", meals: 3, snacks: 1, diet: [], budget: 50 },
@@ -14,6 +14,10 @@ const PROFILES: { name: string; sex: "male" | "female"; age: number; cm: number;
   { name: "gluten-free", sex: "female", age: 30, cm: 160, kg: 58, goal: "lose", meals: 3, snacks: 2, diet: ["glutenFree"], budget: 70 },
   { name: "two big meals", sex: "male", age: 33, cm: 183, kg: 82, goal: "maintain", meals: 2, snacks: 1, diet: [], budget: 70 },
   { name: "dairy-free", sex: "male", age: 45, cm: 172, kg: 95, goal: "lose", meals: 3, snacks: 0, diet: ["dairyFree"], budget: 75 },
+  // testers outside Pittsburgh (Fort Moore GA, Lawton OK) shop Walmart and Aldi only
+  { name: "soldier bulking, Walmart and Aldi", sex: "male", age: 22, cm: 178, kg: 77, goal: "gain", meals: 4, snacks: 2, diet: [], budget: 90, stores: ["walmart", "aldi"] },
+  { name: "vegetarian cut, Walmart only", sex: "female", age: 29, cm: 168, kg: 70, goal: "lose", meals: 3, snacks: 1, diet: ["vegetarian"], budget: 65, stores: ["walmart"] },
+  { name: "vegan maintain, Walmart and Aldi", sex: "male", age: 31, cm: 175, kg: 72, goal: "maintain", meals: 3, snacks: 1, diet: ["vegan"], budget: 70, stores: ["walmart", "aldi"] },
 ];
 
 describe("golden profiles", async () => {
@@ -22,7 +26,7 @@ describe("golden profiles", async () => {
     it(p.name, () => {
       const s = suggestTargets({ stats: { sex: p.sex, ageYears: p.age, heightCm: p.cm, weightKg: p.kg }, activity: "moderate", goal: p.goal });
       const base = baseRequest();
-      const req = baseRequest({ targets: s.targets, occasions: defaultOccasions(p.meals, p.snacks), budget: p.budget, prefs: { ...base.prefs, diets: p.diet }, timeLimit: 1.2 });
+      const req = baseRequest({ targets: s.targets, occasions: defaultOccasions(p.meals, p.snacks), budget: p.budget, prefs: { ...base.prefs, diets: p.diet }, timeLimit: 1.2, ...(p.stores ? { stores: p.stores } : {}) });
       const r = plan(req, highs);
       const a = adherence(r.daily, req.targets);
       expect(r.status, r.message).toBe("ok");

@@ -30,6 +30,9 @@ const ITEM_ART: Record<string, string> = {
   diced_tomatoes: "1f96b", marinara: "1f345", salsa: "1f336", enchilada_sauce: "1f336", coconut_milk: "1f965", curry_paste: "1f35b",
   chicken_broth: "1f96b", veg_broth: "1f96b", hummus: "1fad8", pesto: "1f33f", soy_sauce: "1f376", teriyaki_sauce: "1f376", gochujang: "1f336",
   bbq_sauce: "1f96b", honey: "1f36f", taco_seasoning: "1f9c2", peanut_butter: "1f95c", almonds: "1f95c", olive_oil: "1fad2", sesame_oil: "1fad2",
+  pork_chops: "1f356", ricotta: "1f9c0", cannellini: "1fad8", refried_beans: "1fad8", english_muffins: "1f35e", cabbage: "1f96c",
+  cauliflower: "1f966", cauliflower_rice: "1f966", frozen_spinach: "1f96c", eggplant: "1f346", plantains: "1f34c", parsley: "1f33f",
+  mango: "1f96d", sauerkraut: "1fad9", chia: "1fad9", cashews: "1f95c",
 };
 const AISLE_ART: Record<Aisle, string> = {
   Produce: "1f96c", "Meat and seafood": "1f969", "Dairy and eggs": "1f95b", Bakery: "1f35e", "Grains and pasta": "1f33e",
@@ -45,11 +48,12 @@ export function itemImage(ingredientId: string): FoodImage {
 
 // only dishes whose illustration reads clearly; everything else shows its main ingredient
 const DISH_RULES: [RegExp, string][] = [
-  [/soup|stew|chili\b|gumbo|stroganoff|goulash|lentils/i, "1f372"], [/curry|masala|\bdal\b|tikka|korma/i, "1f35b"], [/pasta|spaghetti|penne|ziti|lasagna|\bmac\b|alfredo|orzo/i, "1f35d"],
+  [/falafel/i, "1f9c6"], [/overnight|chia|parfait/i, "1fad9"], [/onigiri|rice ball/i, "1f359"],
+  [/soup|stew|chili\b|gumbo|stroganoff|goulash|lentils|congee|pho\b/i, "1f372"], [/curry|curried|masala|\bdal\b|tikka|korma|butter chicken|aloo gobi/i, "1f35b"], [/pasta|spaghetti|penne|ziti|lasagna|\bmac\b|alfredo|orzo/i, "1f35d"],
   [/noodle|ramen|lo mein|pad thai|soba|udon/i, "1f35c"], [/taco/i, "1f32e"], [/burrito|wrap|quesadilla|enchilada/i, "1f32f"], [/salad|slaw/i, "1f957"],
-  [/oat|porridge/i, "1f963"], [/pancake|waffle|french toast/i, "1f95e"], [/frittata|omelet|scramble|shakshuka|egg muffin|egg bowl|, egg/i, "1f373"],
+  [/oat|porridge/i, "1f963"], [/waffle/i, "1f9c7"], [/pancake|french toast/i, "1f95e"], [/fried rice|nasi goreng|jollof|mujadara/i, "1f35a"], [/pork chop|schnitzel/i, "1f356"], [/eggplant/i, "1f346"], [/frittata|omelet|scramble|shakshuka|egg muffin|egg bowl|, egg/i, "1f373"],
   [/sandwich|\bsub\b|panini/i, "1f96a"], [/pizza|flatbread/i, "1f355"], [/burger|slider/i, "1f354"], [/stir.?fry|fajita/i, "1f958"],
-  [/sushi|poke/i, "1f363"], [/dumpling|pierog/i, "1f95f"], [/kebab|skewer|souvlaki/i, "1f362"], [/smoothie|shake/i, "1f964"],
+  [/sushi|poke/i, "1f363"], [/dumpling|pierog/i, "1f95f"], [/kebab|skewer|souvlaki/i, "1f362"], [/pita|gyro|kofta/i, "1f959"], [/smoothie|shake/i, "1f964"],
 ];
 
 /** The dish illustration for a recipe (or its main protein), plus two prominent ingredients as small badges. */
