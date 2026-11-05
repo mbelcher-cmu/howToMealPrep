@@ -21,6 +21,8 @@ export interface Preferences {
   excludeRecipes?: string[];
   /** the person's own star ratings, 1 to 5. 1 star means never plan it */
   ratings?: Record<string, number>;
+  /** the person's favorites from setup: recipe id -> place in their ranking for that meal (1 = top pick) */
+  rankings?: Record<string, number>;
 }
 
 export interface Variety {

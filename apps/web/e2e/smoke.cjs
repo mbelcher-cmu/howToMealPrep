@@ -21,6 +21,18 @@ const BASE = BASE_URL || "http://localhost:4173";
   await page.getByLabel('Weight', { exact: true }).fill('180');
   await page.getByLabel('How active are you?').selectOption('moderate');
   for (let i = 0; i < 2; i++) await page.getByRole('button', { name: /^Next/ }).click();
+  // favorites (mealRanking flag): rank two options for the first meal, skip the rest
+  const build = page.getByRole('button', { name: /Build my plan/ });
+  for (let step = 0; step < 6 && !(await build.isVisible()); step++) {
+    const options = page.getByRole('button', { name: /^Rank / });
+    if (step === 0 && (await options.count()) >= 2) {
+      await options.nth(1).click();
+      await options.nth(0).click();
+      await page.getByRole('button', { name: /your number 2/ }).waitFor();
+      await page.screenshot({ path: `${OUT}/02a-welcome-favorites.png` });
+    }
+    await page.getByRole('button', { name: /^(Next|Skip)/ }).click();
+  }
   await page.screenshot({ path: `${OUT}/02-welcome-stores.png` });
   await page.getByRole('button', { name: /Build my plan/ }).click();
   await page.waitForURL(BASE + '/');

@@ -58,6 +58,12 @@ export function preferenceFit(r: Recipe, p: Preferences): { fit: number; reasons
   if (stars === 5) { fit += 2; reasons.unshift("you rated it 5 stars"); }
   else if (stars === 4) { fit += 1; reasons.unshift("you rated it 4 stars"); }
   else if (stars === 2) fit -= 1.5;
+  const place = p.rankings?.[r.id];
+  if (place && place >= 1) {
+    // the top pick is worth more than a 5-star rating; every ranked pick counts for something
+    fit += rankBonus(place);
+    reasons.unshift(place === 1 ? "your top pick" : `your #${place} pick`);
+  }
   if (r.id.startsWith("custom_")) { fit += 0.5; reasons.unshift("your recipe"); }
   return { fit, reasons };
 }
@@ -93,4 +99,35 @@ export function candidatePool(slot: MealType, p: Preferences): { ok: Recipe[]; r
     else ok.push(r);
   }
   return { ok, rejected };
+}
+
+/** Fit bonus for a recipe the person ranked: 3 for #1, down to 0.75 from #7 on. */
+export function rankBonus(place: number): number {
+  return Math.max(0.75, 3 - 0.4 * (place - 1));
+}
+
+/**
+ * The options to rank for one meal during setup: up to n recipes that pass the person's diet and
+ * allergy rules, chosen so the list covers as many cuisines and main proteins as it can.
+ */
+export function rankingChoices(slot: MealType, p: Preferences, n = 10): Recipe[] {
+  const ok = candidatePool(slot, { ...p, excludeRecipes: [], ratings: {}, maxActiveMinutes: Math.max(p.maxActiveMinutes, 120) }).ok
+    .filter((r) => !r.id.startsWith("custom_"));
+  const picked: Recipe[] = [];
+  const cuisines = new Set<string>();
+  const proteins = new Set<string>();
+  const rest = [...ok];
+  while (picked.length < n && rest.length) {
+    let best = 0;
+    let bestScore = -Infinity;
+    rest.forEach((r, i) => {
+      const score = (r.cuisines.some((c) => !cuisines.has(c)) ? 2 : 0) + (r.proteins.some((x) => !proteins.has(x)) ? 1 : 0);
+      if (score > bestScore) { bestScore = score; best = i; }
+    });
+    const r = rest.splice(best, 1)[0]!;
+    picked.push(r);
+    r.cuisines.forEach((c) => cuisines.add(c));
+    r.proteins.forEach((x) => proteins.add(x));
+  }
+  return picked;
 }

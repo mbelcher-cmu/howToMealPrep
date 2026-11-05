@@ -90,6 +90,8 @@ export interface AppState {
   customRecipes: RecipeSeed[];
   /** the person's star ratings by recipe id */
   ratings: Record<string, number>;
+  /** favorites ranked during setup, best first, per meal type */
+  favorites: Partial<Record<"breakfast" | "main" | "snack", string[]>>;
   /** preview of the planned paid tier on this device */
   plusPreview: boolean;
   /** first day of the plan, 0 = Monday; prep day is the day before */
@@ -173,6 +175,7 @@ function initial(): Omit<AppState, keyof Actions> {
     aisleOrder: {},
     customRecipes: [],
     ratings: {},
+    favorites: {},
     plusPreview: false,
     weekStart: 0,
     prepTime: "15:00",
