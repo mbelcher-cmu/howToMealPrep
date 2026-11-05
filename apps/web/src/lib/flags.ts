@@ -10,12 +10,16 @@ import { APP_ENV } from "./env";
 export const FLAG_DEFAULTS = {
   /** sign-in and cloud sync (sprint 2) */
   accounts: { production: false, staging: true, development: true },
-  /** Plus page and smart swaps preview */
+  /** "Continue with Google" on the sign-in form; turn on once the Google provider is set up in Supabase */
+  googleSignIn: { production: false, staging: false, development: false },
+  /** Plus page (swaps are free for everyone) */
   plus: { production: true, staging: true, development: true },
   /** November 2026 visual redesign (skin v2). Mirrored in app/layout.tsx so the first paint is right. */
   redesign: { production: true, staging: true, development: true },
   /** "Plan next week" review: keep or swap each recipe, carry leftovers over (staging first) */
   nextWeek: { production: false, staging: true, development: true },
+  /** multi-week shopping calendar with bulk-buy hints (staging first) */
+  calendar: { production: false, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */

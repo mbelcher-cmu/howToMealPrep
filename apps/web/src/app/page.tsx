@@ -14,6 +14,7 @@ import { useDays } from "@/lib/days";
 import { useFlag } from "@/lib/flags";
 import { NextWeekCard } from "@/components/next-week";
 import { useWeek } from "@/lib/use-week";
+import { SwapButton } from "@/components/swap";
 
 export default function Home() {
   const { DAY_LONG, weekStart } = useDays();
@@ -27,6 +28,7 @@ export default function Home() {
   const packCost = usePackCost();
   const v2 = useFlag("redesign");
   const nextWeekOn = useFlag("nextWeek");
+  const calendarOn = useFlag("calendar");
   const week = useWeek();
   const lastWeek = useApp((s) => s.lastWeek);
   if (!hydrated) return null;
@@ -97,6 +99,7 @@ export default function Home() {
             <p className="mt-3 text-sm text-muted">{bought} of {plural(r.cart.length, "item")} in the cart · about {money(r.cost / Math.max(1, plan.days * Math.max(1, plan.schedule.days[0]?.meals.length ?? 1)))} a meal</p>
             <Link href="/shop/" className="btn btn-primary mt-3 w-full"><ShoppingCart size={16} aria-hidden /> Shop in store</Link>
             <Link href="/groceries/" className="btn mt-2 w-full">Full list</Link>
+            {calendarOn && <Link href="/calendar/" className="mt-3 block text-center text-sm font-semibold text-accent hover:underline">Shopping calendar</Link>}
           </Card>
         </div>
 
@@ -114,14 +117,15 @@ export default function Home() {
           </div>
           <ul className="card divide-y divide-line">
             {r.recipes.map((p) => (
-              <li key={p.recipe.id}>
-                <Link href={recipeHref(p.recipe.id)} className="flex items-center gap-3 px-3 py-2.5 hover:bg-sunk">
+              <li key={p.recipe.id} className="flex items-center gap-2 pr-3 hover:bg-sunk">
+                <Link href={recipeHref(p.recipe.id)} className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3">
                   <RecipeArt recipe={p.recipe} badges={false} className="h-12 w-12 shrink-0 rounded-lg" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">{p.recipe.name}</span>
                     <span className="block text-xs text-muted">{p.meals} meal{p.meals === 1 ? "" : "s"} · {p.slot === "main" ? "lunch or dinner" : p.slot}</span>
                   </span>
                 </Link>
+                <SwapButton recipeId={p.recipe.id} label="always" />
               </li>
             ))}
           </ul>

@@ -68,6 +68,8 @@ export interface AppState {
   pantry: PantryRow[];
   nearby: NearbyStore[];
   locked: string[];
+  /** the rest of the week at the last swap or skip: the planner keeps these unless they no longer fit */
+  held?: string[];
   current: SavedPlan | null;
   /** id of the plan whose leftovers already went to the pantry */
   shoppedPlanId: string | null;
@@ -117,6 +119,10 @@ export interface AppState {
   setStructure: (meals: number, snacks: number) => void;
   updateOccasion: (id: string, patch: Partial<EatingOccasion>) => void;
   set: (patch: Partial<AppState>) => void;
+  /** swap one recipe in this week's plan for another and keep the rest of the week as it is */
+  swapRecipe: (from: string, to: string) => void;
+  /** take a recipe out of this week's plan (and future ones until brought back), keeping the rest */
+  skipRecipe: (id: string) => void;
   setWish: (group: "cuisines" | "moods" | "flavors" | "proteins", key: string, wish: Wish | null) => void;
   toggleLock: (recipeId: string) => void;
   setPantryAmount: (ingredientId: string, grams: number | null, useBy?: string | null) => void;
@@ -181,7 +187,7 @@ function initial(): Omit<AppState, keyof Actions> {
     priceHistory: {},
   };
 }
-type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "toggleMacroLock" | "setOccasionMacros" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "setWish" | "toggleLock" | "setPantryAmount" | "addToPantry" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "planNextWeek" | "startNextWeek" | "setTakeout" | "addDeal" | "removeDeal" | "reset">;
+type Actions = Pick<AppState, "setProfile" | "applySuggestedTargets" | "setCalories" | "setMacro" | "toggleMacroLock" | "setOccasionMacros" | "setSplitPreset" | "setTargetMode" | "setBalancer" | "setStructure" | "updateOccasion" | "set" | "swapRecipe" | "skipRecipe" | "setWish" | "toggleLock" | "setPantryAmount" | "addToPantry" | "setPrice" | "savePlan" | "toggleChecked" | "finishShopping" | "planNextWeek" | "startNextWeek" | "setTakeout" | "addDeal" | "removeDeal" | "reset">;
 
 const storage: StateStorage = {
   getItem: (k) => {
@@ -245,7 +251,31 @@ export const useApp = create<AppState>()(
         set({ meals, snacks, occasions: next });
       },
       updateOccasion: (id, patch) => set({ occasions: get().occasions.map((o) => (o.id === id ? { ...o, ...patch } : o)) }),
-      set: (patch) => set(patch),
+      set: (patch) => {
+        // new diet, cuisine or mood wishes should be free to change the menu, so drop the swap hold
+        const p = patch.prefs, cur = get().prefs;
+        const changed = p && JSON.stringify({ ...p, excludeRecipes: undefined }) !== JSON.stringify({ ...cur, excludeRecipes: undefined });
+        set(changed || patch.variety ? { ...patch, held: [] } : patch);
+      },
+      swapRecipe: (from, to) => {
+        const st = get();
+        const week = st.current?.result.recipes.map((p) => p.recipe.id) ?? [];
+        set({
+          prefs: { ...st.prefs, excludeRecipes: [...new Set([...(st.prefs.excludeRecipes ?? []), from])].filter((x) => x !== to) },
+          locked: [...st.locked.filter((x) => x !== from && x !== to), to],
+          held: week.filter((x) => x !== from && x !== to),
+        });
+        track("recipe_swapped", { from, to });
+      },
+      skipRecipe: (id) => {
+        const st = get();
+        const week = st.current?.result.recipes.map((p) => p.recipe.id) ?? [];
+        set({
+          prefs: { ...st.prefs, excludeRecipes: [...new Set([...(st.prefs.excludeRecipes ?? []), id])] },
+          locked: st.locked.filter((x) => x !== id),
+          held: week.filter((x) => x !== id),
+        });
+      },
       setWish: (group, key, wish) => {
         const prefs = get().prefs;
         const g = { ...prefs[group] } as Record<string, Wish>;
@@ -319,6 +349,7 @@ export const useApp = create<AppState>()(
           weekOf: startsOn,
           locked,
           resting,
+          held: [],
           pantryForPlan: null,
           checked: {},
         });
