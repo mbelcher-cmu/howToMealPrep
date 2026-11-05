@@ -7,3 +7,4 @@ export * from "./timeline";
 export * from "./recommend";
 export * from "./takeout";
 export * from "./cook";
+export * from "./price-history";

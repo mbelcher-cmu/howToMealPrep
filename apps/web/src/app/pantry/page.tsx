@@ -3,6 +3,8 @@ import { useMemo, useState } from "react";
 import { Infinity as InfinityIcon, Plus, Trash2 } from "lucide-react";
 import { CHAINS, formatAmount, INGREDIENTS, type ChainId } from "@prep-cart/catalog";
 import { DealsPanel, PriceHistoryLine } from "@/components/deals";
+import { PriceTrendLine } from "@/components/price-trends";
+import { useFlag } from "@/lib/flags";
 import { Card, Chip, NumberField, PageHeader, Segmented } from "@/components/ui";
 import { daysUntil, useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
@@ -43,6 +45,7 @@ function PriceCell({ ingredientId, chain }: { ingredientId: string; chain: Chain
 }
 
 export default function Pantry() {
+  const trendsOn = useFlag("priceTrends");
   const hydrated = useHydrated();
   const s = useApp();
   const [tab, setTab] = useState<"pantry" | "prices" | "deals">("pantry");
@@ -142,7 +145,7 @@ export default function Pantry() {
                     <th scope="row" className="py-1 pr-2 text-left font-normal">
                       <span className="block font-medium">{i.name}</span>
                       <span className="block text-xs text-muted">{i.pkg.label}</span>
-                      <PriceHistoryLine ingredientId={i.id} />
+                      {trendsOn ? <PriceTrendLine ingredientId={i.id} /> : <PriceHistoryLine ingredientId={i.id} />}
                     </th>
                     {CHAINS.map((c) => <PriceCell key={c.id} ingredientId={i.id} chain={c.id} />)}
                   </tr>

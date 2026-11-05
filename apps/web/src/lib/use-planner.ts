@@ -38,6 +38,7 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
     priceOverrides: s.priceOverrides,
     deals: s.deals.filter((d) => d.endsOn >= isoDay()).map(({ ingredientId, chain, price, endsOn }) => ({ ingredientId, chain, price, endsOn })),
     today: isoDay(),
+    favorDeals: flag("priceTrends"),
     timeLimit: 2,
     household: (s.household ?? []).map((m) => memberRequest(m, flag("householdGoals"))),
     eatingOut: s.eatingOut.filter((e) => e.day < s.days && s.occasions.some((o) => o.id === e.occasionId)).map(({ day, occasionId, itemId }) => ({ day, occasionId, itemId })),

@@ -40,6 +40,8 @@ export const FLAG_DEFAULTS = {
   wholeFoods: { production: false, staging: true, development: true },
   /** household members with their own protein goal, diet and allergies; shared recipes, extra ones only when needed */
   householdGoals: { production: false, staging: true, development: true },
+  /** price history from each shopping trip, deal and stock-up hints on Groceries and the calendar, plans lean on sales */
+  priceTrends: { production: false, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */
