@@ -36,7 +36,7 @@ describe("meal rankings from setup", async () => {
     // rank options the plan didn't already choose, to show the ranking is what moves them in
     const picks = rankingChoices("main", base.prefs).filter((r) => !mainsBefore.has(r.id)).slice(0, 3).map((r) => r.id);
     const rankings = Object.fromEntries(picks.map((id, i) => [id, i + 1]));
-    const r = plan({ ...base, prefs: { ...base.prefs, rankings } }, highs);
+    const r = plan({ ...base, prefs: { ...base.prefs, rankings }, timeLimit: 6 }, highs);
     expect(r.status).not.toBe("no_recipes");
     const chosen = r.recipes.filter((p) => p.slot === "main").map((p) => p.recipe.id);
     expect(chosen.some((id) => picks.includes(id)), JSON.stringify({ picks, chosen })).toBe(true);

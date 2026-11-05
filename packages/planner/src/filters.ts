@@ -101,9 +101,9 @@ export function candidatePool(slot: MealType, p: Preferences): { ok: Recipe[]; r
   return { ok, rejected };
 }
 
-/** Fit bonus for a recipe the person ranked: 3 for #1, down to 0.75 from #7 on. */
+/** Fit bonus for a recipe the person ranked: 4 for #1, down to 1 from #9 on. */
 export function rankBonus(place: number): number {
-  return Math.max(0.75, 3 - 0.4 * (place - 1));
+  return Math.max(1, 4 - 0.375 * (place - 1));
 }
 
 /**
