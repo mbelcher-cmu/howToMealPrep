@@ -44,6 +44,8 @@ export const FLAG_DEFAULTS = {
   householdGoals: { production: false, staging: true, development: true },
   /** price history from each shopping trip, deal and stock-up hints on Groceries and the calendar, plans lean on sales */
   priceTrends: { production: false, staging: true, development: true },
+  /** training and rest days: workouts move calories to the days you train, plus workout file import */
+  fitnessSync: { production: false, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */

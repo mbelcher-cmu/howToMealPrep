@@ -16,6 +16,7 @@ import { NextWeekCard } from "@/components/next-week";
 import { useWeek } from "@/lib/use-week";
 import { SwapButton } from "@/components/swap";
 import { PicksRail } from "@/components/picks";
+import { TrainingToday } from "@/components/training";
 
 export default function Home() {
   const { DAY_LONG, weekStart } = useDays();
@@ -60,6 +61,7 @@ export default function Home() {
       <PlanStatus />
       <div className="grid grid-cols-[minmax(0,1fr)] gap-7">
         <NextWeekCard />
+        <TrainingToday weekday={new Date().getDay() === 0 ? 6 : new Date().getDay() - 1} />
         <Rail title={day ? `${DAY_LONG[dayIdx]}'s food` : "Today"} href="/plan/" linkLabel="Whole week">
           {day?.takeout?.map((tk) => {
             const item = MENU_BY_ID[tk.itemId];

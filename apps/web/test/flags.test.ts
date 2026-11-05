@@ -16,6 +16,8 @@ describe("feature flags", () => {
   it("matches camelCase flag names in any case", () => {
     expect(parseFlags("householdGoals=on,NEXTWEEK=off")).toEqual({ householdGoals: true, nextWeek: false });
     expect(parseFlags("plusTier=on,NEXTWEEK=off")).toEqual({ plusTier: true, nextWeek: false });
+    // camelCase flags work in any case (they used to be lowercased and then ignored)
+    expect(parseFlags("fitnessSync=on,NEXTWEEK=off")).toEqual({ fitnessSync: true, nextWeek: false });
   });
 
   it("falls back to the development defaults outside the browser", () => {
