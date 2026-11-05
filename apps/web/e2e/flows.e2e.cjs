@@ -183,7 +183,8 @@ test("recipe search narrows the list and a recipe page opens", async () => {
 });
 
 test("rating a recipe brings picks like it, with a match and the reason", async () => {
-  await page.goto(base + "/recipes/");
+  // behind the recommendations flag (off in production): turn it on for this device, then back to the build's flags
+  await page.goto(base + "/recipes/?flags=recommendations=on");
   await page.getByText("Get recipes picked for you.").waitFor();
   await page.goto(base + "/recipes/chickpea_curry/");
   await page.getByRole("radio", { name: /^5 stars/ }).click();
@@ -194,6 +195,8 @@ test("rating a recipe brings picks like it, with a match and the reason", async 
   assert.ok(await rail.getByText("Because you liked Chickpea spinach coconut curry").first().isVisible(), "picks say why");
   await page.goto(base + "/recipes/chicken_tikka/");
   await page.getByText(/\d+% match/).first().waitFor();
+  await page.goto(base + "/recipes/?flags=reset");
+  await page.locator("main").waitFor();
 });
 
 /** The recipe names in "Recipes this week", in order. */
@@ -415,7 +418,8 @@ test("every main page renders on a phone without errors or sideways scrolling", 
 });
 
 test("the pantry tracker files food by where it lives and quick amounts stick", async () => {
-  await page.goto(base + "/pantry/");
+  // behind the pantryV2 flag (off in production); it stays on so the accessibility scan below covers the tracker
+  await page.goto(base + "/pantry/?flags=pantryV2=on");
   await page.getByLabel("Add to pantry").fill("frozen salmon");
   await page.getByRole("button", { name: /Frozen salmon fillets/ }).click();
   await page.getByLabel("Add to pantry").fill("large eggs");
