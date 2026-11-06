@@ -162,7 +162,7 @@ export function WeekGlance() {
         </tbody>
       </table>
     </div>
-    <p className="mt-2 text-xs text-muted">"Free" meals aren't prepped. Their calories are left open for eating out or cooking fresh. {!simple && <><Link href="/eat-out/" className="underline">Add takeout</Link> to any meal and the plan cooks around it.</>}</p>
+    {(s.occasions.some((o) => !o.prepped) || !simple) && <p className="mt-2 text-xs text-muted">"Free" meals aren't prepped. Their calories are left open for eating out or cooking fresh. {!simple && <><Link href="/eat-out/" className="underline">Add takeout</Link> to any meal and the plan cooks around it.</>}</p>}
   </Card>
   );
 }

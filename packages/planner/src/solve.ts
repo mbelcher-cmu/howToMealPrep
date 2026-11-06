@@ -24,6 +24,8 @@ const EXTRA_POOL: Record<MealType, number> = { breakfast: 2, main: 4, snack: 2 }
 const EXTRA_COST = 6;
 /** raw meat and fish bought in a club pack go in the freezer: days they keep there */
 export const FREEZER_DAYS = 90;
+/** how far one meal's calories may stray from an even share of its kind */
+const MEAL_BAND = 0.2;
 const MACROS = ["kcal", "protein", "carbs", "fat"] as const;
 
 /** preference-fit bonus per sale ingredient when the plan favors deals, and its cap */
@@ -233,6 +235,22 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
     const N = slotCount[slot] * days - slotTakeout[slot];
     if (!N) continue;
     const members = all.filter((a) => a.slot === slot);
+    // each recipe's portion stays near one meal of this kind, so every day adds up and not just the
+    // week's average (otherwise a 1,500 kcal dinner makes up for half-portion lunches). A pool with
+    // nothing that size keeps the plain limits
+    const perMeal = slotKcal[slot] / Math.max(1, slotCount[slot]);
+    const near = (a: (typeof members)[number]) => {
+      const q = (perMeal * 4) / Math.max(1, a.r.perServing.kcal);
+      return [Math.max(MIN_PORTION_Q, Math.ceil(q * (1 - MEAL_BAND))), Math.min(MAX_PORTION_Q, Math.floor(q * (1 + MEAL_BAND)))] as const;
+    };
+    const fitsMeal = members.filter((a) => { const [lo, hi] = near(a); return lo <= hi; }).length >= variety[slot];
+    const keep = new Set(req.lockedRecipes ?? []);
+    // a kept recipe that can't be portioned to one meal keeps the plain limits rather than being dropped
+    const portionQ = (a: (typeof members)[number]): readonly [number, number] => {
+      if (!fitsMeal) return [MIN_PORTION_Q, MAX_PORTION_Q];
+      const [lo, hi] = near(a);
+      return lo <= hi || !keep.has(a.r.id) ? [lo, hi] : [MIN_PORTION_Q, MAX_PORTION_Q];
+    };
     m.addRow(members.map((a) => [1, `y_${a.key}`]), "=", variety[slot], `var_${slot}`);
     m.addRow(members.map((a) => [1, `n_${a.key}`]), "=", N, `meals_${slot}`);
     for (const a of members) {
@@ -241,8 +259,10 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
       m.integer(`s_${a.key}`); m.bound(`s_${a.key}`, 0, MAX_PORTION_Q * N);
       m.addRow([[1, `n_${a.key}`], [-N, `y_${a.key}`]], "<=", 0);
       m.addRow([[1, `n_${a.key}`], [-1, `y_${a.key}`]], ">=", 0);
-      m.addRow([[1, `s_${a.key}`], [-MIN_PORTION_Q, `n_${a.key}`]], ">=", 0);
-      m.addRow([[1, `s_${a.key}`], [-MAX_PORTION_Q, `n_${a.key}`]], "<=", 0);
+      const [lo, hi] = portionQ(a);
+      if (lo > hi) { m.addRow([[1, `y_${a.key}`]], "=", 0); continue; }
+      m.addRow([[1, `s_${a.key}`], [-lo, `n_${a.key}`]], ">=", 0);
+      m.addRow([[1, `s_${a.key}`], [-hi, `n_${a.key}`]], "<=", 0);
       // preference fit is a reward for choosing the recipe
       m.addObjective(`y_${a.key}`, -1.0 * a.fit);
       // keeping the rest of the week as it was beats a cheaper or better-fitting reshuffle; only a
