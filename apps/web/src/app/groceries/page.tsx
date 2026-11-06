@@ -28,6 +28,7 @@ export default function Groceries() {
   const calendarOn = useFlag("calendar");
   const pantryOn = useFlag("pantryV2");
   const trendsOn = useFlag("priceTrends");
+  const simple = useFlag("simple");
   const done = !!s.current && s.shoppedPlanId === s.current.id;
 
   const byStore = useMemo(() => {
@@ -46,7 +47,7 @@ export default function Groceries() {
   }, [plan]);
 
   if (!hydrated) return null;
-  if (!plan) return (<><PageHeader title="Groceries" /><EmptyState title="No plan yet">Your shopping list appears here once a plan is ready.</EmptyState></>);
+  if (!plan) return (<><PageHeader title={simple ? "Your cart" : "Groceries"} /><EmptyState title="No plan yet">Your shopping list appears here once a plan is ready.</EmptyState></>);
 
   const r = plan.result;
   const total = r.cart.length;
@@ -66,7 +67,9 @@ export default function Groceries() {
 
   return (
     <>
-      <PageHeader title="Groceries" lead="Your in-store list, sorted by aisle. Tick items as they go in the cart. Tap the house if you already have something at home and the plan drops it." action={<SolvingNote />} />
+      {simple
+        ? <PageHeader title="Your cart" lead="Everything your meals need, sorted by aisle. Tick items as they go in the cart. Already have something? Tap the house and it comes off the list." action={<SolvingNote />} />
+        : <PageHeader title="Groceries" lead="Your in-store list, sorted by aisle. Tick items as they go in the cart. Tap the house if you already have something at home and the plan drops it." action={<SolvingNote />} />}
       <PlanStatus />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="grid min-w-0 grid-cols-1 content-start gap-4">
@@ -160,7 +163,7 @@ export default function Groceries() {
               : null}
             <p className="mt-3 text-xs text-muted">{done ? "Your leftovers are in the pantry. This week's plan stays as it is until you plan next week." : "Done shopping moves what's left of each package into your pantry, so next week's plan uses it first."}</p>
           </Card>
-          {calendarOn && (
+          {calendarOn && !simple && (
             <Link href="/calendar/" className="card flex items-center gap-3 p-4 hover:bg-sunk">
               <CalendarDays size={20} className="shrink-0 text-accent" aria-hidden />
               <span className="min-w-0 text-sm"><span className="block font-semibold">Plan 4 weeks of shopping</span><span className="block text-muted">See each trip and what&apos;s worth buying in bulk.</span></span>
@@ -172,7 +175,7 @@ export default function Groceries() {
               <NearbyFinder />
             </Card>
           )}
-          <p className="px-1 text-xs text-muted">Prices are estimates from Pittsburgh-area stores; Walmart and Aldi prices are similar across the US. Correct any price in <Link href="/pantry/" className="underline">Pantry → Prices</Link> and the plan updates.</p>
+          <p className="px-1 text-xs text-muted">Prices are estimates from Pittsburgh-area stores; Walmart and Aldi prices are similar across the US. {!simple && <>Correct any price in <Link href="/pantry/" className="underline">Pantry → Prices</Link> and the plan updates.</>}</p>
         </aside>
       </div>
     </>

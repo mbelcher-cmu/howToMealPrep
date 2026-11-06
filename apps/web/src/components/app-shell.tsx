@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
-import { BookOpen, CalendarDays, ChefHat, Home, Package, Settings, ShoppingCart, Loader2, Menu, UtensilsCrossed } from "lucide-react";
+import { BookOpen, CalendarDays, ChefHat, Home, Package, Settings, ShoppingCart, Loader2, Menu, Target, UtensilsCrossed } from "lucide-react";
 import { shoppedShare, useApp } from "@/lib/store";
 import { useHydrated, usePlanner, usePlannerSync } from "@/lib/use-planner";
 import { cx } from "@/lib/format";
@@ -18,6 +18,17 @@ const NAV = [
   { href: "/recipes/", label: "Recipes", icon: BookOpen, primary: false },
   { href: "/pantry/", label: "Pantry", icon: Package, primary: false },
   { href: "/eat-out/", label: "Eat out", icon: UtensilsCrossed, primary: false },
+  { href: "/settings/", label: "Settings", icon: Settings, primary: false },
+];
+/**
+ * Simple mode: budget and calories (Goals), the week's recipes (Meals), and the shopping list (Cart).
+ * Everything else is hidden but still reachable by its address.
+ */
+const SIMPLE_NAV = [
+  { href: "/", label: "Home", icon: Home, primary: true },
+  { href: "/plan/", label: "Goals", icon: Target, primary: true },
+  { href: "/meals/", label: "Meals", icon: UtensilsCrossed, primary: true },
+  { href: "/groceries/", label: "Cart", icon: ShoppingCart, primary: true },
   { href: "/settings/", label: "Settings", icon: Settings, primary: false },
 ];
 /** Pages reached from the phone's More tab. */
@@ -73,7 +84,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [hydrated, onboarded, isOnboarding, account, router]);
 
   const v2 = useFlag("redesign");
+  const simple = useFlag("simple");
   if (isOnboarding || isShopping) return <main id="main" className="min-h-dvh">{children}</main>;
+  if (simple) return <ShellV2 path={path} solving={status === "solving"} simple>{children}</ShellV2>;
   if (v2) return <ShellV2 path={path} solving={status === "solving"}>{children}</ShellV2>;
 
   return (
@@ -131,16 +144,20 @@ function Wordmark({ className }: { className?: string }) {
  * Redesigned shell: a quiet sidebar on desktop; on phones a floating pill tab bar with the
  * grocery list as the round action button beside it.
  */
-function ShellV2({ path, solving, children }: { path: string; solving: boolean; children: ReactNode }) {
-  const tabs = [...NAV.filter((n) => n.primary && n.href !== "/groceries/"), { href: "/more/", label: "More", icon: Menu, primary: true }];
+function ShellV2({ path, solving, simple = false, children }: { path: string; solving: boolean; simple?: boolean; children: ReactNode }) {
+  const nav = simple ? SIMPLE_NAV : NAV;
+  const tabs = simple
+    ? SIMPLE_NAV.filter((n) => n.primary && n.href !== "/groceries/")
+    : [...NAV.filter((n) => n.primary && n.href !== "/groceries/"), { href: "/more/", label: "More", icon: Menu, primary: true }];
   const groceriesOn = active(path, "/groceries/");
+  const cartLabel = simple ? "Cart" : "Groceries";
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[248px_minmax(0,1fr)]">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-surface focus:p-2">Skip to content</a>
       <aside aria-label="App menu" className="sticky top-0 hidden h-dvh flex-col px-4 py-6 md:flex">
         <Link href="/" className="mb-8 px-3"><Wordmark className="text-[19px]" /></Link>
         <nav aria-label="Main" className="grid gap-1">
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {nav.map(({ href, label, icon: Icon }) => {
             const on = active(path, href);
             return (
               <Link key={href} href={href} aria-current={on ? "page" : undefined}
@@ -167,7 +184,7 @@ function ShellV2({ path, solving, children }: { path: string; solving: boolean; 
 
       {/* one landmark holds both the tab pill and the round Groceries button */}
       <nav aria-label="Main" className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 px-4 md:hidden" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
-        <div className="pointer-events-auto grid flex-1 grid-cols-4 gap-1 rounded-full bg-surface/95 p-1.5 shadow-[var(--shadow-float)] backdrop-blur-xl">
+        <div className={cx("pointer-events-auto grid flex-1 gap-1", simple ? "grid-cols-3" : "grid-cols-4", " rounded-full bg-surface/95 p-1.5 shadow-[var(--shadow-float)] backdrop-blur-xl")}>
           {tabs.map(({ href, label, icon: Icon }) => {
             const on = href === "/more/" ? active(path, href) || MORE_ROUTES.some((h) => active(path, h)) : active(path, href);
             return (
@@ -178,7 +195,7 @@ function ShellV2({ path, solving, children }: { path: string; solving: boolean; 
             );
           })}
         </div>
-        <Link href="/groceries/" aria-label="Groceries" aria-current={groceriesOn ? "page" : undefined}
+        <Link href="/groceries/" aria-label={cartLabel} aria-current={groceriesOn ? "page" : undefined}
           className={cx("press pointer-events-auto grid h-16 w-16 shrink-0 place-items-center rounded-full bg-accent text-accent-ink shadow-[var(--shadow-float)]", groceriesOn && "ring-4 ring-ink/15")}>
           <ShoppingCart size={24} aria-hidden />
         </Link>

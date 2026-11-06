@@ -8,6 +8,11 @@ import { APP_ENV } from "./env";
  * with ?flags=accounts=on in the address (saved on that device; ?flags=reset clears it).
  */
 export const FLAG_DEFAULTS = {
+  /**
+   * Simple mode (Nov 6 2026): the app is just budget, calories, meals and the cart. Every other page and
+   * panel is hidden but kept; Settings has "Show all features" (this flag off on that device).
+   */
+  simple: { production: true, staging: true, development: true },
   /** sign-in and cloud sync (sprint 2) */
   accounts: { production: true, staging: true, development: true },
   /** "Continue with Google" on the sign-in form; turn on once the Google provider is set up in Supabase */
@@ -97,4 +102,13 @@ export function useFlag(name: Flag): boolean {
   const [on, setOn] = useState(() => buildOverrides[name] ?? FLAG_DEFAULTS[name][APP_ENV]);
   useEffect(() => setOn(flag(name)), [name]);
   return on;
+}
+
+/** Turns a flag on or off on this device only (what ?flags=name=on does), then reloads so every page agrees. */
+export function setDeviceFlag(name: Flag, on: boolean) {
+  try {
+    const cur = JSON.parse(localStorage.getItem(LOCAL_KEY) ?? "{}") as Partial<Record<Flag, boolean>>;
+    localStorage.setItem(LOCAL_KEY, JSON.stringify({ ...cur, [name]: on }));
+  } catch { /* storage blocked: nothing to save */ }
+  window.location.reload();
 }
