@@ -168,8 +168,7 @@ function ClassicTargetsEditor({ showSuggest }: { showSuggest: boolean }) {
   const locked = s.lockedMacros ?? [];
   const caloriesMode = s.targetMode === "calories";
   // with meal styles on, locks are part of the everyday editor instead of hidden under more options
-  const mealStyles = useFlag("mealStyles"); // called every render: a hook inside && would change the hook count
-  const showLocks = caloriesMode && (adv || mealStyles);
+  const showLocks = caloriesMode && (adv || stylesOn);
   const macroField = (m: "protein" | "carbs" | "fat", label: string, max: number, step: number) => {
     const isLocked = locked.includes(m);
     return (

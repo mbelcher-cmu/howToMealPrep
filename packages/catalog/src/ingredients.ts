@@ -177,6 +177,14 @@ const ROWS: Record<string, Row> = {
   sauerkraut: ["Sauerkraut", "Canned and jarred", 0.9, 4.3, 0.1, 2.9, 660, "", "", 907, "32 oz jar", [1.79, 2.99, 1.98, null]],
   chia: ["Chia seeds", "Oils and nuts", 16.5, 42, 31, 34, 16, "", "", 340, "12 oz bag", [3.99, 5.99, 4.48, 4.49]],
   cashews: ["Unsalted cashews", "Oils and nuts", 18, 30, 44, 3.3, 12, "", "treenut", 283, "10 oz bag", [4.29, 6.99, 4.98, 5.49]],
+  // Added Nov 2026 so imported recipes match more of what they call for. Walmart carries each one.
+  protein_powder: ["Whey protein powder", "Oils and nuts", 75, 10, 5, 0, 300, "dairy", "milk", 907, "2 lb tub", [16.99, 29.99, 18.98, null]],
+  almond_milk: ["Unsweetened almond milk", "Dairy and eggs", 0.6, 0.6, 1.1, 0.3, 70, "", "treenut", 1893, "half gallon", [2.49, 3.49, 2.68, 2.99]],
+  cream_cheese: ["Cream cheese", "Dairy and eggs", 6, 5.5, 34, 0, 320, "dairy", "milk", 227, "8 oz block", [1.29, 2.49, 1.34, 1.99]],
+  mayo: ["Mayonnaise", "Sauces and condiments", 1, 0.6, 75, 0, 630, "egg", "egg", 850, "30 oz jar", [2.89, 4.49, 3.18, 3.49]],
+  flour: ["All-purpose flour", "Grains and pasta", 10, 76, 1, 2.7, 2, "", "wheat", 2268, "5 lb bag", [1.89, 2.99, 2.12, 2.99]],
+  sugar: ["Granulated sugar", "Grains and pasta", 0, 100, 0, 0, 1, "", "", 1814, "4 lb bag", [2.49, 3.99, 2.88, 3.49]],
+  jalapeno: ["Jalapeño peppers", "Produce", 0.9, 6.5, 0.4, 2.8, 3, "", "", 454, "1 lb", [1.49, 2.49, 1.58, null]],
 };
 
 /** Not wheat, but not safe for a gluten-free diet unless certified (cross-contact). */
@@ -188,14 +196,16 @@ const GLUTEN_RISK = new Set(["oats", "granola"]);
  */
 export const PROCESSED = new Set([
   "chicken_sausage", "deli_turkey", "bacon", "string_cheese", "pasta_white", "egg_noodles", "rice", "jasmine_rice",
-  "rice_noodles", "couscous", "pierogies", "granola", "teriyaki_sauce", "bbq_sauce", "enchilada_sauce", "taco_seasoning", "curry_paste",
+  "rice_noodles", "couscous", "pierogies", "granola", "protein_powder", "mayo", "flour", "sugar", "teriyaki_sauce", "bbq_sauce", "enchilada_sauce", "taco_seasoning", "curry_paste",
   // corn syrup in most store brands; thickeners in light sour cream
   "gochujang", "sour_cream",
+  // gums and added vitamins in store almond milk
+  "almond_milk",
 ]);
 /** Made from a few recognizable ingredients: fine for whole foods, but not as found in nature. */
 const SIMPLE = new Set([
   // dairy made from milk, plus pressed or fermented soy
-  "cheddar", "mozzarella", "feta", "parmesan", "butter", "ricotta", "cottage_cheese", "greek_yogurt", "tofu", "tempeh",
+  "cheddar", "mozzarella", "feta", "parmesan", "butter", "ricotta", "cottage_cheese", "greek_yogurt", "cream_cheese", "tofu", "tempeh",
   // whole-grain breads and pasta
   "pasta", "tortillas", "corn_tortillas", "pita", "bread", "english_muffins",
   // canned and jarred basics
