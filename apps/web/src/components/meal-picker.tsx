@@ -14,7 +14,7 @@ import { track } from "@/lib/telemetry";
 import { cx, money } from "@/lib/format";
 
 const TITLES: Record<MealType, string> = { breakfast: "Breakfast", main: "Lunch and dinner", snack: "Snacks" };
-const NOUN: Record<MealType, [string, string]> = { breakfast: ["breakfast", "breakfasts"], main: ["main", "mains"], snack: ["snack", "snacks"] };
+const NOUN: Record<MealType, [string, string]> = { breakfast: ["breakfast", "breakfasts"], main: ["lunch and dinner", "lunches and dinners"], snack: ["snack", "snacks"] };
 const FEATURED = PREP_PACKS.flatMap((p) => [p.breakfast, ...p.mains, p.snack]);
 
 /** The picks already in the plan, by kind of meal, so coming back to the picker starts where you left off. */
@@ -137,7 +137,7 @@ export function MealPicker({ onDone }: { onDone?: () => void }) {
                   Pick {goal.picks === 1 ? `your ${NOUN[goal.slot][0]}` : `${NOUN[goal.slot][0]} ${(picks[goal.slot]?.length ?? 0) + 1} of ${goal.picks}`}
                 </h2>
                 <p className="num text-sm text-muted">
-                  Aiming for about {Math.round(rows.target.kcal)} kcal and {Math.round(rows.target.protein)}g protein a meal{(picks[goal.slot]?.length || at > 0) ? ", adjusted for what you've picked" : ""}. Your budget allows about {money(mealBudget)} a meal.
+                  Aiming for about {Math.round(rows.target.kcal)} kcal and {Math.round(rows.target.protein)}g protein a {goal.slot === "snack" ? "snack" : "meal"}{(picks[goal.slot]?.length || at > 0) ? ", adjusted for what you've picked" : ""}. Your budget allows about {money(mealBudget)} a meal.
                 </p>
               </div>
               <button type="button" className="btn btn-sm" onClick={surprise}><Shuffle size={15} aria-hidden /> Surprise me</button>
