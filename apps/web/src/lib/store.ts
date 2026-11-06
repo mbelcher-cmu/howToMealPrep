@@ -7,7 +7,7 @@ import { buildRecipe, INGREDIENTS, registerRecipes, shelfLifeDays, type Aisle, t
 import {
   defaultOccasions, editCaloriesWithLocks, editMacroFree, editMacroWithLocks, editTargets, suggestTargets, targetsFromSplit,
   SPLIT_PRESETS, type ActivityLevel, type Balancer, type EatingOccasion, type Goal, type MacroGrams, type MacroKey, type Sex,
-  type SplitPreset, type Targets,
+  type SplitPreset, type Targets, type TrainingWeek,
 } from "@prep-cart/nutrition";
 import { recordTrip, type Deal, type EatOut, type PantryItem, type PlanResult, type Preferences, type PriceHistory, type PriceQuote, type Schedule, type Variety, type Wish } from "@prep-cart/planner";
 import { flag } from "./flags";
@@ -92,6 +92,8 @@ export interface AppState {
   checked: Record<string, boolean>;
   /** last energy reading synced from a fitness app */
   fitness: { source: string; maintenanceKcal: number; days: number; on: string } | null;
+  /** the person's usual training week, Monday first; null until they set one (flag fitnessSync) */
+  training: { week: TrainingWeek; source: string | null; on: string } | null;
   /** other people eating the same prepped meals */
   household: Member[];
   /** aisle order per store, for in-store mode */
@@ -192,6 +194,7 @@ function initial(): Omit<AppState, keyof Actions> {
     eatingOut: [],
     nearbyRestaurants: null,
     fitness: null,
+    training: null,
     household: [],
     aisleOrder: {},
     customRecipes: [],

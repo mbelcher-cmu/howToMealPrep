@@ -7,6 +7,7 @@ import { flag } from "./flags";
 import { reportError, track } from "./telemetry";
 import { styledOccasions } from "./meal-styles";
 import { plannerRecommendations, refreshCommunity } from "./recommend";
+import { dayScalesOf } from "./training";
 
 export type PlannerStatus = "idle" | "solving" | "error";
 
@@ -42,6 +43,8 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
     timeLimit: 2,
     household: (s.household ?? []).map((m) => memberRequest(m, flag("householdGoals"))),
     eatingOut: s.eatingOut.filter((e) => e.day < s.days && s.occasions.some((o) => o.id === e.occasionId)).map(({ day, occasionId, itemId }) => ({ day, occasionId, itemId })),
+    // training days get bigger portions, rest days smaller; the food cooked stays the same
+    dayScales: dayScalesOf(s),
   };
 }
 type Req = ReturnType<typeof requestFrom>;

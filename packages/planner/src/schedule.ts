@@ -161,3 +161,31 @@ function sizePortions(out: ScheduledDay[], occasions: EatingOccasion[], targets:
     mine.forEach((m, i) => { m.portion = Math.round(((total * raw[i]!) / sum) * 100) / 100; });
   }
 }
+
+/**
+ * Bigger portions on training days and smaller ones on rest days. Each recipe keeps the total it
+ * was cooked for: its portions follow the day scales, then are rescaled so they add up to the same
+ * amount as before. Portions round to 0.05 of a serving.
+ * @param scales one multiplier per plan day (1 = the plan's average day)
+ */
+export function scalePortions(s: Schedule, scales: readonly number[]): Schedule {
+  if (!scales.length || scales.every((x) => Math.abs(x - 1) < 0.005)) return s;
+  const plain = new Map<string, number>();
+  const scaled = new Map<string, number>();
+  for (const day of s.days) for (const m of day.meals) {
+    const k = scales[day.day] ?? 1;
+    plain.set(m.recipeId, (plain.get(m.recipeId) ?? 0) + m.portion);
+    scaled.set(m.recipeId, (scaled.get(m.recipeId) ?? 0) + m.portion * k);
+  }
+  const r = (n: number) => Math.round(n * 20) / 20;
+  return {
+    ...s,
+    days: s.days.map((day) => ({
+      ...day,
+      meals: day.meals.map((m) => {
+        const norm = (plain.get(m.recipeId) ?? 0) / Math.max(1e-9, scaled.get(m.recipeId) ?? 0);
+        return { ...m, portion: r(m.portion * (scales[day.day] ?? 1) * norm) };
+      }),
+    })),
+  };
+}

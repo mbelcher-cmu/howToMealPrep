@@ -288,56 +288,6 @@ test("adding takeout on Eat out takes that meal out of the prep", async () => {
   await page.getByRole("button", { name: /^Remove takeout on Friday/ }).first().click();
 });
 
-test("a sale shows up as a deal on Groceries and the shopping calendar (price trends on)", async () => {
-  // the flag stays on for this device, so the page and accessibility scans below cover the deal hints too
-  await page.goto(base + "/groceries/?flags=pricetrends=on,calendar=on");
-  await page.locator("main li input[type=checkbox]").first().waitFor({ timeout: 45000 });
-  // shop at one store only: with several, each store's solve is time-limited and a re-plan can
-  // land on a different store, which drops the sale item from the list for reasons unrelated to deals
-  const storesBefore = await page.evaluate(() => {
-    const k = Object.keys(localStorage).find((x) => /^prep-cart-(\w+-)?v1$/.test(x));
-    const saved = JSON.parse(localStorage.getItem(k));
-    const before = saved.state.stores;
-    const chain = document.querySelector("main .card h2").textContent.trim().toLowerCase().replace(/[^a-z]/g, "");
-    saved.state.stores = [chain];
-    localStorage.setItem(k, JSON.stringify(saved));
-    return before;
-  });
-  await page.reload();
-  await page.locator("main li input[type=checkbox]").first().waitFor({ timeout: 45000 });
-  const item = await page.evaluate(() => {
-    const li = [...document.querySelectorAll("main li")].find((x) => x.querySelector("input[type=checkbox]"));
-    return { name: li.querySelector("span.font-medium").textContent.trim(), store: li.closest(".card").querySelector("h2").textContent.trim() };
-  });
-  await page.goto(base + "/pantry/");
-  await page.getByRole("radio", { name: /^Sales/ }).click();
-  await page.getByLabel("Item").fill(item.name.slice(0, 14));
-  await page.locator("main li button", { hasText: item.name }).first().click();
-  await page.getByLabel("Store").selectOption({ label: item.store });
-  await page.getByLabel("Sale price").fill("0.25");
-  await page.getByRole("button", { name: "Add sale" }).click();
-  await page.getByRole("button", { name: `Remove the ${item.name} sale` }).waitFor();
-
-  await page.goto(base + "/groceries/");
-  await page.getByText(/^Deals save about \$/).waitFor({ timeout: 45000 });
-  assert.ok(await page.getByText(/(Stock up|Good deal) · \d+% off/).count() >= 1, "a deal hint on the sale item");
-  await page.goto(base + "/calendar/");
-  await page.getByText(/(Stock up|Good deal) · \d+% off/).first().waitFor({ timeout: 45000 });
-
-  // put the week back as it was
-  await page.goto(base + "/pantry/");
-  await page.getByRole("radio", { name: /^Sales/ }).click();
-  await page.getByRole("button", { name: `Remove the ${item.name} sale` }).click();
-  await page.evaluate((stores) => {
-    const k = Object.keys(localStorage).find((x) => /^prep-cart-(\w+-)?v1$/.test(x));
-    const saved = JSON.parse(localStorage.getItem(k));
-    saved.state.stores = stores;
-    localStorage.setItem(k, JSON.stringify(saved));
-  }, storesBefore);
-  await page.reload();
-  await page.locator("main").waitFor();
-});
-
 test("a lighter dinner moves calories to the other meals and the day still adds up", async () => {
   await openPlan(page);
   const { target: before } = await calories(page);
@@ -408,6 +358,73 @@ test("a household member with their own diet: vegetarian food for them, one shar
   // back to one person and the build's own flags for the tests after this one
   await page.getByRole("button", { name: "Remove Person 2" }).click();
   await page.goto(base + "/settings/?flags=reset");
+  await page.locator("main").waitFor();
+});
+
+test("a sale shows up as a deal on Groceries and the shopping calendar (price trends on)", async () => {
+  // the flag stays on for this device, so the page and accessibility scans below cover the deal hints too
+  await page.goto(base + "/groceries/?flags=pricetrends=on,calendar=on");
+  await page.locator("main li input[type=checkbox]").first().waitFor({ timeout: 45000 });
+  // shop at one store only: with several, each store's solve is time-limited and a re-plan can
+  // land on a different store, which drops the sale item from the list for reasons unrelated to deals
+  const storesBefore = await page.evaluate(() => {
+    const k = Object.keys(localStorage).find((x) => /^prep-cart-(\w+-)?v1$/.test(x));
+    const saved = JSON.parse(localStorage.getItem(k));
+    const before = saved.state.stores;
+    const chain = document.querySelector("main .card h2").textContent.trim().toLowerCase().replace(/[^a-z]/g, "");
+    saved.state.stores = [chain];
+    localStorage.setItem(k, JSON.stringify(saved));
+    return before;
+  });
+  await page.reload();
+  await page.locator("main li input[type=checkbox]").first().waitFor({ timeout: 45000 });
+  const item = await page.evaluate(() => {
+    const li = [...document.querySelectorAll("main li")].find((x) => x.querySelector("input[type=checkbox]"));
+    return { name: li.querySelector("span.font-medium").textContent.trim(), store: li.closest(".card").querySelector("h2").textContent.trim() };
+  });
+  await page.goto(base + "/pantry/");
+  await page.getByRole("radio", { name: /^Sales/ }).click();
+  await page.getByLabel("Item").fill(item.name.slice(0, 14));
+  await page.locator("main li button", { hasText: item.name }).first().click();
+  await page.getByLabel("Store").selectOption({ label: item.store });
+  await page.getByLabel("Sale price").fill("0.25");
+  await page.getByRole("button", { name: "Add sale" }).click();
+  await page.getByRole("button", { name: `Remove the ${item.name} sale` }).waitFor();
+
+  await page.goto(base + "/groceries/");
+  await page.getByText(/^Deals save about \$/).waitFor({ timeout: 45000 });
+  assert.ok(await page.getByText(/(Stock up|Good deal) · \d+% off/).count() >= 1, "a deal hint on the sale item");
+  await page.goto(base + "/calendar/");
+  await page.getByText(/(Stock up|Good deal) · \d+% off/).first().waitFor({ timeout: 45000 });
+
+  // put the week back as it was
+  await page.goto(base + "/pantry/");
+  await page.getByRole("radio", { name: /^Sales/ }).click();
+  await page.getByRole("button", { name: `Remove the ${item.name} sale` }).click();
+  await page.evaluate((stores) => {
+    const k = Object.keys(localStorage).find((x) => /^prep-cart-(\w+-)?v1$/.test(x));
+    const saved = JSON.parse(localStorage.getItem(k));
+    saved.state.stores = stores;
+    localStorage.setItem(k, JSON.stringify(saved));
+  }, storesBefore);
+  await page.reload();
+  await page.locator("main").waitFor();
+});
+
+test("training days move calories to the days you train", async () => {
+  // behind the fitnessSync flag (off in production): turn it on for this device, then back off
+  await page.goto(base + "/plan/?flags=fitnessSync=on");
+  await page.getByRole("button", { name: "Training days" }).click();
+  await page.getByRole("button", { name: "Add workout on Thursday" }).click();
+  await page.getByLabel("Thursday workout 1", { exact: true }).selectOption("ruck");
+  await page.getByLabel("Thursday workout 1 minutes").selectOption("120");
+  await page.getByText(/1 training day burning about/).waitFor();
+  const text = await page.locator("main").innerText();
+  assert.match(text, /Training days get up to \+[\d,]+ kcal/);
+  const found = await axeScan(page, "/plan/ training days");
+  assert.deepEqual(found.filter((v) => v.impact === "serious" || v.impact === "critical"), [], "training days panel accessibility");
+  await page.getByRole("button", { name: /^Remove ruck/ }).click();
+  await page.goto(base + "/plan/?flags=reset");
   await page.locator("main").waitFor();
 });
 
