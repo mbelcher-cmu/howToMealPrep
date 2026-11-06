@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
-import { ArrowRight, ShoppingCart } from "lucide-react";
+import { ArrowRight, ShoppingCart, Shuffle } from "lucide-react";
 import { RECIPES_BY_ID } from "@prep-cart/catalog";
-import { PlanStatus, SolvingNote } from "@/components/plan-bits";
+import { PlanStatus } from "@/components/plan-bits";
 import { RecipeCard, Rail } from "@/components/food";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { WeekGlance, WeekRecipes } from "@/components/week-recipes";
@@ -35,7 +35,7 @@ export default function Meals() {
   const day = plan.schedule.days[dayIdx];
   return (
     <>
-      <PageHeader title="Your meals" lead={<>{plural(r.recipes.length, "recipe")} for {plural(plan.days, "day")}, portioned to your calories. Swap anything you don&apos;t want and your cart updates.</>} action={<SolvingNote />} />
+      <PageHeader title="Your meals" lead={<>{plural(r.recipes.length, "recipe")} for {plural(plan.days, "day")}, portioned to your calories. Swap anything you don&apos;t want and your cart updates.</>} action={<Link href="/pick/" className="btn"><Shuffle size={16} aria-hidden /> Pick meals</Link>} />
       <PlanStatus />
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
         {day && day.meals.length > 0 && (

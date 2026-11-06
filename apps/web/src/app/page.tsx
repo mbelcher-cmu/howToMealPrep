@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { ArrowRight, ShoppingCart } from "lucide-react";
+import { ArrowRight, ShoppingCart, Shuffle } from "lucide-react";
 import { MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
 import { usualPrice } from "@/components/deals";
 import { BudgetBar, MacroRings, PlanMacros, PlanStatus, SolvingNote, usePreppedTargets } from "@/components/plan-bits";
@@ -79,7 +79,7 @@ export default function Home() {
             <BudgetBar cost={r.cost} budget={r.budget} takeout={r.takeout?.cost ?? 0} />
           </>)}
           {step(2, "Calories", "/plan/", "Change", <MacroRings result={r} flat />)}
-          {step(3, "Meals", "/meals/", "See all", <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
+          {step(3, "Meals", "/meals/", "See all", <><Link href="/pick/" className="btn mb-3 w-full"><Shuffle size={16} aria-hidden /> Pick this week&apos;s meals</Link><ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
             {r.recipes.map((p) => (
               <li key={p.recipe.id}>
                 <Link href={recipeHref(p.recipe.id)} className="flex items-center gap-3 rounded-lg hover:bg-sunk">
@@ -91,7 +91,7 @@ export default function Home() {
                 </Link>
               </li>
             ))}
-          </ul>)}
+          </ul></>)}
           {step(4, "Cart", "/groceries/", "Full list", <>
             <p className="text-sm text-muted">{bought} of {plural(r.cart.length, "item")} in the cart · about <b className="num text-ink">{money(r.registerCost ?? r.cost)}</b></p>
             <Link href="/groceries/" className="btn btn-primary mt-3 w-full"><ShoppingCart size={16} aria-hidden /> See your cart <ArrowRight size={16} aria-hidden /></Link>
@@ -106,6 +106,10 @@ export default function Home() {
       <PlanStatus />
       <div className="grid grid-cols-[minmax(0,1fr)] gap-7">
         <NextWeekCard />
+        <Link href="/pick/" className="card tap-card press flex items-center justify-between gap-3 p-4">
+          <span><span className="block font-display text-lg font-bold">Pick this week&apos;s meals</span><span className="text-sm text-muted">Community picks, your favorites and recommendations, one meal at a time.</span></span>
+          <Shuffle size={20} aria-hidden className="shrink-0" />
+        </Link>
         <TrainingToday weekday={new Date().getDay() === 0 ? 6 : new Date().getDay() - 1} />
         <Rail title={day ? `${DAY_LONG[dayIdx]}'s food` : "Today"} href="/plan/" linkLabel="Whole week">
           {day?.takeout?.map((tk) => {

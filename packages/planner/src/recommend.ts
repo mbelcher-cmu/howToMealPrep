@@ -1,4 +1,5 @@
 import { INGREDIENTS, RECIPES, type Recipe } from "@prep-cart/catalog";
+import { buildTasteModel, tastePredict, tasteWeights, type TasteModel } from "./taste";
 
 /**
  * Recommendations from star ratings, in the spirit of Netflix: the recipes you rate tell us what
@@ -11,9 +12,11 @@ import { INGREDIENTS, RECIPES, type Recipe } from "@prep-cart/catalog";
  *   first rating, before there are enough raters.
  * The community similarity takes over as more people rate both recipes.
  *
- * For a recipe you haven't rated, the prediction is the similarity-weighted average of how much
- * more or less than usual you liked its nearest rated neighbours, plus a little of how the whole
- * community rated it.
+ * For a recipe you haven't rated, two predictions are blended (as the Netflix Prize winners did):
+ * - neighbours: the similarity-weighted average of how much more or less than usual you liked its
+ *   nearest rated neighbours;
+ * - hidden taste factors: a low-rank (PCA/SVD) model of everyone's ratings, see taste.ts;
+ * plus a little of how the whole community rated it.
  */
 
 /** Community similarity between two recipes, from the people who rated both. */
@@ -66,6 +69,17 @@ export function contentSimilarity(a: Recipe, b: Recipe): number {
 
 const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 
+/** weight of the hidden-factor prediction in the blend (the rest is neighbours) */
+const FACTOR_BLEND = 0.5;
+let modelMemo: { recipes: readonly Recipe[]; size: number; community: Community | null; model: TasteModel } | null = null;
+/** The hidden taste factors, rebuilt only when the recipes or the community numbers change. */
+export function tasteModelFor(community: Community | null, recipes: readonly Recipe[] = RECIPES): TasteModel {
+  if (modelMemo && modelMemo.recipes === recipes && modelMemo.size === recipes.length && modelMemo.community === community) return modelMemo.model;
+  const model = buildTasteModel(recipes, community?.neighbors ?? [], contentSimilarity);
+  modelMemo = { recipes, size: recipes.length, community, model };
+  return model;
+}
+
 /**
  * Predicts how much the person will like each recipe they haven't rated yet.
  * Returns nothing until they have rated at least one recipe or the community has rated some.
@@ -78,6 +92,9 @@ export function recommend(ratings: Record<string, number>, community: Community 
   const pairs = new Map<string, Neighbor>();
   for (const nb of community?.neighbors ?? []) if (Number.isFinite(nb.sim) && nb.n > 0) pairs.set(pairKey(nb.a, nb.b), nb);
   const stats = new Map((community?.stats ?? []).filter((s) => s.n > 0).map((s) => [s.id, s]));
+
+  const model = rated.length ? tasteModelFor(community, recipes) : null;
+  const weights = model ? tasteWeights(model, Object.fromEntries(rated.map(([id, s]) => [id, Math.max(-1, Math.min(1, (s - mean) / 2))]))) : [];
 
   const out: Record<string, Recommendation> = {};
   for (const r of recipes) {
@@ -95,11 +112,13 @@ export function recommend(ratings: Record<string, number>, community: Community 
     const top = near.slice(0, K);
     const simSum = top.reduce((t, x) => t + x.sim, 0);
     // a single weak neighbour shouldn't decide much: the +0.6 shrinks thin evidence toward neutral
-    const personal = simSum ? top.reduce((t, x) => t + x.sim * x.dev, 0) / (simSum + 0.6) : 0;
+    const neighbours = simSum ? top.reduce((t, x) => t + x.sim * x.dev, 0) / (simSum + 0.6) : 0;
+    const factor = model ? tastePredict(model, weights, r.id) : 0;
+    const personal = model ? (1 - FACTOR_BLEND) * neighbours + FACTOR_BLEND * factor : neighbours;
     const st = stats.get(r.id);
     const popular = st ? ((st.avg - NEUTRAL) / 1.5) * (st.n / (st.n + POPULAR_HALF)) : 0;
     const affinity = Math.max(-1, Math.min(1, personal + 0.3 * popular));
-    if (!top.length && !st) continue;
+    if (!top.length && !st && Math.abs(factor) < 0.05) continue;
 
     const lead = top.filter((x) => x.dev > 0).sort((x, y) => y.sim * y.dev - x.sim * x.dev)[0];
     const fromCommunity = top.reduce((t, x) => t + x.community * Math.abs(x.dev), 0);
