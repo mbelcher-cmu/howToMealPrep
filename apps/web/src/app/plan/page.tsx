@@ -6,6 +6,7 @@ import type { MealType } from "@prep-cart/catalog";
 import { FavoritesEditor } from "@/components/favorites";
 import { TrainingWeekEditor } from "@/components/training";
 import { useFlag } from "@/lib/flags";
+import { ShoppingDayEditor } from "@/components/shopping-day";
 import { BudgetEditor, MealStructureEditor, MoodEditor, RulesEditor, StoresEditor, TargetsEditor } from "@/components/editors";
 import { BudgetBar, PlanMacros, PlanStatus, SolvingNote } from "@/components/plan-bits";
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
@@ -46,11 +47,11 @@ export default function PlanPage() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
         <div className={cx("grid min-w-0 grid-cols-1 content-start gap-3 lg:order-1", simple ? "order-1" : "order-2")}>
           <h2 className="px-1 font-display text-lg font-bold lg:sr-only">Change your week</h2>
-          {simple && <Panel title="Budget and days" open><BudgetEditor /></Panel>}
+          {simple && <Panel title="Budget and days" open><div className="grid gap-5"><BudgetEditor /><div className="border-t border-line pt-4"><ShoppingDayEditor /></div></div></Panel>}
           <Panel title="Calories and macros" open={simple}><TargetsEditor showSuggest /></Panel>
           {training && !simple && <Panel title="Training days"><TrainingWeekEditor /></Panel>}
           <Panel title="Meals and rotation"><MealStructureEditor /></Panel>
-          {!simple && <Panel title="Budget and days"><BudgetEditor /></Panel>}
+          {!simple && <Panel title="Budget and days"><div className="grid gap-5"><BudgetEditor /><div className="border-t border-line pt-4"><ShoppingDayEditor /></div></div></Panel>}
           {ranking && !simple && <Panel title="Your favorites"><FavoritesEditor meal={favMeal} onMeal={setFavMeal} /></Panel>}
           {!simple && <Panel title="In the mood for"><MoodEditor /></Panel>}
           <Panel title={simple ? "Diet and allergies" : "Diet, allergies and dislikes"}><RulesEditor /></Panel>

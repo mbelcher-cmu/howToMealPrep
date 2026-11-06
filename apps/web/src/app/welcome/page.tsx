@@ -9,6 +9,8 @@ import { NearbyFinder } from "@/components/nearby";
 import { FavoritesRanker, MEAL_LABELS, useRankedMeals } from "@/components/favorites";
 import { useFlag } from "@/lib/flags";
 import { BudgetEditor, RotationPicker, StoresEditor } from "@/components/editors";
+import { ShoppingDayEditor } from "@/components/shopping-day";
+import { BreakfastChoice } from "@/components/meal-pattern";
 import { Chip, Segmented, Stepper } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { cx } from "@/lib/format";
@@ -97,12 +99,14 @@ function YourWeek({ part = "all" }: { part?: "all" | "budget" | "meals" }) {
   return (
     <div className="grid gap-5">
       {part !== "meals" && <BudgetEditor />}
+      {part !== "meals" && <div className="border-t border-line pt-4"><ShoppingDayEditor compact /></div>}
       {part === "budget" ? null : <>
       <div className={cx("grid grid-cols-2 gap-3", part === "all" && "border-t border-line pt-4")}>
         <Stepper label="Meals a day" value={s.meals} min={1} max={6} onChange={(m) => s.setStructure(m, s.snacks)} />
         <Stepper label="Snacks a day" value={s.snacks} min={0} max={3} onChange={(n) => s.setStructure(s.meals, n)} />
       </div>
-      <RotationPicker />
+      <BreakfastChoice />
+      {s.cookDays < 2 && <RotationPicker />}
       <div className="grid gap-2 border-t border-line pt-4">
         <span className="text-[13px] text-muted">Any diet? (optional)</span>
         <div className="flex flex-wrap gap-2">

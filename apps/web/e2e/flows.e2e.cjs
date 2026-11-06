@@ -704,6 +704,31 @@ test("Costco: a club pack counts only what the week uses, and the calendar buys 
   await page.locator("main").waitFor();
 });
 
+test("shop on any day, prep 7 days in two cooks, and make breakfast fresh", async () => {
+  await openPlan(page);
+  await page.getByRole("button", { name: "Budget and days" }).click();
+  await page.getByRole("button", { name: "Tomorrow", exact: true }).click();
+  assert.equal(await page.getByRole("button", { name: "Tomorrow", exact: true }).getAttribute("aria-pressed"), "true");
+  await page.getByRole("radiogroup", { name: "Days to prep for" }).getByRole("radio", { name: "7" }).click();
+  // a week is split into two cooks so nothing waits more than 3 days
+  assert.equal(await page.getByRole("radiogroup", { name: "Cook days" }).getByRole("radio", { name: "Twice" }).getAttribute("aria-checked"), "true");
+  await page.getByText(/Nothing waits more than 3 days/).waitFor();
+  assert.equal(await page.getByRole("switch", { name: /Different food each cook day/ }).isChecked(), true);
+  await page.getByRole("button", { name: "Meals and rotation" }).click();
+  await page.getByRole("radiogroup", { name: "Breakfast", exact: true }).getByRole("radio", { name: "Fresh each morning" }).click();
+  const found = await axeScan(page, "/plan/ shopping day");
+  await page.goto(base + "/prep/");
+  await page.getByText("Made fresh each morning").waitFor({ timeout: 45000 });
+  // two cook sessions
+  await page.getByText(/· then /).first().waitFor({ timeout: 45000 });
+  found.push(...(await axeScan(page, "/prep/ fresh breakfast")));
+  assert.deepEqual(found.filter((v) => v.impact === "serious" || v.impact === "critical"), [], JSON.stringify(found, null, 1));
+  // back to one cook and a prepped breakfast for anything after this
+  await openPlan(page);
+  await page.getByRole("button", { name: "Meals and rotation" }).click();
+  await page.getByRole("radiogroup", { name: "Breakfast", exact: true }).getByRole("radio", { name: "Prep ahead" }).click();
+});
+
 test("simple mode: budget, calories, meals, then the cart, and nothing else in the menu", async () => {
   const fresh = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
   const p = await fresh.newPage();

@@ -1,4 +1,5 @@
 "use client";
+import { fitsBreakfastMode, freshBreakfast } from "@/lib/shop-day";
 import { useMemo } from "react";
 import { Check } from "lucide-react";
 import type { MealType } from "@prep-cart/catalog";
@@ -27,7 +28,8 @@ export function FavoritesRanker({ meal }: { meal: MealType }) {
   const s = useApp();
   const ranked = s.favorites?.[meal] ?? [];
   const prefs = s.prefs;
-  const choices = useMemo(() => rankingChoices(meal, prefs, 10), [meal, prefs]);
+  const fresh = freshBreakfast(s.occasions);
+  const choices = useMemo(() => rankingChoices(meal, prefs, 30).filter((r) => fitsBreakfastMode(r, fresh)).slice(0, 10), [meal, prefs, fresh]);
   const set = (list: string[]) => s.set({ favorites: { ...s.favorites, [meal]: list } });
   const tap = (id: string) => set(ranked.includes(id) ? ranked.filter((x) => x !== id) : [...ranked, id]);
   // a pick that no longer fits the person's rules drops out of the count but keeps its place if they change back

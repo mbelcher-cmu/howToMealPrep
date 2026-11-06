@@ -2,7 +2,7 @@ import type { Cuisine, Diet, Equipment, Flavor, MealType, Mood, ProteinSource, S
 
 export interface RecipeSeed {
   id: string; name: string; meal: string; cuisines: string; moods: string; flavors: string; protein: string; equipment: string;
-  meta: { serv: number; active: number; total: number; fridge: number; freezer?: boolean; skill?: Skill; reheat?: string };
+  meta: { serv: number; active: number; total: number; fridge: number; freezer?: boolean; skill?: Skill; reheat?: string; fresh?: boolean };
   items: [string, number][];
   steps: string[];
   /** where an imported recipe came from */
@@ -31,6 +31,8 @@ export interface Recipe {
   fridgeDays: number;
   freezerFriendly: boolean;
   reheat: string | null;
+  /** made fresh each time it's eaten (eggs and toast), not batch-cooked on prep day; amounts are per serving */
+  cookFresh: boolean;
   lines: RecipeLine[];
   steps: string[];
   /** per serving; kcal derived from macros (4/4/9) */

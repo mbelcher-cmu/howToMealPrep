@@ -42,11 +42,13 @@ export interface WeekInfo {
  * @param weekOf the first day of the week the current plan is for, when the person set it
  * @param planCreated when the current plan was built, used when weekOf was never set
  */
-export function weekInfo(opts: { weekOf: string | null; planCreated: string | null; weekStart: number; today: string }): WeekInfo {
+export function weekInfo(opts: { weekOf: string | null; planCreated: string | null; weekStart: number; today: string; days?: number }): WeekInfo {
   const { weekStart, today } = opts;
+  // a plan covers `days` days; the next trip is the day after it runs out
+  const len = Math.max(1, Math.min(7, opts.days ?? 7));
   const base = opts.weekOf ?? (opts.planCreated ? weekStartOn(fmt(new Date(opts.planCreated)), weekStart) : weekStartOn(today, weekStart));
-  if (base > today) return { phase: "ahead", start: base, next: plus(base, 7), daysLeft: between(today, base) };
-  const next = plus(base, 7);
+  if (base > today) return { phase: "ahead", start: base, next: plus(base, len), daysLeft: between(today, base) };
+  const next = plus(base, len);
   const daysLeft = between(today, next);
   return { phase: daysLeft <= 0 ? "over" : daysLeft <= 2 ? "ending" : "mid", start: base, next, daysLeft };
 }

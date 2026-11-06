@@ -23,7 +23,7 @@ export function swapSuggestions(r: Recipe, prefs: Preferences, exclude: string[]
     const p = x.perServing;
     return Math.abs(p.protein * k - n.protein) * 4 + Math.abs(p.carbs * k - n.carbs) * 4 + Math.abs(p.fat * k - n.fat) * 9;
   };
-  return RECIPES.filter((x) => x.mealType === r.mealType && x.id !== r.id && !exclude.includes(x.id) && !hardRejection(x, prefs))
+  return RECIPES.filter((x) => x.mealType === r.mealType && x.cookFresh === r.cookFresh && x.id !== r.id && !exclude.includes(x.id) && !hardRejection(x, prefs))
     .sort((a, b) => dist(a) - dist(b))
     .slice(0, count);
 }

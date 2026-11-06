@@ -129,6 +129,11 @@ export interface PlanRequest {
    * first, counts too. Missing or 1: club packs count in full, like any other package.
    */
   bulkWeeks?: number;
+  /**
+   * Cook days in the period, 1 to 3. With 2 or more, the days split into even stretches and each
+   * stretch is cooked fresh at its start, so nothing waits more than a few days in the fridge.
+   */
+  cookDays?: number;
 }
 
 export interface PlannedRecipe {

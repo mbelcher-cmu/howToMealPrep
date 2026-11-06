@@ -2,7 +2,11 @@ import { splitTargets, type EatingOccasion, type Targets } from "@prep-cart/nutr
 import { slotTypeFor } from "./filters";
 import type { PlanResult, PlannedRecipe } from "./types";
 
-export interface ScheduledMeal { occasionId: string; occasionName: string; recipeId: string; portion: number; fromSession: number }
+export interface ScheduledMeal {
+  occasionId: string; occasionName: string; recipeId: string; portion: number; fromSession: number;
+  /** made fresh that day (eggs and toast), not from a prep session */
+  fresh?: boolean;
+}
 export interface ScheduledTakeout { occasionId: string; occasionName: string; itemId: string }
 export interface ScheduledDay { day: number; meals: ScheduledMeal[]; takeout: ScheduledTakeout[] }
 export interface PrepSession {
@@ -22,7 +26,7 @@ const lifeKey = (p: PlannedRecipe) => (p.recipe.freezerFriendly ? 100 + p.recipe
  * occasions on one day where possible, and anything eaten past its fridge life gets a second cook
  * session (or a freezer note, when it freezes well).
  */
-export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: number, rotation: "mix" | "blocks" = "mix", targets?: Targets): Schedule {
+export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: number, rotation: "mix" | "blocks" = "mix", targets?: Targets, opts: { cookDays?: number } = {}): Schedule {
   const prepped = occasions.filter((o) => o.prepped);
   const remaining = new Map(plan.recipes.map((p) => [p.recipe.id, p.meals]));
   const byId = new Map(plan.recipes.map((p) => [p.recipe.id, p]));
@@ -33,7 +37,9 @@ export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: nu
   }
   // blocks: lunches and dinners run one recipe after another, the one that keeps least first
   const blocks = rotation === "blocks";
-  const blockOrder = new Map(plan.recipes.filter((p) => p.slot === "main").sort((a, b) => lifeKey(a) - lifeKey(b) || b.meals - a.meals).map((p, i) => [p.recipe.id, i]));
+  // split week: breakfasts follow blocks too when there is more than one
+  const blockSlots = new Set(["main", ...(plan.recipes.filter((p) => p.slot === "breakfast").length >= 2 ? ["breakfast"] : [])]);
+  const blockOrder = new Map(plan.recipes.filter((p) => blockSlots.has(p.slot)).sort((a, b) => lifeKey(a) - lifeKey(b) || b.meals - a.meals).map((p, i) => [p.recipe.id, i]));
 
   // when meals of one kind have different sizes (a lighter dinner), each recipe should land on both
   // so that sizing portions later doesn't have to shrink one recipe and grow another
@@ -48,7 +54,7 @@ export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: nu
       const options = plan.recipes.filter((p) => p.slot === slot && (remaining.get(p.recipe.id) ?? 0) > 0);
       if (!options.length) continue;
       const usedToday = new Set(out[d]!.meals.map((m) => m.recipeId));
-      if (blocks && slot === "main") options.sort((a, b) => blockOrder.get(a.recipe.id)! - blockOrder.get(b.recipe.id)!);
+      if (blocks && blockSlots.has(slot)) options.sort((a, b) => blockOrder.get(a.recipe.id)! - blockOrder.get(b.recipe.id)!);
       else options.sort((a, b) =>
         Number(usedToday.has(a.recipe.id)) - Number(usedToday.has(b.recipe.id)) ||
         (uneven.has(slot) ? seenAt(a.recipe.id, o.id) / a.meals - seenAt(b.recipe.id, o.id) / b.meals : 0) ||
@@ -59,22 +65,24 @@ export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: nu
       const pick = options[0]!;
       remaining.set(pick.recipe.id, remaining.get(pick.recipe.id)! - 1);
       atOccasion.set(pick.recipe.id + "@" + o.id, seenAt(pick.recipe.id, o.id) + 1);
-      out[d]!.meals.push({ occasionId: o.id, occasionName: o.name, recipeId: pick.recipe.id, portion: pick.portion, fromSession: 0 });
+      out[d]!.meals.push({ occasionId: o.id, occasionName: o.name, recipeId: pick.recipe.id, portion: pick.portion, fromSession: 0, ...(pick.recipe.cookFresh ? { fresh: true } : {}) });
     }
   }
 
   if (targets) sizePortions(out, occasions, targets, byId);
+  const stretches = Math.max(1, Math.min(3, Math.round(opts.cookDays ?? 1)));
+  if (stretches >= 2 && days >= 2) return withCookDays(plan, out, days, stretches);
 
   // when each recipe is cooked: day 0, or (blocks) fresh just before its block starts
   const cookDay = new Map<string, number>();
-  for (const day of out) for (const m of day.meals) if (!cookDay.has(m.recipeId)) cookDay.set(m.recipeId, blocks && byId.get(m.recipeId)!.slot === "main" ? day.day : 0);
+  for (const day of out) for (const m of day.meals) if (!m.fresh && !cookDay.has(m.recipeId)) cookDay.set(m.recipeId, blocks && byId.get(m.recipeId)!.slot === "main" ? day.day : 0);
 
   // a later top-up for meals past their fridge life (eating on day d is d - cook + 1 days after cooking)
   const late = new Map<string, { firstDay: number; lastDay: number; portions: number; cook?: number }>();
   const frozen = new Map<string, FreezerNote>();
   for (const day of out) for (const m of day.meals) {
     const r = byId.get(m.recipeId)!.recipe;
-    if (day.day - (cookDay.get(r.id) ?? 0) + 1 <= r.fridgeDays) continue;
+    if (m.fresh || day.day - (cookDay.get(r.id) ?? 0) + 1 <= r.fridgeDays) continue;
     if (r.freezerFriendly) {
       const f = frozen.get(r.id) ?? { recipeId: r.id, portions: 0, thawBeforeDay: day.day };
       f.portions += 1;
@@ -105,6 +113,7 @@ export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: nu
   const at = (d: number) => sessions.find((x) => x.beforeDay === d)!;
   const q = (n: number) => Math.round(n * 4) / 4;
   for (const p of plan.recipes) {
+    if (p.recipe.cookFresh) continue;
     const l = late.get(p.recipe.id);
     const second = l ? q(l.portions) : 0;
     const first = at(cookDay.get(p.recipe.id) ?? 0);
@@ -112,6 +121,7 @@ export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: nu
     if (second > 0) at(l!.cook!).batches.push({ recipeId: p.recipe.id, servings: second });
   }
   for (const day of out) for (const m of day.meals) {
+    if (m.fresh) continue;
     const l = late.get(m.recipeId);
     const d = l && day.day >= l.firstDay ? l.cook! : cookDay.get(m.recipeId) ?? 0;
     m.fromSession = at(d).index;
@@ -122,6 +132,46 @@ export function schedule(plan: PlanResult, occasions: EatingOccasion[], days: nu
   for (const day of out) for (const m of day.meals) m.fromSession = remap.get(m.fromSession) ?? 0;
   kept.forEach((x, i) => (x.index = i));
   return { days: out, sessions: kept.length ? kept : [{ index: 0, beforeDay: 0, batches: [] }], freezer };
+}
+
+/** First day of each cook stretch when the period is split into `cookDays` even stretches. */
+export function cookStarts(days: number, cookDays: number): number[] {
+  const k = Math.max(1, Math.min(days, cookDays));
+  return [...new Set(Array.from({ length: k }, (_, i) => Math.round((i * days) / k)))];
+}
+
+/**
+ * Fixed cook days: each stretch of days is cooked at its start, so food never waits longer than
+ * one stretch. A recipe eaten across two stretches is cooked in both, split by the portions eaten.
+ */
+function withCookDays(plan: PlanResult, out: ScheduledDay[], days: number, cookDays: number): Schedule {
+  const starts = cookStarts(days, cookDays);
+  const startOf = (d: number) => starts.filter((x) => x <= d).at(-1) ?? 0;
+  const eaten = new Map<string, Map<number, number>>();
+  for (const day of out) for (const m of day.meals) {
+    if (m.fresh) continue;
+    const st = startOf(day.day);
+    const per = eaten.get(m.recipeId) ?? new Map<number, number>();
+    per.set(st, (per.get(st) ?? 0) + m.portion);
+    eaten.set(m.recipeId, per);
+  }
+  const used = [...new Set([...eaten.values()].flatMap((x) => [...x.keys()]))].sort((a, b) => a - b);
+  const sessions: PrepSession[] = (used.length ? used : [0]).map((d, index) => ({ index, beforeDay: d, batches: [] }));
+  const q = (n: number) => Math.round(n * 4) / 4;
+  for (const p of plan.recipes) {
+    const per = eaten.get(p.recipe.id);
+    if (!per || p.recipe.cookFresh) continue;
+    const total = [...per.values()].reduce((a, b) => a + b, 0);
+    let left = p.servings;
+    const entries = [...per].sort((a, b) => a[0] - b[0]);
+    entries.forEach(([st, portions], i) => {
+      const n = i === entries.length - 1 ? q(left) : q((p.servings * portions) / Math.max(1e-9, total));
+      left -= n;
+      if (n > 0) sessions.find((x) => x.beforeDay === st)!.batches.push({ recipeId: p.recipe.id, servings: n });
+    });
+  }
+  for (const day of out) for (const m of day.meals) if (!m.fresh) m.fromSession = sessions.findIndex((x) => x.beforeDay === startOf(day.day));
+  return { days: out, sessions, freezer: [] };
 }
 
 /**

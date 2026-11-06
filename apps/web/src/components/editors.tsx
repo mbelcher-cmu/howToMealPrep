@@ -1,4 +1,5 @@
 "use client";
+import { BreakfastChoice } from "./meal-pattern";
 import { useMemo, useState } from "react";
 import {
   ALLERGENS, CUISINES, DIETS, EQUIPMENT, INGREDIENTS, MOODS, PROTEIN_SOURCES,
@@ -336,6 +337,7 @@ export function MealStructureEditor() {
         <Stepper label="Meals a day" value={s.meals} min={1} max={MAX_MEALS} onChange={(m) => s.setStructure(m, s.snacks)} />
         <Stepper label="Snacks a day" value={s.snacks} min={0} max={MAX_SNACKS} onChange={(n) => s.setStructure(s.meals, n)} />
       </div>
+      <BreakfastChoice />
       <ul className="divide-y divide-line rounded-lg border border-line">
         {s.occasions.map((o, i) => <OccasionRow key={o.id} id={o.id} part={parts[i]!} advanced={adv} styles={styles} />)}
       </ul>
@@ -348,7 +350,7 @@ export function MealStructureEditor() {
         {styles && "Pick a style to shape a meal, like a high-protein breakfast or a lighter dinner. Your day's calories and macros stay the same; the other meals rebalance. "}
         "Not prepped" keeps those calories free for eating out or cooking fresh. The plan fills the rest.
       </p>
-      <RotationPicker />
+      {(s.cookDays ?? 1) < 2 && <RotationPicker />}
       <details className="group" onToggle={(e) => setAdv((e.target as HTMLDetailsElement).open)}>
         <summary className="cursor-pointer text-sm font-semibold text-accent">More options: recipe counts and macros per meal</summary>
         <div className="mt-3 grid grid-cols-3 gap-3">
@@ -396,7 +398,6 @@ export function BudgetEditor() {
           <Segmented label="Budget period" value={s.budget.period} onChange={(period) => s.set({ budget: { ...s.budget, period } })} options={[{ value: "week", label: "Week" }, { value: "month", label: "Month" }]} />
         </div>
       </div>
-      <Stepper label="Days to plan" value={s.days} min={1} max={7} onChange={(days) => s.set({ days })} format={(d) => `${d} day${d === 1 ? "" : "s"}`} />
       <p className="text-xs text-muted">
         {s.budget.period === "month" && <>That's about {money(weekly)} a week. </>}
         This plan gets {money((weekly * s.days) / 7)} for {s.days} days.
