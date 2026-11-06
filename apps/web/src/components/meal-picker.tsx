@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, Shuffle, ShoppingCart, Star, X } from "lucide-react";
 import { PREP_PACKS, RECIPES, RECIPES_BY_ID, type MealType } from "@prep-cart/catalog";
+import { fitsBreakfastMode, freshBreakfast } from "@/lib/shop-day";
 import { pickedDay, pickerGoals, pickerRows, surprisePick, type PickCard, type PickerInput, type Picks } from "@prep-cart/planner";
 import { RecipeArt } from "@/components/food";
 import { useApp } from "@/lib/store";
@@ -50,7 +51,7 @@ export function MealPicker({ onDone }: { onDone?: () => void }) {
   const goal = goals[at];
   const affinity = useMemo(() => Object.fromEntries(Object.entries(recs).map(([id, r]) => [id, r.affinity])), [recs]);
   const input: PickerInput | null = goal ? {
-    goals, picks, slot: goal.slot, prefs: s.prefs, ratings: s.ratings ?? {}, rankings: rankingsOf(s.favorites), affinity, stats, featured: FEATURED, recipes: RECIPES,
+    goals, picks, slot: goal.slot, prefs: s.prefs, ratings: s.ratings ?? {}, rankings: rankingsOf(s.favorites), affinity, stats, featured: FEATURED, recipes: RECIPES.filter((r) => fitsBreakfastMode(r, freshBreakfast(s.occasions))),
   } : null;
   const rows = useMemo(() => (input ? pickerRows(input) : null), [input?.slot, picks, goals, s.prefs, s.ratings, s.favorites, affinity, stats]); // eslint-disable-line react-hooks/exhaustive-deps
 

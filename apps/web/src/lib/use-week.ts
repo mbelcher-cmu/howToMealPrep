@@ -7,8 +7,9 @@ export function useWeek(): WeekInfo & { plansFrom: string } {
   const weekOf = useApp((s) => s.weekOf ?? null);
   const created = useApp((s) => s.current?.createdAt ?? null);
   const weekStart = useApp((s) => s.weekStart ?? 0);
+  const days = useApp((s) => s.current?.days ?? s.days ?? 7);
   const today = isoDay();
-  const info = weekInfo({ weekOf, planCreated: created, weekStart, today });
+  const info = weekInfo({ weekOf, planCreated: created, weekStart, today, days });
   return { ...info, plansFrom: nextWeekStart(info, today, weekStart) };
 }
 

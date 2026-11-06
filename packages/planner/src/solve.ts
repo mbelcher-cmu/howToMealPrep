@@ -171,7 +171,11 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   for (const slot of SLOTS) {
     const meals = slotCount[slot] * days - slotTakeout[slot];
     if (!meals) continue;
-    const { ok, rejected } = candidatePool(slot, req.prefs);
+    const all0 = candidatePool(slot, req.prefs);
+    // made-fresh recipes (eggs and toast) fill only meals the person makes fresh, and those meals take only them
+    const freshSlot = req.occasions.some((o) => o.prepped && o.fresh && slotTypeFor(o) === slot);
+    const ok = all0.ok.filter((r) => r.cookFresh === freshSlot);
+    const rejected = all0.rejected;
     const slotName = slot === "main" ? "lunch or dinner" : slot;
     if (!ok.length) {
       const top = summarizeRejections(rejected.map((r) => r.reason));
@@ -200,7 +204,7 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
     for (const p of owners) {
       if (!p.diets.length && !p.allergens.length) continue;
       const fitting = candidatePool(slot, { ...req.prefs, diets: p.diets, allergens: [...new Set([...req.prefs.allergens, ...p.allergens])] }).ok
-        .filter((r) => !seenIds.has(r.id)).map(scoreOf).sort((a, b) => b.rank - a.rank);
+        .filter((r) => !seenIds.has(r.id) && r.cookFresh === freshSlot).map(scoreOf).sort((a, b) => b.rank - a.rank);
       // the best few, plus any the person kept or still has in their week
       const theirs = fitting.filter((x, i) => i < EXTRA_POOL[slot] || locked.has(x.r.id) || prefer.has(x.r.id));
       for (const x of theirs) { seenIds.add(x.r.id); xtraPools[slot].push(x); }
@@ -209,6 +213,14 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
       }
     }
   }
+
+  // days the food cooked for a meal must keep: the whole period, its own block (split week), or
+  // one stretch between cook days
+  const cookDays = Math.max(1, Math.min(3, Math.round(req.cookDays ?? 1)));
+  const horizonFor = (slot: MealType) => {
+    const block = slot === "main" && req.variety.rotation === "blocks" ? Math.ceil(days / Math.max(1, variety.main)) + 1 : days;
+    return Math.min(block, Math.ceil(days / cookDays));
+  };
 
   // ── Model ──
   const m = new LpModel();
@@ -238,8 +250,12 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
       if (prefer.has(a.r.id)) m.addObjective(`y_${a.key}`, -PREFER_BONUS);
       // food safety: recipes that don't keep the whole period and can't be frozen are less attractive
       // (in blocks, a lunch-and-dinner recipe only has to last its own block, since it's cooked fresh for it)
-      const horizon = slot === "main" && req.variety.rotation === "blocks" ? Math.ceil(days / variety.main) + 1 : days;
-      if (a.r.fridgeDays < horizon && !a.r.freezerFriendly) m.addObjective(`y_${a.key}`, 1.5 * (horizon - a.r.fridgeDays));
+      if (a.r.fridgeDays < horizonFor(slot) && !a.r.freezerFriendly && !a.r.cookFresh) m.addObjective(`y_${a.key}`, 1.5 * (horizonFor(slot) - a.r.fridgeDays));
+    }
+    if (slot === "breakfast" && variety.breakfast >= 2 && req.variety.rotation === "blocks") {
+      // split-week breakfasts: each one covers its own stretch of days
+      const minN = Math.floor(N / variety.breakfast);
+      for (const a of members) m.addRow([[1, `n_${a.key}`], [-minN, `y_${a.key}`]], ">=", 0);
     }
     if (slot === "main" && variety.main >= 2) {
       // every chosen main gets a fair share of the meals (blocks: an even split), so no recipe is a 2-meal afterthought
@@ -291,7 +307,7 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
     const N = slotCount[slot] * days - slotTakeout[slot];
     if (!N || !owners.length) continue;
     const perMealKcal = slotKcal[slot] / slotCount[slot];
-    const horizon = slot === "main" && req.variety.rotation === "blocks" ? Math.ceil(days / Math.max(1, variety.main)) + 1 : days;
+    const horizon = horizonFor(slot);
     for (const p of owners) {
       const terms: [number, string][] = [];
       for (const a of cookable) {

@@ -4,7 +4,7 @@ import type { RecipeSeed } from "./recipe-types";
 
 const R = (
   id: string, name: string, meal: string, cuisines: string, moods: string, flavors: string, protein: string, equipment: string,
-  meta: { serv: number; active: number; total: number; fridge: number; freezer?: boolean; skill?: "beginner" | "intermediate" | "confident"; reheat?: string },
+  meta: { serv: number; active: number; total: number; fridge: number; freezer?: boolean; skill?: "beginner" | "intermediate" | "confident"; reheat?: string; fresh?: boolean },
   items: [string, number][], steps: string[],
 ): RecipeSeed => ({ id, name, meal, cuisines, moods, flavors, protein, equipment, meta, items, steps });
 
@@ -71,6 +71,32 @@ export const RECIPE_SEEDS: RecipeSeed[] = [
   R("plantain_bean_bowls", "Sweet plantain, black bean and egg bowls", "breakfast", "caribbean latin", "comfort breakfastForDinner", "sweetSpicy", "eggs legumes", "stovetop", { serv: 5, active: 20, total: 25, fridge: 4 },
     [["plantains", 681], ["black_beans", 510], ["eggs", 500], ["salsa", 240]],
     ["Slice ripe (very black) plantains and pan-fry in a lightly oiled skillet until caramelized, about 3 minutes a side.", "Warm the beans with cumin and garlic powder.", "Scramble or fry 10 eggs. Portion plantains, beans and 2 eggs per container with salsa on the side."]),
+  // ───────── Made fresh each morning (not batch-cooked): amounts are for one serving ─────────
+  R("eggs_toast", "Scrambled eggs and buttered toast", "breakfast", "american", "comfort", "savory", "eggs", "stovetop", { serv: 1, active: 8, total: 8, fridge: 1, fresh: true },
+    [["eggs", 150], ["bread", 56], ["butter", 7]],
+    ["Toast 2 slices of bread.", "Whisk 3 eggs with a pinch of salt. Melt half the butter in a nonstick pan over medium-low heat and stir the eggs gently until just set, about 2 minutes.", "Butter the toast and serve with the eggs."]),
+  R("avocado_egg_toast", "Avocado toast with fried eggs", "breakfast", "american", "fresh", "savory herby", "eggs", "stovetop", { serv: 1, active: 8, total: 8, fridge: 1, fresh: true },
+    [["eggs", 100], ["bread", 56], ["avocado", 70]],
+    ["Toast 2 slices of bread.", "Fry 2 eggs in a lightly oiled nonstick pan until the whites set.", "Mash half an avocado onto the toast with salt, pepper and chili flakes, then top with the eggs."]),
+  R("veggie_omelet_toast", "Spinach, pepper and cheddar omelet with toast", "breakfast", "american", "comfort", "cheesy savory", "eggs dairy", "stovetop", { serv: 1, active: 10, total: 10, fridge: 1, fresh: true },
+    [["eggs", 150], ["spinach", 30], ["bell_pepper", 50], ["cheddar", 21], ["bread", 28], ["olive_oil", 5]],
+    ["Soften the diced pepper in the oil for 2 minutes, then wilt in the spinach.", "Pour in 3 whisked eggs, cook until nearly set, scatter the cheese over half and fold.", "Serve with a slice of toast."]),
+  R("turkey_egg_muffin_fresh", "Turkey, egg and cheese English muffin", "breakfast", "american", "handheld", "cheesy savory", "eggs turkey", "stovetop", { serv: 1, active: 7, total: 7, fridge: 1, fresh: true },
+    [["english_muffins", 57], ["eggs", 100], ["deli_turkey", 56], ["cheddar", 14]],
+    ["Split and toast the muffin.", "Fry 2 eggs (break the yolks for a sandwich) and warm the turkey in the same pan.", "Stack egg, turkey and cheese on the muffin."]),
+  R("pb_banana_toast", "Peanut butter banana toast with milk", "breakfast", "american", "sweet", "", "dairy", "noCook", { serv: 1, active: 4, total: 4, fridge: 1, fresh: true },
+    [["bread", 56], ["peanut_butter", 32], ["bananas", 118], ["milk", 240]],
+    ["Toast 2 slices of bread.", "Spread with peanut butter and top with a sliced banana and a pinch of cinnamon.", "Serve with a glass of milk."]),
+  R("yogurt_berry_bowl", "Greek yogurt bowl with berries, oats and honey", "breakfast", "american", "fresh sweet", "", "dairy", "noCook", { serv: 1, active: 3, total: 3, fridge: 1, fresh: true },
+    [["greek_yogurt", 227], ["berries", 100], ["oats", 30], ["honey", 10]],
+    ["Spoon the yogurt into a bowl.", "Top with berries (thawed in the microwave for 30 seconds if frozen), oats and a drizzle of honey."]),
+  R("banana_pb_oatmeal", "Banana peanut butter oatmeal", "breakfast", "american", "sweet comfort", "", "dairy", "stovetop microwave", { serv: 1, active: 5, total: 5, fridge: 1, fresh: true },
+    [["oats", 60], ["milk", 240], ["bananas", 118], ["peanut_butter", 16]],
+    ["Microwave the oats and milk for 2 to 3 minutes, stirring halfway, or simmer on the stove.", "Stir in half the banana, mashed, and top with the rest sliced and a spoon of peanut butter."]),
+  R("tofu_scramble_toast", "Tofu scramble on toast", "breakfast", "american", "comfort", "savory", "soy", "stovetop", { serv: 1, active: 10, total: 10, fridge: 1, fresh: true },
+    [["tofu", 150], ["spinach", 30], ["bread", 56], ["olive_oil", 5]],
+    ["Crumble the tofu into the hot oil with turmeric, garlic powder and salt, and cook 4 minutes.", "Wilt in the spinach.", "Pile onto 2 slices of toast."]),
+
   // ───────── Lunch and dinner ─────────
   R("chicken_burrito_bowls", "Chicken burrito bowls", "main", "texmex mexican", "bowls", "savory", "chicken", "oven stovetop", { serv: 5, active: 25, total: 40, fridge: 4 },
     [["chicken_breast", 900], ["rice", 380], ["black_beans", 510], ["corn", 340], ["salsa", 300], ["cheddar", 100], ["taco_seasoning", 28], ["lettuce", 250]],

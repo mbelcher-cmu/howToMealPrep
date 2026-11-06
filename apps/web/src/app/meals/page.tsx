@@ -4,13 +4,15 @@ import { ArrowRight, ShoppingCart, Shuffle } from "lucide-react";
 import { useState } from "react";
 import { RECIPES_BY_ID } from "@prep-cart/catalog";
 import { MealPicker } from "@/components/meal-picker";
-import { useApp } from "@/lib/store";
 import { PlanStatus } from "@/components/plan-bits";
 import { RecipeCard, Rail } from "@/components/food";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { WeekGlance, WeekRecipes } from "@/components/week-recipes";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { useDays } from "@/lib/days";
+import { isoDay, useApp } from "@/lib/store";
+import { planDayFrom } from "@/lib/shop-day";
+import { dayLabel } from "@/lib/use-week";
 import { money, plural } from "@/lib/format";
 
 /**
@@ -20,7 +22,8 @@ import { money, plural } from "@/lib/format";
 export default function Meals() {
   const hydrated = useHydrated();
   const { plan, status } = usePlanner();
-  const { DAY_LONG, weekStart } = useDays();
+  const { DAY_LONG, weekStart, cookDayName } = useDays();
+  const weekOf = useApp((s) => s.weekOf);
   const pickerDone = useApp((st) => st.pickerDone);
   const [picking, setPicking] = useState<boolean | null>(null);
   if (!hydrated) return null;
@@ -45,19 +48,23 @@ export default function Meals() {
     );
   }
   const r = plan.result;
-  const today = ((new Date().getDay() + 6) % 7 - weekStart + 7) % 7;
+  // a plan with a start date counts days from it; before it starts, show its first day
+  const fromStart = weekOf ? planDayFrom(weekOf, isoDay()) : null;
+  const today = fromStart == null ? ((new Date().getDay() + 6) % 7 - weekStart + 7) % 7 : Math.max(0, fromStart);
   const dayIdx = Math.min(today, plan.days - 1);
+  const cooks = plan.schedule.sessions.filter((x) => x.batches.length).map((x) => cookDayName(x.beforeDay));
+  const fresh = r.recipes.filter((p) => p.recipe.cookFresh);
   const day = plan.schedule.days[dayIdx];
   return (
     <>
-      <PageHeader title="Your meals" lead={<>{plural(r.recipes.length, "recipe")} for {plural(plan.days, "day")}, portioned to your calories. Swap anything you don&apos;t want and your cart updates.</>} action={<button type="button" className="btn" onClick={() => setPicking(true)}><Shuffle size={16} aria-hidden /> Pick meals</button>} />
+      <PageHeader title="Your meals" lead={<>{plural(r.recipes.length, "recipe")} for {plural(plan.days, "day")}, portioned to your calories. Swap anything you don&apos;t want and your cart updates.{cooks.length > 0 && <> Cook on {cooks.join(" and ")}{fresh.length > 0 ? "; breakfast is made fresh each morning" : ""}.</>}{fromStart != null && fromStart < 0 && <> Starts {dayLabel(weekOf!)}.</>}</>} action={<button type="button" className="btn" onClick={() => setPicking(true)}><Shuffle size={16} aria-hidden /> Pick meals</button>} />
       <PlanStatus />
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
         {day && day.meals.length > 0 && (
           <Rail title={`${DAY_LONG[dayIdx]}'s food`}>
             {day.meals.map((m) => {
               const rec = RECIPES_BY_ID[m.recipeId];
-              return rec ? <RecipeCard key={m.occasionId} recipe={rec} portion={m.portion} eyebrow={m.occasionName} /> : null;
+              return rec ? <RecipeCard key={m.occasionId} recipe={rec} portion={m.portion} eyebrow={m.fresh ? `${m.occasionName} · make fresh` : m.occasionName} /> : null;
             })}
           </Rail>
         )}

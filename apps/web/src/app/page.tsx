@@ -7,20 +7,22 @@ import { BudgetBar, MacroRings, PlanMacros, PlanStatus, SolvingNote, usePreppedT
 import { ItemCard, RecipeArt, RecipeCard, Rail } from "@/components/food";
 import { PrepPackCard, usePackCost, useVisiblePacks } from "@/components/preps";
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
-import { useApp } from "@/lib/store";
+import { isoDay, useApp } from "@/lib/store";
+import { planDayFrom } from "@/lib/shop-day";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { chainName, money, plural, recipeHref } from "@/lib/format";
 import { linePkgLabel } from "@/lib/bulk";
 import { useDays } from "@/lib/days";
 import { useFlag } from "@/lib/flags";
 import { NextWeekCard } from "@/components/next-week";
-import { useWeek } from "@/lib/use-week";
+import { dayLabel, useWeek } from "@/lib/use-week";
 import { SwapButton } from "@/components/swap";
 import { PicksRail } from "@/components/picks";
 import { TrainingToday } from "@/components/training";
 
 export default function Home() {
-  const { DAY_LONG, weekStart } = useDays();
+  const { DAY_LONG, weekStart, cookDayName } = useDays();
+  const weekOf = useApp((s) => s.weekOf);
   const hydrated = useHydrated();
   const { plan, status } = usePlanner();
   const checked = useApp((s) => s.checked);
@@ -48,10 +50,14 @@ export default function Home() {
     );
   }
   const r = plan.result;
-  const today = ((new Date().getDay() + 6) % 7 - weekStart + 7) % 7; // plan day for today
-  const dayIdx = Math.min(today, plan.days - 1);
+  const byWeekday = ((new Date().getDay() + 6) % 7 - weekStart + 7) % 7; // plan day for today
   // next week is planned but hasn't started: today's food still comes from the week being eaten
   const eating = nextWeekOn && week.phase === "ahead" && lastWeek ? lastWeek : plan;
+  // a plan that starts on a set date counts its days from there; before it starts, show its first day
+  const fromStart = weekOf && eating === plan ? planDayFrom(weekOf, isoDay()) : null;
+  const notStarted = fromStart != null && fromStart < 0;
+  const today = fromStart == null ? byWeekday : Math.max(0, fromStart);
+  const dayIdx = Math.min(today, plan.days - 1);
   const day = eating.schedule.days[Math.min(today, eating.days - 1)];
   const bought = r.cart.filter((l) => checked[`${l.chain}:${l.ingredientId}`]).length;
   const nextSession = plan.schedule.sessions[0];
@@ -75,8 +81,9 @@ export default function Home() {
         <PlanStatus />
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {step(1, "Budget", "/plan/", "Change", <>
-            <p className="mb-2 text-sm text-muted">{money(budget.amount)} a {budget.period}</p>
+            <p className="mb-2 text-sm text-muted">{money(budget.amount)} a {budget.period} · {plural(plan.days, "day")} planned</p>
             <BudgetBar cost={r.cost} budget={r.budget} takeout={r.takeout?.cost ?? 0} />
+            <p className="mt-3 text-sm text-muted">About <b className="num text-ink">{money(r.cost / Math.max(1, plan.days * Math.max(1, plan.schedule.days[0]?.meals.length ?? 1)))}</b> a meal</p>
           </>)}
           {step(2, "Calories", "/plan/", "Change", <MacroRings result={r} flat />)}
           {step(3, "Meals", "/meals/", "See all", <><Link href="/pick/" className="btn mb-3 w-full"><Shuffle size={16} aria-hidden /> Pick this week&apos;s meals</Link><ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
@@ -111,7 +118,7 @@ export default function Home() {
           <Shuffle size={20} aria-hidden className="shrink-0" />
         </Link>
         <TrainingToday weekday={new Date().getDay() === 0 ? 6 : new Date().getDay() - 1} />
-        <Rail title={day ? `${DAY_LONG[dayIdx]}'s food` : "Today"} href="/plan/" linkLabel="Whole week">
+        <Rail title={day ? `${DAY_LONG[dayIdx]}'s food` : "Today"} lead={notStarted ? `Your plan starts ${dayLabel(weekOf!)}.` : undefined} href="/plan/" linkLabel="Whole week">
           {day?.takeout?.map((tk) => {
             const item = MENU_BY_ID[tk.itemId];
             return item ? (
@@ -124,7 +131,7 @@ export default function Home() {
           })}
           {day?.meals.map((m) => {
             const rec = RECIPES_BY_ID[m.recipeId];
-            return rec ? <RecipeCard key={m.occasionId} recipe={rec} portion={m.portion} eyebrow={m.occasionName} /> : null;
+            return rec ? <RecipeCard key={m.occasionId} recipe={rec} portion={m.portion} eyebrow={m.fresh ? `${m.occasionName} · make fresh` : m.occasionName} /> : null;
           })}
           {!day?.meals.length && !day?.takeout?.length && <p className="text-sm text-muted">Nothing prepped is planned for today.</p>}
         </Rail>
@@ -160,7 +167,7 @@ export default function Home() {
           <div className="mb-2 flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
             <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
               <h2 className="font-display text-xl font-bold">Your prep this week</h2>
-              {nextSession && <p className="text-sm text-muted">Cook {plural(nextSession.batches.length, "recipe")} before {DAY_LONG[nextSession.beforeDay]}.{plan.schedule.sessions.slice(1).map((x) => <span key={x.index}> Then {x.batches.length} more before {DAY_LONG[x.beforeDay]}, so it stays fresh.</span>)}</p>}
+              {nextSession && <p className="text-sm text-muted">Cook {plural(nextSession.batches.length, "recipe")} on {cookDayName(nextSession.beforeDay)}.{plan.schedule.sessions.slice(1).map((x) => <span key={x.index}> Then {x.batches.length} more on {cookDayName(x.beforeDay)}, so it stays fresh.</span>)}</p>}
             </div>
             <span className="flex shrink-0 gap-3">
               {nextWeekOn && week.phase === "mid" && <Link href="/next-week/" className="text-sm font-semibold text-accent hover:underline">Change next week</Link>}

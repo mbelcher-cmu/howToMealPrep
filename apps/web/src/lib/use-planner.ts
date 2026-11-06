@@ -24,6 +24,7 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
   const bulkOn = flag("bulkStores");
   return {
     days: s.days,
+    cookDays: Math.max(1, Math.min(3, s.cookDays ?? 1)),
     targets: s.targets,
     occasions: styledOccasions(s.occasions),
     budget: periodBudget(s),

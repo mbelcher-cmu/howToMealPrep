@@ -98,7 +98,7 @@ export default function Groceries() {
                                 <span className={cx("min-w-0", on && "text-muted line-through")}>
                                   <span className="block font-medium">{ing.name}</span>
                                   <span className="block text-xs text-muted">
-                                    {(() => { const u = formatUseAndLeftover(ing.id, l.needGrams, l.leftoverGrams, s.profile.units); return <>{l.packages} × {linePkgLabel(l)} · recipes use {u.use}{u.left && <> · {u.left} left over</>}{pantryOn && fromHome.has(ing.id) && <> · <span className="font-semibold text-accent">{formatAmount(ing.id, fromHome.get(ing.id)!, s.profile.units)} from home</span></>}</>; })()}
+                                    {(() => { const u = formatUseAndLeftover(ing.id, l.needGrams, l.leftoverGrams, s.profile.units); if (simple) return <>{l.packages} × {linePkgLabel(l)}</>; return <>{l.packages} × {linePkgLabel(l)} · recipes use {u.use}{u.left && <> · {u.left} left over</>}{pantryOn && fromHome.has(ing.id) && <> · <span className="font-semibold text-accent">{formatAmount(ing.id, fromHome.get(ing.id)!, s.profile.units)} from home</span></>}</>; })()}
                                   </span>
                                   <DealTag hint={hints.get(k) ?? null} />
                                 </span>
@@ -125,7 +125,7 @@ export default function Groceries() {
               </Card>
             );
           })}
-          {r.pantryUsed.length > 0 && (
+          {r.pantryUsed.length > 0 && !simple && (
             <Card>
               <SectionTitle>Already in your pantry</SectionTitle>
               <ul className="flex flex-wrap gap-2">
@@ -135,7 +135,7 @@ export default function Groceries() {
           )}
         </div>
 
-        <aside className="grid content-start gap-4 lg:sticky lg:top-6 lg:self-start">
+        <aside className={cx("grid content-start gap-4 lg:sticky lg:top-6 lg:self-start", simple && "order-first lg:order-none")}>
           <Card>
             <SectionTitle>Total</SectionTitle>
             <BudgetBar cost={r.cost} budget={r.budget} takeout={r.takeout?.cost ?? 0} />
@@ -169,7 +169,7 @@ export default function Groceries() {
               <span className="min-w-0 text-sm"><span className="block font-semibold">Plan 4 weeks of shopping</span><span className="block text-muted">See each trip and what&apos;s worth buying in bulk.</span></span>
             </Link>
           )}
-          {s.nearby.length === 0 && (
+          {s.nearby.length === 0 && !simple && (
             <Card>
               <SectionTitle>Stores near you</SectionTitle>
               <NearbyFinder />

@@ -6,11 +6,12 @@ import { formatAmount, INGREDIENTS, RECIPES_BY_ID } from "@prep-cart/catalog";
 import { cookPlan, prepTimeline, STATION_LABEL, storageNote, type CookStep, type Timeline } from "@prep-cart/planner";
 import { RecipeTile, SolvingNote } from "@/components/plan-bits";
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
-import { useApp } from "@/lib/store";
+import { isoDay, useApp } from "@/lib/store";
 import { useFlag } from "@/lib/flags";
 import { minutesWord, sessionBatches } from "@/lib/cook";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { useDays } from "@/lib/days";
+import { shopDateOf } from "@/lib/shop-day";
 import { at, buildIcs, downloadText, nextWeekday, type CalEvent } from "@/lib/ics";
 import { chainName, cx, DAY_LONG as WEEKDAYS, fmtQty, fmtServings, recipeHref } from "@/lib/format";
 
@@ -25,7 +26,7 @@ export default function Prep() {
   const { plan } = usePlanner();
   const s = useApp();
   const units = s.profile.units;
-  const { DAY_LONG, PREP_DAY } = useDays();
+  const { DAY_LONG, PREP_DAY, cookDayName, sameDay } = useDays();
 
   const cookMode = useFlag("cookMode");
   const timelines = useMemo(() => {
@@ -43,7 +44,9 @@ export default function Prep() {
   const containers = timelines.reduce((a, t) => a + t.containers, 0);
 
   const reminders = () => {
-    const prepDate = nextWeekday((s.weekStart + 6) % 7);
+    // the shopping day this plan starts from, when it's still ahead; otherwise the next one
+    const shopOn = s.weekOf ? shopDateOf(s.weekOf, sameDay) : null;
+    const prepDate = shopOn && shopOn >= isoDay() ? new Date(`${shopOn}T00:00:00`) : nextWeekday((s.weekStart + (sameDay ? 0 : 6)) % 7);
     const events: CalEvent[] = [];
     const stores = plan.result.stores.map(chainName).join(" and ") || "the store";
     events.push({ uid: `shop-${plan.id}`, start: at(prepDate, "10:00", 0), minutes: 60, title: `Grocery run: ${stores}`, description: `${plan.result.cart.length} items, about $${plan.result.cost.toFixed(2)}. Open MacroAisle for the list sorted by aisle.`, alarmMinutesBefore: 30 });
@@ -71,7 +74,7 @@ export default function Prep() {
       <Card className="mb-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="grid gap-0.5 text-sm">
-            <p className="font-semibold">{PREP_DAY} at {clock(s.prepTime, 0)}{sessions.length > 1 && <span className="font-normal text-muted"> · then {sessions.slice(1).map((x) => DAY_LONG[(x.beforeDay + 6) % 7]).join(" and ")}</span>}</p>
+            <p className="font-semibold">{PREP_DAY} at {clock(s.prepTime, 0)}{sessions.length > 1 && <span className="font-normal text-muted"> · then {sessions.slice(1).map((x) => cookDayName(x.beforeDay)).join(" and ")}</span>}</p>
             <p className="flex flex-wrap items-center gap-x-3 text-muted">
               <span className="inline-flex items-center gap-1.5"><Package size={15} className="text-accent" aria-hidden /> <b className="num text-ink">{containers}</b> containers</span>
               {frozen > 0 && <span className="inline-flex items-center gap-1.5"><Snowflake size={15} className="text-accent" aria-hidden /> <b className="num text-ink">{frozen}</b> go in the freezer</span>}
@@ -84,7 +87,7 @@ export default function Prep() {
           <div className="mt-3 grid max-w-[420px] grid-cols-2 gap-3">
             <div className="grid gap-1">
               <label htmlFor="prep-day" className="text-[13px] text-muted">Prep day</label>
-              <select id="prep-day" className="input" value={(s.weekStart + 6) % 7} onChange={(e) => s.set({ weekStart: (Number(e.target.value) + 1) % 7 })}>
+              <select id="prep-day" className="input" value={(s.weekStart + (sameDay ? 0 : 6)) % 7} onChange={(e) => s.set({ weekStart: (Number(e.target.value) + (sameDay ? 0 : 1)) % 7 })}>
                 {WEEKDAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
               </select>
             </div>
@@ -96,6 +99,20 @@ export default function Prep() {
           <p className="mt-2 text-xs text-muted">Your week runs {DAY_LONG[0]} to {DAY_LONG[Math.min(6, plan.days - 1)]}. The calendar file works with Apple, Google and Outlook. Glass containers with snap lids reheat and freeze best.</p>
         </details>
       </Card>
+
+      {plan.result.recipes.some((p) => p.recipe.cookFresh) && (
+        <Card className="mb-5">
+          <SectionTitle>Made fresh each morning</SectionTitle>
+          <ul className="grid gap-1 text-sm">
+            {plan.result.recipes.filter((p) => p.recipe.cookFresh).map((p) => (
+              <li key={p.recipe.id} className="flex items-start gap-2">
+                <Clock size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+                <span><Link href={recipeHref(p.recipe.id)} className="font-semibold underline-offset-2 hover:underline">{p.recipe.name}</Link>: {p.meals} morning{p.meals === 1 ? "" : "s"}, about {p.recipe.totalMinutes} minutes each. Nothing to cook ahead; the groceries are on your list.</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {freezer.length > 0 && (
         <Card className="mb-5">
@@ -118,7 +135,7 @@ export default function Prep() {
           const t = timelines[si]!;
           const order = t.steps.filter((st) => st.kind === "handsOn").map((st) => st.recipeId!);
           const batches = sess.batches.map((b) => ({ ...b, recipe: RECIPES_BY_ID[b.recipeId]! })).filter((b) => b.recipe).sort((a, b) => order.indexOf(a.recipeId) - order.indexOf(b.recipeId));
-          const day = sess.index === 0 ? PREP_DAY : DAY_LONG[(sess.beforeDay + 6) % 7];
+          const day = sess.index === 0 ? PREP_DAY : cookDayName(sess.beforeDay);
           return (
             <section key={sess.index} aria-labelledby={`sess-${sess.index}`}>
               <div className="mb-3 flex flex-wrap items-end justify-between gap-2">

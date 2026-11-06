@@ -70,7 +70,7 @@ export function buildRecipe(s: RecipeSeed): Recipe {
     equipment: checkTags(s.id, "equipment", words(s.equipment), EQUIPMENT),
     skill: s.meta.skill ?? (s.meta.active > 25 ? "intermediate" : "beginner"),
     servings: s.meta.serv, activeMinutes: s.meta.active, totalMinutes: s.meta.total,
-    fridgeDays: s.meta.fridge, freezerFriendly: !!s.meta.freezer, reheat: s.meta.reheat ?? null,
+    fridgeDays: s.meta.fridge, freezerFriendly: !!s.meta.freezer, reheat: s.meta.reheat ?? null, cookFresh: !!s.meta.fresh,
     lines, steps: s.steps, perServing, allergens: [...allergens].sort(), diets: dietsFor(lines, allergens, perServing),
   };
 }
