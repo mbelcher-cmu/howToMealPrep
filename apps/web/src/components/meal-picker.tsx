@@ -4,13 +4,14 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, Shuffle, ShoppingCart, Star, X } from "lucide-react";
 import { PREP_PACKS, RECIPES, RECIPES_BY_ID, type MealType } from "@prep-cart/catalog";
 import { fitsBreakfastMode, freshBreakfast } from "@/lib/shop-day";
-import { pickedDay, pickerGoals, pickerRows, surprisePick, type PickCard, type PickerInput, type Picks } from "@prep-cart/planner";
+import { buildPriceTable, pickedDay, pickerGoals, pickerRows, servingCost, surprisePick, type PickCard, type PickerInput, type Picks } from "@prep-cart/planner";
+import type { Recipe } from "@prep-cart/catalog";
 import { RecipeArt } from "@/components/food";
-import { useApp } from "@/lib/store";
+import { periodBudget, useApp } from "@/lib/store";
 import { useCommunity, useRecommendations } from "@/lib/recommend";
 import { rankingsOf } from "@/lib/use-planner";
 import { track } from "@/lib/telemetry";
-import { cx } from "@/lib/format";
+import { cx, money } from "@/lib/format";
 
 const TITLES: Record<MealType, string> = { breakfast: "Breakfast", main: "Lunch and dinner", snack: "Snacks" };
 const NOUN: Record<MealType, [string, string]> = { breakfast: ["breakfast", "breakfasts"], main: ["main", "mains"], snack: ["snack", "snacks"] };
@@ -50,10 +51,25 @@ export function MealPicker({ onDone }: { onDone?: () => void }) {
   const [at, setAt] = useState(firstOpen < 0 ? goals.length : firstOpen);
   const goal = goals[at];
   const affinity = useMemo(() => Object.fromEntries(Object.entries(recs).map(([id, r]) => [id, r.affinity])), [recs]);
+  // what one serving costs at the cheapest of the person's stores, and what a meal can cost within budget
+  const prices = useMemo(() => buildPriceTable(s.priceOverrides), [s.priceOverrides]);
+  const costOf = useMemo(() => {
+    const memo = new Map<string, number | null>();
+    return (r: Recipe) => {
+      if (!memo.has(r.id)) {
+        const per = s.stores.map((c) => servingCost(r, prices, [c], new Set())).filter((x) => x > 0 && Number.isFinite(x));
+        memo.set(r.id, per.length ? Math.min(...per) : null);
+      }
+      return memo.get(r.id)!;
+    };
+  }, [prices, s.stores]);
+  const mealsPerDay = s.occasions.filter((o) => o.prepped).length || 1;
+  const mealBudget = periodBudget(s) / Math.max(1, s.days * mealsPerDay);
   const input: PickerInput | null = goal ? {
+    servingCost: costOf, mealBudget,
     goals, picks, slot: goal.slot, prefs: s.prefs, ratings: s.ratings ?? {}, rankings: rankingsOf(s.favorites), affinity, stats, featured: FEATURED, recipes: RECIPES.filter((r) => fitsBreakfastMode(r, freshBreakfast(s.occasions))),
   } : null;
-  const rows = useMemo(() => (input ? pickerRows(input) : null), [input?.slot, picks, goals, s.prefs, s.ratings, s.favorites, affinity, stats]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rows = useMemo(() => (input ? pickerRows(input) : null), [input?.slot, picks, goals, s.prefs, s.ratings, s.favorites, affinity, stats, costOf, mealBudget]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!goals.length) return <p className="card p-4 text-sm text-muted">Mark at least one meal as prepped in Goals to pick recipes.</p>;
 
@@ -121,7 +137,7 @@ export function MealPicker({ onDone }: { onDone?: () => void }) {
                   Pick {goal.picks === 1 ? `your ${NOUN[goal.slot][0]}` : `${NOUN[goal.slot][0]} ${(picks[goal.slot]?.length ?? 0) + 1} of ${goal.picks}`}
                 </h2>
                 <p className="num text-sm text-muted">
-                  Aiming for about {Math.round(rows.target.kcal)} kcal and {Math.round(rows.target.protein)}g protein a meal{(picks[goal.slot]?.length || at > 0) ? ", adjusted for what you've picked" : ""}.
+                  Aiming for about {Math.round(rows.target.kcal)} kcal and {Math.round(rows.target.protein)}g protein a meal{(picks[goal.slot]?.length || at > 0) ? ", adjusted for what you've picked" : ""}. Your budget allows about {money(mealBudget)} a meal.
                 </p>
               </div>
               <button type="button" className="btn btn-sm" onClick={surprise}><Shuffle size={15} aria-hidden /> Surprise me</button>
@@ -136,10 +152,10 @@ export function MealPicker({ onDone }: { onDone?: () => void }) {
           </header>
 
           <Row title="Community picks" lead={rows.communitySource === "ratings" ? "Most loved by MacroAisle cooks." : "Our most popular meal preps while community ratings come in."}
-            cards={rows.community} onPick={(id) => add(id, "community")} badge={(c) => <CommunityBadge id={c.id} stats={stats} />} />
-          {rows.favorites.length > 0 && <Row title="Your favorites" lead="Recipes you rated highly or ranked at setup." cards={rows.favorites} onPick={(id) => add(id, "favorites")} badge={(c) => <Stars id={c.id} />} />}
+            cards={rows.community} cost={costOf} onPick={(id) => add(id, "community")} badge={(c) => <CommunityBadge id={c.id} stats={stats} />} />
+          {rows.favorites.length > 0 && <Row title="Your favorites" lead="Recipes you rated highly or ranked at setup." cards={rows.favorites} cost={costOf} onPick={(id) => add(id, "favorites")} badge={(c) => <Stars id={c.id} />} />}
           <Row title="Recommended for you" lead={Object.keys(s.ratings ?? {}).length ? "From your ratings and people with similar taste." : "Rate recipes you've cooked and these get more personal."}
-            cards={rows.recommended} onPick={(id) => add(id, "recommended")} badge={(c) => <MatchBadge taste={c.taste} />} />
+            cards={rows.recommended} cost={costOf} onPick={(id) => add(id, "recommended")} badge={(c) => <MatchBadge taste={c.taste} />} />
 
           <div className="flex justify-between">
             <button type="button" className="btn btn-sm" disabled={at === 0} onClick={() => setAt(at - 1)}><ArrowLeft size={15} aria-hidden /> Back</button>
@@ -198,7 +214,7 @@ function Tray({ slot, ids, onRemove }: { slot: MealType; ids: string[]; onRemove
   );
 }
 
-function Row({ title, lead, cards, onPick, badge }: { title: string; lead: string; cards: PickCard[]; onPick: (id: string) => void; badge: (c: PickCard) => React.ReactNode }) {
+function Row({ title, lead, cards, onPick, badge, cost }: { title: string; lead: string; cards: PickCard[]; onPick: (id: string) => void; badge: (c: PickCard) => React.ReactNode; cost: (r: Recipe) => number | null }) {
   if (!cards.length) return null;
   return (
     <section className="min-w-0" aria-label={title}>
@@ -217,6 +233,7 @@ function Row({ title, lead, cards, onPick, badge }: { title: string; lead: strin
                 <span className="line-clamp-2 font-display text-[15px] font-bold leading-snug">{r.name}</span>
                 <span className="num text-[13px] font-semibold">{Math.round(p.kcal)} kcal · {Math.round(p.protein)}g protein</span>
                 <span className="num text-xs text-muted">{p.portion === 1 ? "1 serving" : `${p.portion} servings`} per meal · {Math.round(p.carbs)}g carbs · {Math.round(p.fat)}g fat</span>
+                {cost(r) != null && <span className="num text-xs font-semibold">About {money(cost(r)! * p.portion)} a meal</span>}
               </span>
             </button>
           );
