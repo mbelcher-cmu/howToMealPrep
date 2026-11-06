@@ -704,7 +704,7 @@ test("shop on any day, prep 7 days in two cooks, and make breakfast fresh", asyn
   await page.getByText(/Nothing waits more than 3 days/).waitFor();
   assert.equal(await page.getByRole("switch", { name: /Different food each cook day/ }).isChecked(), true);
   await page.getByRole("button", { name: "Meals and rotation" }).click();
-  await page.getByRole("radiogroup", { name: "Breakfast" }).getByRole("radio", { name: "Fresh each morning" }).click();
+  await page.getByRole("radiogroup", { name: "Breakfast", exact: true }).getByRole("radio", { name: "Fresh each morning" }).click();
   const found = await axeScan(page, "/plan/ shopping day");
   await page.goto(base + "/prep/");
   await page.getByText("Made fresh each morning").waitFor({ timeout: 45000 });
@@ -715,7 +715,7 @@ test("shop on any day, prep 7 days in two cooks, and make breakfast fresh", asyn
   // back to one cook and a prepped breakfast for anything after this
   await openPlan(page);
   await page.getByRole("button", { name: "Meals and rotation" }).click();
-  await page.getByRole("radiogroup", { name: "Breakfast" }).getByRole("radio", { name: "Prep ahead" }).click();
+  await page.getByRole("radiogroup", { name: "Breakfast", exact: true }).getByRole("radio", { name: "Prep ahead" }).click();
 });
 
 test("no script errors along the way", () => {
