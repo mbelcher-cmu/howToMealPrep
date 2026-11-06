@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Shuffle } from "lucide-react";
 import { MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
 import { usualPrice } from "@/components/deals";
 import { BudgetBar, MacroRings, PlanMacros, PlanStatus, SolvingNote, usePreppedTargets } from "@/components/plan-bits";
@@ -68,6 +68,10 @@ export default function Home() {
       <PlanStatus />
       <div className="grid grid-cols-[minmax(0,1fr)] gap-7">
         <NextWeekCard />
+        <Link href="/pick/" className="card tap-card press flex items-center justify-between gap-3 p-4">
+          <span><span className="block font-display text-lg font-bold">Pick this week&apos;s meals</span><span className="text-sm text-muted">Community picks, your favorites and recommendations, one meal at a time.</span></span>
+          <Shuffle size={20} aria-hidden className="shrink-0" />
+        </Link>
         <TrainingToday weekday={new Date().getDay() === 0 ? 6 : new Date().getDay() - 1} />
         <Rail title={day ? `${DAY_LONG[dayIdx]}'s food` : "Today"} lead={notStarted ? `Your plan starts ${dayLabel(weekOf!)}.` : undefined} href="/plan/" linkLabel="Whole week">
           {day?.takeout?.map((tk) => {

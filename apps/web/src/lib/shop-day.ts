@@ -7,6 +7,13 @@ const at = (iso: string) => new Date(`${iso}T12:00:00`);
 const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 export const plusDays = (iso: string, n: number) => { const d = at(iso); d.setDate(d.getDate() + n); return fmt(d); };
 
+/** True when the person makes breakfast fresh each morning (eggs and toast) instead of prepping it. */
+export const freshBreakfast = (occasions: { kind: string; name: string; prepped: boolean; fresh?: boolean }[]) =>
+  occasions.some((o) => o.kind === "meal" && o.prepped && !!o.fresh && /breakfast/i.test(o.name));
+
+/** Recipes that can fill a meal: made-fresh breakfasts only when breakfast is made fresh, and then only those. */
+export const fitsBreakfastMode = (r: { mealType: string; cookFresh: boolean }, fresh: boolean) => r.mealType !== "breakfast" || r.cookFresh === fresh;
+
 /** Weekday of a date, Monday = 0. */
 export const weekdayOf = (iso: string) => (at(iso).getDay() + 6) % 7;
 
