@@ -146,7 +146,8 @@ test("locking calories and fat: raising carbs takes from protein and nothing loc
   await c.fill(String(carbs + 40));
   await c.blur();
   await page.getByText("Nothing else is unlocked to make room").waitFor();
-  assert.equal(await num("Carbs"), carbs + 20);
+  // the refused number goes back to what it was; the field can show the typed value for a moment first
+  await page.waitForFunction((v) => Number(document.getElementById([...document.querySelectorAll("label")].find((l) => l.textContent === "Carbs")?.htmlFor ?? "")?.value?.replace(/,/g, "")) === v, carbs + 20, { timeout: 5000 });
   await ensure("fat", false);
   await ensure("carbs", false);
   await page.reload();
