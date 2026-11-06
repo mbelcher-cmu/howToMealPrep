@@ -726,6 +726,15 @@ test("simple mode: budget, calories, meals, then the cart, and nothing else in t
   for (let step = 0; step < 8 && !(await build.isVisible()); step++) await p.getByRole("button", { name: /^(Next|Skip)/ }).click();
   await build.click();
   await p.waitForURL("**/meals/", { timeout: 15000 });
+  // straight from setup, Meals opens on the picker: pick one meal at a time, then build the cart
+  await p.getByRole("heading", { level: 1, name: "Pick your meals" }).waitFor();
+  await p.getByRole("heading", { name: "Community picks" }).first().waitFor({ timeout: 20000 });
+  found.push(...(await axeScan(p, "simple /meals/ picker")));
+  const cart = p.getByRole("button", { name: "Build my cart" });
+  for (let n = 0; n < 12 && !(await cart.isVisible()); n++) await p.getByRole("button", { name: /^Pick / }).first().click();
+  await cart.click();
+  await p.waitForURL("**/groceries/**", { timeout: 15000 });
+  await p.goto(base + "/meals/");
   await p.getByText("This week's recipes").first().waitFor({ timeout: 45000 });
   // the menu is just the four steps; hidden pages are not linked
   const nav = p.getByRole("navigation", { name: "Main" });
