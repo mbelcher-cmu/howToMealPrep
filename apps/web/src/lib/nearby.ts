@@ -11,6 +11,8 @@ const CHAIN_PATTERNS: [ChainId, RegExp][] = [
   ["gianteagle", /giant eagle/i],
   ["walmart", /walmart/i],
   ["traderjoes", /trader joe/i],
+  ["costco", /costco/i],
+  ["samsclub", /sam'?s club/i],
 ];
 
 export function chainFor(name: string): ChainId | null {
@@ -36,7 +38,7 @@ export async function pointForZip(zip: string, signal?: AbortSignal): Promise<{ 
 
 export async function storesNear(p: { lat: number; lon: number }, radiusMi = 6, signal?: AbortSignal): Promise<NearbyStore[]> {
   const m = Math.round(radiusMi * 1609.34);
-  const q = `[out:json][timeout:20];(nwr["shop"~"supermarket|grocery"](around:${m},${p.lat},${p.lon}););out center tags 200;`;
+  const q = `[out:json][timeout:20];(nwr["shop"~"supermarket|grocery|wholesale"](around:${m},${p.lat},${p.lon}););out center tags 200;`;
   const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: new URLSearchParams({ data: q }), signal });
   if (!res.ok) throw new Error(`Store lookup failed (${res.status}). Try again in a minute.`);
   const json = (await res.json()) as { elements: { type: string; id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }[] };

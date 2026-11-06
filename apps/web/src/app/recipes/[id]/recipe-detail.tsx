@@ -4,9 +4,10 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ArrowLeft, Droplet, Drumstick, Flame, Lock, LockOpen, PenLine, Trash2, Wheat } from "lucide-react";
 import { useFlag } from "@/lib/flags";
-import { ALLERGENS, CHAINS, DIETS, EQUIPMENT, formatAmount, INGREDIENTS, MOODS, processedIn, RECIPES_BY_ID } from "@prep-cart/catalog";
+import { ALLERGENS, DIETS, EQUIPMENT, formatAmount, INGREDIENTS, MOODS, processedIn, RECIPES_BY_ID } from "@prep-cart/catalog";
 import { macroShares } from "@prep-cart/nutrition";
 import { buildPriceTable, hardRejection, servingCost } from "@prep-cart/planner";
+import { useChains } from "@/lib/bulk";
 import { RecipeMeta } from "@/components/plan-bits";
 import { RecipeArt } from "@/components/food";
 import { MatchLine } from "@/components/picks";
@@ -19,6 +20,7 @@ export function RecipeDetail({ id }: { id: string }) {
   const r = RECIPES_BY_ID[id]!;
   const hydrated = useHydrated();
   const s = useApp();
+  const chains = useChains();
   const [servings, setServings] = useState(r.servings);
   const v2 = useFlag("redesign");
   const wholeOn = useFlag("wholeFoods");
@@ -103,7 +105,7 @@ export function RecipeDetail({ id }: { id: string }) {
           <Card>
             <SectionTitle>Cost per serving</SectionTitle>
             <ul className="grid gap-1 text-sm">
-              {CHAINS.map((c) => {
+              {chains.map((c) => {
                 const missing = r.lines.some((l) => !prices[l.ingredientId]?.[c.id]);
                 return (
                   <li key={c.id} className="flex justify-between">

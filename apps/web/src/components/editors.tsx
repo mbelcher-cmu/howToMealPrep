@@ -1,13 +1,14 @@
 "use client";
 import { useMemo, useState } from "react";
 import {
-  ALLERGENS, CHAINS, CUISINES, DIETS, EQUIPMENT, INGREDIENTS, MOODS, PROTEIN_SOURCES,
+  ALLERGENS, CUISINES, DIETS, EQUIPMENT, INGREDIENTS, MOODS, PROTEIN_SOURCES,
   type Allergen, type Diet, type Equipment,
 } from "@prep-cart/catalog";
 import { ACTIVITY_LEVELS, customOverflow, cmToFeetInches, editMealCalories, editMealMacro, feetInchesToCm, kgToLb, lbToKg, macroShares, MAX_MEALS, MAX_SNACKS, MEAL_STYLES, splitTargets, SPLIT_PRESETS, suggestTargets, type ActivityLevel, type Goal, type MacroGrams, type MealStyle, type SplitPreset } from "@prep-cart/nutrition";
 import { useFlag } from "@/lib/flags";
 import { useOccasions } from "@/lib/meal-styles";
 import { useApp } from "@/lib/store";
+import { BULK_WEEK_OPTIONS, usesClub, visibleChains } from "@/lib/bulk";
 import { Chip, NumberField, Segmented, Slider, Stepper, Toggle, WishChip } from "./ui";
 import { cx, isPittsburghZip, money } from "@/lib/format";
 import { Lock, LockOpen, SlidersHorizontal } from "lucide-react";
@@ -509,17 +510,31 @@ export function MoodEditor() {
 /* ───────────── Stores ───────────── */
 export function StoresEditor() {
   const s = useApp();
+  const bulkOn = useFlag("bulkStores");
+  const club = usesClub(s.stores, bulkOn);
   return (
     <div className="grid gap-4">
       <div className="grid gap-2">
         <span className="label">Stores I'll shop at</span>
         <div className="grid gap-2 sm:grid-cols-2">
-          {CHAINS.map((c) => (
+          {visibleChains(bulkOn).map((c) => (
             <Toggle key={c.id} label={c.name} detail={c.note} checked={s.stores.includes(c.id)}
-              onChange={(on) => s.set({ stores: on ? [...s.stores, c.id] : s.stores.filter((x) => x !== c.id) })} />
+              onChange={(on) => s.set({
+                stores: on ? [...s.stores, c.id] : s.stores.filter((x) => x !== c.id),
+                // a club alone can't stock every recipe: let the plan fill in at a regular store
+                ...(on && c.bulk && s.storeMode === "one" ? { storeMode: "any" as const } : {}),
+              })} />
           ))}
         </div>
       </div>
+      {club && (
+        <div className="grid gap-1">
+          <span className="text-[13px] text-muted">One bulk trip should last</span>
+          <Segmented label="One bulk trip should last" value={String(s.bulkWeeks ?? 4)} onChange={(v) => s.set({ bulkWeeks: Number(v) })} size="sm"
+            options={BULK_WEEK_OPTIONS.map((w) => ({ value: String(w), label: `${w} weeks` }))} />
+          <p className="text-xs text-muted">Each week counts only what it uses from a club pack. The rest goes in your pantry (meat in the freezer) and counts in the weeks that use it.</p>
+        </div>
+      )}
       <div className="grid gap-1">
         <span className="text-[13px] text-muted">Shopping trips</span>
         <Segmented label="Store mode" value={s.storeMode} onChange={(storeMode) => s.set({ storeMode })}

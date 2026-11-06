@@ -8,6 +8,7 @@ import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { AISLE_ORDER, aisleOrderFor } from "@/lib/aisles";
 import { chainName, cx, money } from "@/lib/format";
+import { linePkgLabel } from "@/lib/bulk";
 import { ItemArt } from "@/components/food";
 import { useWakeLock } from "@/lib/wake-lock";
 import { useFlag } from "@/lib/flags";
@@ -161,7 +162,7 @@ export default function Shop() {
                         <ItemArt ingredientId={ing.id} size={aisleMode ? 44 : 56} />
                         <span className="min-w-0 flex-1">
                           <span className="block text-[17px] font-semibold">{ing.name}</span>
-                          <span className="block text-sm text-muted">{l.packages} × {ing.pkg.label} · need {formatAmount(ing.id, l.needGrams, s.profile.units)}</span>
+                          <span className="block text-sm text-muted">{l.packages} × {linePkgLabel(l)} · need {formatAmount(ing.id, l.needGrams, s.profile.units)}</span>
                         </span>
                         <span className="num shrink-0 text-sm text-muted">{money(l.cost)}</span>
                         <span className="sr-only">Mark as in the cart</span>

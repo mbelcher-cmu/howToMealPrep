@@ -8,7 +8,10 @@ import type { Allergen, Animal } from "./taxonomy";
  * Packages are typical sizes in Pittsburgh-area stores. Prices are estimates (Nov 2026) for the
  * proof of concept; live and receipt prices replace them later. null = the chain doesn't carry it.
  */
-export type ChainId = "aldi" | "gianteagle" | "walmart" | "traderjoes";
+export type ChainId = "aldi" | "gianteagle" | "walmart" | "traderjoes" | "costco" | "samsclub";
+/** Warehouse clubs: big packs, a membership, and one trip that covers several weeks. */
+export const BULK_CHAINS: ReadonlySet<ChainId> = new Set<ChainId>(["costco", "samsclub"]);
+export const isBulkChain = (c: ChainId) => BULK_CHAINS.has(c);
 
 export interface Ingredient {
   id: string;
@@ -20,6 +23,8 @@ export interface Ingredient {
   /** containsGluten covers wheat plus barley and rye */
   gluten: boolean;
   pkg: { grams: number; label: string };
+  /** the warehouse-club pack (Costco, Sam's Club), when they carry it; prices for it are in estPrice */
+  bulkPkg?: { grams: number; label: string };
   estPrice: Record<ChainId, number | null>;
   /** weight of one natural unit (an egg, a tortilla, a can) for friendly display */
   each?: { grams: number; one: string; many: string };
@@ -215,6 +220,88 @@ const SIMPLE = new Set([
   "olive_oil", "sesame_oil", "peanut_butter", "soy_sauce", "honey",
 ]);
 
+/**
+ * Warehouse-club packs (Nov 2026 estimates, Pittsburgh-area Costco and Sam's Club): grams, label,
+ * Costco price, Sam's Club price. null = that club doesn't carry it. Anything not listed is not
+ * sold in a club-size pack, so the plan buys it at a regular store.
+ */
+const BULK: Record<string, [grams: number, label: string, costco: number | null, samsclub: number | null]> = {
+  chicken_breast: [2948, "6.5 lb pack", 16.99, 15.98],
+  chicken_thigh: [2722, "6 lb pack", 15.99, 14.98],
+  ground_turkey: [1814, "4 × 1 lb pack", 14.99, 13.98],
+  ground_beef: [2268, "5 lb pack", 23.99, 22.98],
+  sirloin: [1361, "3 lb pack", 20.99, 19.98],
+  pork_tenderloin: [1814, "4 lb (2 loins)", 11.99, 11.98],
+  pork_chops: [2268, "5 lb pack", 13.99, 13.98],
+  bacon: [1361, "4 × 12 oz pack", 15.99, 14.98],
+  chicken_sausage: [1134, "2.5 lb pack", 9.99, 9.98],
+  salmon: [1361, "3 lb bag", 19.99, 18.98],
+  shrimp: [907, "2 lb bag", 11.99, 11.98],
+  tilapia: [1814, "4 lb bag", 15.99, 14.98],
+  cod: [1134, "2.5 lb bag", 13.99, null],
+  tuna: [1136, "8 × 5 oz cans", 6.99, 5.98],
+  eggs: [3000, "5 dozen", 11.99, 10.98],
+  egg_whites: [2724, "6 × 16 oz cartons", 12.99, 11.98],
+  greek_yogurt: [2722, "2 × 48 oz tubs", 8.99, 8.98],
+  cottage_cheese: [1361, "2 × 24 oz tubs", 4.99, 4.98],
+  milk: [7570, "2 × 1 gallon", 4.99, 4.98],
+  cheddar: [1134, "2.5 lb bag", 8.99, 8.98],
+  mozzarella: [1134, "2.5 lb bag", 8.99, 8.98],
+  parmesan: [680, "24 oz tub", 9.99, 9.98],
+  feta: [680, "24 oz tub", 7.99, null],
+  string_cheese: [1344, "48 count", 12.99, 11.98],
+  butter: [1814, "4 lb (16 sticks)", 11.99, 11.98],
+  tofu: [1816, "4 × 16 oz blocks", 7.99, null],
+  edamame: [1814, "4 lb bag", 8.99, 8.98],
+  black_beans: [2040, "8 × 15 oz cans", 4.99, 4.98],
+  chickpeas: [2040, "8 × 15 oz cans", 4.99, 4.98],
+  kidney_beans: [2040, "8 × 15 oz cans", null, 4.98],
+  lentils: [1814, "4 lb bag", 3.99, 3.98],
+  rice: [4536, "10 lb bag", 7.99, 6.98],
+  jasmine_rice: [4536, "10 lb bag", 10.99, 9.98],
+  brown_rice: [2722, "6 lb bag", 4.99, 4.98],
+  oats: [4536, "10 lb bag", 10.99, 9.98],
+  quinoa: [2041, "4.5 lb bag", 11.99, 10.98],
+  pasta: [2722, "6 × 1 lb box", 5.99, 5.98],
+  pasta_white: [3629, "8 × 1 lb box", 5.99, 5.98],
+  tortillas: [1440, "32 count", 6.99, 5.98],
+  bread: [1134, "2 × 20 oz loaves", 2.69, 2.58],
+  potatoes: [4536, "10 lb bag", 5.99, 5.98],
+  sweet_potato: [2722, "6 lb bag", 4.99, 4.98],
+  onion: [4536, "10 lb bag", 6.99, 6.98],
+  broccoli: [1814, "4 lb bag", 4.99, 4.98],
+  green_beans: [1814, "4 lb bag", 4.99, 4.98],
+  stirfry_veg: [2495, "5.5 lb bag", 5.99, 5.98],
+  corn: [2268, "5 lb bag", 4.99, 5.48],
+  peas: [2268, "5 lb bag", 4.99, 5.48],
+  berries: [1814, "4 lb bag", 8.99, 8.98],
+  mango: [2268, "5 lb bag", 10.99, 9.98],
+  cauliflower_rice: [1814, "4 lb bag", 7.99, 7.98],
+  spinach: [454, "1 lb tub", 4.49, 4.28],
+  bell_pepper: [1361, "6 pack", 7.99, 7.48],
+  bananas: [1360, "3 lb bunch", 1.99, 1.84],
+  apples: [2268, "5 lb bag", 4.99, 4.98],
+  avocado: [810, "6 count bag", 3.99, 2.98],
+  carrots: [2268, "5 lb bag", 2.99, 1.98],
+  diced_tomatoes: [3288, "8 × 14.5 oz cans", 5.99, 4.98],
+  marinara: [2041, "3 × 24 oz jars", 4.99, 4.98],
+  salsa: [1077, "38 oz jar", 3.99, 2.98],
+  chicken_broth: [5443, "6 × 32 oz cartons", 7.99, 6.98],
+  peanut_butter: [1361, "2 × 24 oz jars", 4.99, 4.98],
+  almonds: [1361, "3 lb bag", 12.99, 12.98],
+  cashews: [1134, "2.5 lb bag", 14.99, 13.98],
+  olive_oil: [2000, "2 L bottle", 18.99, 17.98],
+  soy_sauce: [1893, "64 oz bottle", 5.99, 5.98],
+  honey: [1361, "3 lb bottle", 11.99, 11.98],
+  chia: [907, "2 lb bag", 7.99, 7.48],
+  protein_powder: [2268, "5 lb tub", 37.99, 35.98],
+  almond_milk: [5678, "6 × 32 oz cartons", 5.99, 5.98],
+  hummus: [907, "32 oz tub", 6.99, 5.98],
+  flour: [11340, "25 lb bag", 7.99, 7.98],
+  sugar: [4536, "10 lb bag", 4.99, 4.98],
+  mayo: [1890, "64 oz jar", 4.99, 4.98],
+};
+
 const CHAIN_ORDER: ChainId[] = ["aldi", "gianteagle", "walmart", "traderjoes"];
 
 export const INGREDIENTS: Record<string, Ingredient> = Object.fromEntries(
@@ -228,7 +315,8 @@ export const INGREDIENTS: Record<string, Ingredient> = Object.fromEntries(
       allergens: allergenList,
       gluten: allergenList.includes("wheat") || GLUTEN_RISK.has(id),
       pkg: { grams: pkgG, label: pkgLabel },
-      estPrice: Object.fromEntries(CHAIN_ORDER.map((ch, i) => [ch, prices[i] ?? null])) as Record<ChainId, number | null>,
+      estPrice: { ...Object.fromEntries(CHAIN_ORDER.map((ch, i) => [ch, prices[i] ?? null])), costco: BULK[id]?.[2] ?? null, samsclub: BULK[id]?.[3] ?? null } as Record<ChainId, number | null>,
+      ...(BULK[id] ? { bulkPkg: { grams: BULK[id]![0], label: BULK[id]![1] } } : {}),
       ...(each ? { each: { grams: each[0], one: each[1], many: each[2] } } : {}),
       ...(staple ? { staple } : {}),
       processing: PROCESSED.has(id) ? "processed" : SIMPLE.has(id) ? "simple" : "whole",
@@ -253,9 +341,21 @@ export function shelfLifeDays(id: string): number {
   return SHELF_OVERRIDES[id] ?? SHELF_LIFE_DAYS[ing.aisle];
 }
 
-export const CHAINS: { id: ChainId; name: string; note: string; search: (q: string) => string }[] = [
+export const CHAINS: { id: ChainId; name: string; note: string; bulk?: true; search: (q: string) => string }[] = [
   { id: "aldi", name: "Aldi", note: "Lowest prices, smaller selection", search: (q) => `https://www.aldi.us/results?q=${encodeURIComponent(q)}` },
   { id: "gianteagle", name: "Giant Eagle", note: "Widest selection in the Pittsburgh area", search: (q) => `https://www.gianteagle.com/search?q=${encodeURIComponent(q)}` },
   { id: "walmart", name: "Walmart", note: "Low prices, large stores", search: (q) => `https://www.walmart.com/search?q=${encodeURIComponent(q)}` },
   { id: "traderjoes", name: "Trader Joe's", note: "Smaller packages, in-store only", search: (q) => `https://www.traderjoes.com/home/search?q=${encodeURIComponent(q)}&section=products` },
+  { id: "costco", name: "Costco", note: "Warehouse packs, membership needed", bulk: true, search: (q) => `https://www.costco.com/CatalogSearch?keyword=${encodeURIComponent(q)}` },
+  { id: "samsclub", name: "Sam's Club", note: "Warehouse packs, membership needed", bulk: true, search: (q) => `https://www.samsclub.com/s/${encodeURIComponent(q)}` },
 ];
+
+/**
+ * The package a chain sells: the club pack at Costco and Sam's Club, the usual one everywhere else.
+ * Prices in estPrice and in price tables are per this package.
+ */
+export function pkgAt(id: string, chain: ChainId): { grams: number; label: string } {
+  const ing = INGREDIENTS[id];
+  if (!ing) return { grams: 1, label: "" };
+  return (isBulkChain(chain) && ing.bulkPkg) || ing.pkg;
+}

@@ -1,7 +1,8 @@
 "use client";
 import { useMemo, useState } from "react";
 import { Tag as TagIcon, Trash2, TrendingDown } from "lucide-react";
-import { CHAINS, INGREDIENTS, type ChainId } from "@prep-cart/catalog";
+import { INGREDIENTS, pkgAt, type ChainId } from "@prep-cart/catalog";
+import { useChains } from "@/lib/bulk";
 import { addDays, daysUntil, isoDay, useApp } from "@/lib/store";
 import { chainName, money } from "@/lib/format";
 import { Card, SectionTitle } from "./ui";
@@ -15,6 +16,7 @@ export function usualPrice(ingredientId: string, chain: ChainId, overrides: Retu
 
 export function DealsPanel() {
   const s = useApp();
+  const chains = useChains();
   const [q, setQ] = useState("");
   const [pick, setPick] = useState<string | null>(null);
   const [chain, setChain] = useState<ChainId>(s.stores[0] ?? "aldi");
@@ -54,7 +56,7 @@ export function DealsPanel() {
                   <TagIcon size={16} className="shrink-0 text-accent" aria-hidden />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2 font-medium">{INGREDIENTS[d.ingredientId]?.name}{used && <span className="pill">In your plan</span>}</div>
-                    <div className="text-xs text-muted">{chainName(d.chain)} · {INGREDIENTS[d.ingredientId]?.pkg.label} · ends {left === 0 ? "today" : `in ${left} day${left === 1 ? "" : "s"}`}</div>
+                    <div className="text-xs text-muted">{chainName(d.chain)} · {pkgAt(d.ingredientId, d.chain).label} · ends {left === 0 ? "today" : `in ${left} day${left === 1 ? "" : "s"}`}</div>
                   </div>
                   <div className="text-right">
                     <div className="num font-semibold">{money(d.price)}</div>
@@ -94,7 +96,7 @@ export function DealsPanel() {
             <div className="grid gap-1">
               <label htmlFor="deal-store" className="text-[13px] text-muted">Store</label>
               <select id="deal-store" className="input" value={chain} onChange={(e) => setChain(e.target.value as ChainId)}>
-                {CHAINS.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {chains.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div className="grid gap-1">

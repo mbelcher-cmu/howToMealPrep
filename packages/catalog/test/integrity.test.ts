@@ -134,3 +134,31 @@ describe("shopping line amounts", () => {
     expect(formatUseAndLeftover("rice", 400, 507).left).toBe("1.1 lb");
   });
 });
+
+describe("warehouse-club packs", () => {
+  it("sells a bigger pack that costs less per gram than the cheapest regular store", async () => {
+    const { BULK_CHAINS, pkgAt } = await import("../src");
+    const clubbed = Object.values(INGREDIENTS).filter((i) => i.bulkPkg);
+    expect(clubbed.length).toBeGreaterThan(40);
+    for (const ing of clubbed) {
+      expect(ing.bulkPkg!.grams, ing.id).toBeGreaterThan(ing.pkg.grams);
+      const regular = (["aldi", "walmart", "gianteagle", "traderjoes"] as const).map((c) => ing.estPrice[c]).filter((p): p is number => p != null);
+      const bestRegular = Math.min(...regular) / ing.pkg.grams;
+      const clubs = [...BULK_CHAINS].filter((c) => ing.estPrice[c] != null);
+      expect(clubs.length, `${ing.id} is sold by a club`).toBeGreaterThan(0);
+      for (const c of clubs) {
+        expect(pkgAt(ing.id, c)).toEqual(ing.bulkPkg);
+        expect(ing.estPrice[c]! / ing.bulkPkg!.grams, `${ing.id} at ${c}`).toBeLessThan(bestRegular);
+      }
+    }
+  });
+
+  it("has no club price without a club pack, and uses the usual pack elsewhere", async () => {
+    const { pkgAt } = await import("../src");
+    for (const ing of Object.values(INGREDIENTS)) {
+      if (!ing.bulkPkg) { expect(ing.estPrice.costco, ing.id).toBeNull(); expect(ing.estPrice.samsclub, ing.id).toBeNull(); }
+      expect(pkgAt(ing.id, "walmart")).toEqual(ing.pkg);
+    }
+    expect(CHAINS.filter((c) => c.bulk).map((c) => c.id)).toEqual(["costco", "samsclub"]);
+  });
+});

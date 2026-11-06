@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
-import { INGREDIENTS, MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
+import { MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
 import { usualPrice } from "@/components/deals";
 import { BudgetBar, MacroRings, PlanMacros, PlanStatus, SolvingNote, usePreppedTargets } from "@/components/plan-bits";
 import { ItemCard, RecipeArt, RecipeCard, Rail } from "@/components/food";
@@ -10,6 +10,7 @@ import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { chainName, money, plural, recipeHref } from "@/lib/format";
+import { linePkgLabel } from "@/lib/bulk";
 import { useDays } from "@/lib/days";
 import { useFlag } from "@/lib/flags";
 import { NextWeekCard } from "@/components/next-week";
@@ -137,7 +138,7 @@ export default function Home() {
 
         {todo.length > 0 && (
           <Rail title="Still to buy" href="/groceries/" linkLabel="Shopping list" lead={`${plural(todo.length, "item")}, about ${money(todo.reduce((a, l) => a + l.cost, 0))}`}>
-            {todo.slice(0, 16).map((l) => <ItemCard key={l.chain + l.ingredientId} ingredientId={l.ingredientId} price={l.cost} note={`${l.packages} × ${INGREDIENTS[l.ingredientId]?.pkg.label ?? ""} · ${chainName(l.chain)}`} />)}
+            {todo.slice(0, 16).map((l) => <ItemCard key={l.chain + l.ingredientId} ingredientId={l.ingredientId} price={l.cost} note={`${l.packages} × ${linePkgLabel(l)} · ${chainName(l.chain)}`} />)}
           </Rail>
         )}
 

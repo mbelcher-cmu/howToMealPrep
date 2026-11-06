@@ -655,6 +655,44 @@ test("whole foods only keeps processed food out of the plan and meal preps", asy
   await page.locator("main").waitFor();
 });
 
+test("Costco: a club pack counts only what the week uses, and the calendar buys it once (bulkStores flag)", async () => {
+  // staging-only flag: switch it on for this device, and back to the build's flags at the end
+  await page.goto(base + "/plan/?flags=bulkStores=on,calendar=on");
+  await page.getByText("Recipes this week").first().waitFor({ timeout: 45000 });
+  const before = await page.evaluate(() => {
+    const k = Object.keys(localStorage).find((x) => /^prep-cart-(\w+-)?v1$/.test(x));
+    const st = JSON.parse(localStorage.getItem(k)).state;
+    return { stores: st.stores, storeMode: st.storeMode };
+  });
+  await page.getByRole("button", { name: "Stores", exact: true }).click();
+  await page.getByRole("switch", { name: /^Costco/ }).check({ force: true });
+  // a club alone can't stock every recipe, so the plan may now split the cart
+  assert.equal(await page.getByRole("radio", { name: "Split if it saves money" }).getAttribute("aria-checked"), "true");
+  await page.getByRole("radiogroup", { name: "One bulk trip should last" }).getByRole("radio", { name: "4 weeks" }).click();
+  const found = await axeScan(page, "bulk /plan/");
+
+  await page.goto(base + "/groceries/");
+  await page.getByRole("heading", { name: "Costco", exact: true }).waitFor({ timeout: 45000 });
+  await page.getByText(/at the register/).waitFor({ timeout: 45000 });
+  assert.ok(await page.getByText(/^counts \$\d/).count() >= 1, "a club line shows the share this week counts");
+  found.push(...(await axeScan(page, "bulk /groceries/")));
+
+  await page.goto(base + "/calendar/");
+  await page.getByText(/at Costco/).first().waitFor({ timeout: 45000 });
+  found.push(...(await axeScan(page, "bulk /calendar/")));
+  assert.deepEqual(found.filter((v) => v.impact === "serious" || v.impact === "critical"), [], JSON.stringify(found, null, 1));
+
+  // put the stores back as they were
+  await page.evaluate((b) => {
+    const k = Object.keys(localStorage).find((x) => /^prep-cart-(\w+-)?v1$/.test(x));
+    const saved = JSON.parse(localStorage.getItem(k));
+    Object.assign(saved.state, b);
+    localStorage.setItem(k, JSON.stringify(saved));
+  }, before);
+  await page.goto(base + "/?flags=reset");
+  await page.locator("main").waitFor();
+});
+
 test("no script errors along the way", () => {
   assert.deepEqual(errors, []);
 });

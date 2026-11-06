@@ -5,6 +5,7 @@ import { Tag } from "./ui";
 import { useApp } from "@/lib/store";
 import { currentPosition, pointForZip, storesNear } from "@/lib/nearby";
 import { chainName } from "@/lib/format";
+import { isBulkChain } from "@prep-cart/catalog";
 
 export function NearbyFinder() {
   const s = useApp();
@@ -19,7 +20,8 @@ export function NearbyFinder() {
       if (how === "zip") s.setProfile({ zip });
       let list = await storesNear(p, 6);
       if (!list.some((n) => n.chain)) list = await storesNear(p, 15); // wider net outside cities
-      const priced = [...new Set(list.filter((n) => n.chain).map((n) => n.chain!))];
+      // warehouse clubs need a membership, so they're never switched on for the person
+      const priced = [...new Set(list.filter((n) => n.chain && !isBulkChain(n.chain)).map((n) => n.chain!))];
       s.set({ nearby: list, ...(priced.length ? { stores: priced } : {}) });
       setNote(priced.length
         ? `Planning with ${priced.map(chainName).join(priced.length > 2 ? ", " : " and ").replace(/, ([^,]*)$/, ", and $1")} near you.`

@@ -30,7 +30,7 @@ describe("quick amounts", () => {
 describe("pantry savings", () => {
   it("prices what the plan takes from the pantry at the cheapest store", () => {
     const ing = INGREDIENTS.chicken_breast!;
-    const cheapest = Math.min(...Object.values(ing.estPrice).filter((p): p is number => p != null));
+    const cheapest = Math.min(...(["aldi", "gianteagle", "walmart", "traderjoes"] as const).map((c) => ing.estPrice[c]).filter((p): p is number => p != null));
     expect(packagePrice("chicken_breast")).toBe(cheapest);
     expect(pantrySavings([{ ingredientId: "chicken_breast", grams: ing.pkg.grams / 2 }], [])).toBeCloseTo(cheapest / 2, 2);
   });
