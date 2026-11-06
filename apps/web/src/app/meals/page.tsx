@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
 import { ArrowRight, ShoppingCart, Shuffle } from "lucide-react";
+import { useState } from "react";
 import { RECIPES_BY_ID } from "@prep-cart/catalog";
+import { MealPicker } from "@/components/meal-picker";
 import { PlanStatus } from "@/components/plan-bits";
 import { RecipeCard, Rail } from "@/components/food";
 import { EmptyState, PageHeader } from "@/components/ui";
@@ -22,7 +24,19 @@ export default function Meals() {
   const { plan, status } = usePlanner();
   const { DAY_LONG, weekStart, cookDayName } = useDays();
   const weekOf = useApp((s) => s.weekOf);
+  const pickerDone = useApp((st) => st.pickerDone);
+  const [picking, setPicking] = useState<boolean | null>(null);
   if (!hydrated) return null;
+  // first time here (straight from setup), Meals opens on the picker
+  if (picking ?? !pickerDone) {
+    return (
+      <>
+        <PageHeader title="Pick your meals" lead="One meal at a time. Each pick resets what's left of your day, and portions scale to hit your macros."
+          action={plan ? <button type="button" className="btn" onClick={() => { useApp.getState().set({ pickerDone: true }); setPicking(false); }}>See this week</button> : undefined} />
+        <MealPicker />
+      </>
+    );
+  }
   if (!plan) {
     return (
       <>
@@ -43,7 +57,7 @@ export default function Meals() {
   const day = plan.schedule.days[dayIdx];
   return (
     <>
-      <PageHeader title="Your meals" lead={<>{plural(r.recipes.length, "recipe")} for {plural(plan.days, "day")}, portioned to your calories. Swap anything you don&apos;t want and your cart updates.{cooks.length > 0 && <> Cook on {cooks.join(" and ")}{fresh.length > 0 ? "; breakfast is made fresh each morning" : ""}.</>}{fromStart != null && fromStart < 0 && <> Starts {dayLabel(weekOf!)}.</>}</>} action={<Link href="/pick/" className="btn"><Shuffle size={16} aria-hidden /> Pick meals</Link>} />
+      <PageHeader title="Your meals" lead={<>{plural(r.recipes.length, "recipe")} for {plural(plan.days, "day")}, portioned to your calories. Swap anything you don&apos;t want and your cart updates.{cooks.length > 0 && <> Cook on {cooks.join(" and ")}{fresh.length > 0 ? "; breakfast is made fresh each morning" : ""}.</>}{fromStart != null && fromStart < 0 && <> Starts {dayLabel(weekOf!)}.</>}</>} action={<button type="button" className="btn" onClick={() => setPicking(true)}><Shuffle size={16} aria-hidden /> Pick meals</button>} />
       <PlanStatus />
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
         {day && day.meals.length > 0 && (

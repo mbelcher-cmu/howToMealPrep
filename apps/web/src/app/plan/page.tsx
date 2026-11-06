@@ -46,8 +46,8 @@ export default function PlanPage() {
         : <PageHeader title="Plan" lead="Every change re-plans on its own. Keep recipes you like, swap or skip the ones you don't." action={<SolvingNote />} />}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
         <div className={cx("grid min-w-0 grid-cols-1 content-start gap-3 lg:order-1", simple ? "order-1" : "order-2")}>
-          <h2 className="px-1 font-display text-lg font-bold lg:sr-only">Change your week</h2>
-          {simple && <Panel title="Budget and days" open><div className="grid gap-5"><BudgetEditor /><div className="border-t border-line pt-4"><ShoppingDayEditor /></div></div></Panel>}
+          <h2 className={cx("px-1 font-display text-lg font-bold lg:sr-only", simple && "sr-only")}>Change your week</h2>
+          {simple && <Panel title="Budget and shopping" open><div className="grid gap-5"><BudgetEditor /><div className="border-t border-line pt-4"><ShoppingDayEditor /></div></div></Panel>}
           <Panel title="Calories and macros" open={simple}><TargetsEditor showSuggest /></Panel>
           {training && !simple && <Panel title="Training days"><TrainingWeekEditor /></Panel>}
           <Panel title="Meals and rotation"><MealStructureEditor /></Panel>

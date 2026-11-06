@@ -145,7 +145,7 @@ function Stores() {
 
 type StepId = "about" | "week" | "budget" | "meals" | "favorites" | "stores";
 const STEPS: Record<StepId, { title: string; lead: string }> = {
-  budget: { title: "Your budget", lead: "How much do you want to spend on groceries?" },
+  budget: { title: "Budget and shopping", lead: "What you want to spend, when you shop, and how many days to prep." },
   meals: { title: "Your meals", lead: "How many meals and snacks a day, and any diet." },
   about: { title: "About you", lead: "So we can size your meals. It stays on this device." },
   week: { title: "Your week", lead: "Your budget and how you like to eat. Everything else can wait." },
@@ -175,7 +175,8 @@ export default function Welcome() {
   // which meal the favorites step is on; Next walks through them before moving on
   const [m, setM] = useState(0);
   const [d, setD] = useState<Draft>({ sex: null, age: "", ft: "", inch: "", cm: "", lb: "", kg: "", activity: "", goal: null });
-  const fav: StepId[] = ranking && meals.length ? ["favorites"] : [];
+  // simple mode picks meals Netflix style on Meals right after setup, so it skips the ranking step
+  const fav: StepId[] = ranking && meals.length && !simple ? ["favorites"] : [];
   // simple mode follows the app's order: budget, calories (about you), meals, then stores for the cart
   const ids: StepId[] = simple ? ["budget", "about", "meals", ...fav, "stores"] : ["about", "week", ...fav, "stores"];
   const TITLES = ids.map((id) => STEPS[id]);
