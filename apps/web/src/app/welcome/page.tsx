@@ -162,7 +162,8 @@ export default function Welcome() {
   // which meal the favorites step is on; Next walks through them before moving on
   const [m, setM] = useState(0);
   const [d, setD] = useState<Draft>({ sex: null, age: "", ft: "", inch: "", cm: "", lb: "", kg: "", activity: "", goal: null });
-  const fav: StepId[] = ranking && meals.length ? ["favorites"] : [];
+  // simple mode picks meals Netflix style on Meals right after setup, so it skips the ranking step
+  const fav: StepId[] = ranking && meals.length && !simple ? ["favorites"] : [];
   // simple mode follows the app's order: budget, calories (about you), meals, then stores for the cart
   const ids: StepId[] = simple ? ["budget", "about", "meals", ...fav, "stores"] : ["about", "week", ...fav, "stores"];
   const TITLES = ids.map((id) => STEPS[id]);

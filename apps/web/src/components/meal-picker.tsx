@@ -79,7 +79,7 @@ export function MealPicker({ onDone }: { onDone?: () => void }) {
     const ids = goals.flatMap((g) => picks[g.slot] ?? []);
     const variety = { ...s.variety };
     for (const g of goals) variety[g.slot] = Math.max(1, picks[g.slot]?.length ?? g.picks);
-    s.set({ locked: ids, variety, held: [], prefs: { ...s.prefs, excludeRecipes: (s.prefs.excludeRecipes ?? []).filter((x) => !ids.includes(x)) } });
+    s.set({ pickerDone: true, locked: ids, variety, held: [], prefs: { ...s.prefs, excludeRecipes: (s.prefs.excludeRecipes ?? []).filter((x) => !ids.includes(x)) } });
     track("picker_done", { recipes: ids.length });
     if (onDone) onDone(); else router.push("/groceries/");
   };
