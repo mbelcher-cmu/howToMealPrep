@@ -105,6 +105,8 @@ export interface AppState {
   customRecipes: RecipeSeed[];
   /** the person's star ratings by recipe id */
   ratings: Record<string, number>;
+  /** the person has finished the meal picker at least once; until then Meals opens on it */
+  pickerDone: boolean;
   /** favorites ranked during setup, best first, per meal type */
   favorites: Partial<Record<"breakfast" | "main" | "snack", string[]>>;
   /** preview of the planned paid tier on this device */
@@ -208,6 +210,7 @@ function initial(): Omit<AppState, keyof Actions> {
     customRecipes: [],
     ratings: {},
     favorites: {},
+    pickerDone: false,
     plusPreview: false,
     weekStart: 0,
     shopSameDay: true,
