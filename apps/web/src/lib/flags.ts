@@ -22,6 +22,10 @@ export const FLAG_DEFAULTS = {
   calendar: { production: true, staging: true, development: true },
   /** setup asks the person to rank about 10 options for breakfast, lunch and dinner, and snacks, on in production since Nov 5 2026 */
   mealRanking: { production: true, staging: true, development: true },
+  /** prep day knows the kitchen (two oven racks, four burners), plus step-by-step cook mode with timers and storage notes */
+  cookMode: { production: false, staging: true, development: true },
+  /** in-store list: jump between aisles, "can't find it", and a buzz on each tick */
+  aisleMode: { production: false, staging: true, development: true },
   /** Eat out, more: "plan takeout for me", chains near you, search and sort, cost against cooking, just-this-week takeout */
   eatOutPlus: { production: false, staging: true, development: true },
   /** Netflix-style recommendations from star ratings: yours, and everyone's via the database (staging first) */
