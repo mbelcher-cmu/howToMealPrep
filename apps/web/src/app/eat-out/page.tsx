@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, LocateFixed, MapPin, Plus, Search, Sparkles, X } from "lucide-react";
 import { MENU_BY_ID, MENU_ITEMS, menuFit, RESTAURANTS, RESTAURANTS_BY_ID, type MealType, type MenuItem } from "@prep-cart/catalog";
 import { splitTargets } from "@prep-cart/nutrition";
+import { useOccasions } from "@/lib/meal-styles";
 import { cookedMealCost, suggestTakeout } from "@prep-cart/planner";
 import { BudgetBar, PlanMacros, PlanStatus, SolvingNote } from "@/components/plan-bits";
 import { Card, Chip, NumberField, PageHeader, Segmented, SectionTitle, Stepper, Tag, Toggle } from "@/components/ui";
@@ -27,12 +28,13 @@ export default function EatOut() {
   const { plan } = usePlanner();
   const [cell, setCell] = useState<{ day: number; occasionId: string } | null>(null);
   const [restaurant, setRestaurant] = useState<string>("");
+  const occasions = useOccasions();
+  const parts = useMemo(() => splitTargets(s.targets, occasions), [s.targets, occasions]);
   const plus = useFlag("eatOutPlus");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("fit");
   const [nearOnly, setNearOnly] = useState(false);
   const [once, setOnce] = useState(false);
-  const parts = useMemo(() => splitTargets(s.targets, s.occasions), [s.targets, s.occasions]);
   // on a phone the picker sits below the week, so bring it into view
   useEffect(() => { if (cell) document.getElementById("takeout-picker")?.scrollIntoView({ behavior: "smooth", block: "start" }); }, [cell]);
 
