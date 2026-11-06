@@ -59,6 +59,7 @@ function WeekList() {
 export function WeekRecipes({ title = "Recipes this week" }: { title?: string }) {
   const { plan, status, tryAnother } = usePlanner();
   const s = useApp();
+  const simple = useFlag("simple");
   if (!plan) return null;
   const excluded = s.prefs.excludeRecipes ?? [];
   return (
@@ -88,8 +89,8 @@ export function WeekRecipes({ title = "Recipes this week" }: { title?: string })
                 {p.household && p.household.eaters.length > 0 && (
                   <p className="text-xs text-muted">{p.household.mine ? "Also for " : "For "}{p.household.eaters.map((e) => `${e.name} (${e.meals} meal${e.meals === 1 ? "" : "s"}, ${fmtServings(e.portion)} each)`).join(", ")}</p>
                 )}
-                <RecipeMeta recipe={p.recipe} />
-                {p.reasons.length > 0 && <p className="mt-1 text-xs text-muted">Why: {p.reasons.join(" · ")}</p>}
+                {!simple && <RecipeMeta recipe={p.recipe} />}
+                {!simple && p.reasons.length > 0 && <p className="mt-1 text-xs text-muted">Why: {p.reasons.join(" · ")}</p>}
               </div>
               {/* phone: a labeled row under the recipe; wider screens: a column on the right */}
               <div className="flex w-full shrink-0 gap-1.5 sm:w-auto sm:flex-col">
