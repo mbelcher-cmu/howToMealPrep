@@ -54,6 +54,8 @@ export interface NearbyStore { id: string; name: string; chain: ChainId | null; 
 
 export interface AppState {
   onboarded: boolean;
+  /** day (YYYY-MM-DD) the first-time app tour was shown; unset until then, so a device that never saw it can't undo "seen" in a sync merge */
+  tourSeen?: string;
   profile: Profile;
   targets: Targets;
   targetMode: TargetMode;
@@ -419,7 +421,7 @@ export const useApp = create<AppState>()(
         set({ deals: [...deals, { ...d, id: `${d.ingredientId}:${d.chain}:${Date.now()}`, addedOn: isoDay() }], priceHistory: history });
       },
       removeDeal: (id) => set({ deals: get().deals.filter((d) => d.id !== id) }),
-      reset: () => set({ ...initial() }),
+      reset: () => set({ ...initial(), tourSeen: undefined }),
     }),
     {
       name: STORE_KEY,

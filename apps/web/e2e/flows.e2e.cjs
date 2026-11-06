@@ -97,6 +97,47 @@ test("a first visit goes to onboarding, and finishing it lands on Home", async (
   assert.ok(await page.getByRole("navigation", { name: "Main" }).first().isVisible(), "tab bar shows on Home");
 });
 
+test("the app tour shows once on Home, walks the menu, skips, and Settings replays it", async () => {
+  // the tour flag is off in production builds, so turn it on; and forget a tour already shown right after setup
+  await page.goto(base + "/settings/?flags=tour=on");
+  await page.evaluate(() => {
+    for (const k of Object.keys(localStorage).filter((k) => /^prep-cart-.*v1$/.test(k))) {
+      const saved = JSON.parse(localStorage.getItem(k));
+      if (saved?.state) { delete saved.state.tourSeen; localStorage.setItem(k, JSON.stringify(saved)); }
+    }
+  });
+  await page.goto(base + "/");
+  const tour = page.getByRole("dialog");
+  await tour.waitFor({ timeout: 10000 });
+  assert.match(await tour.textContent(), /1 of 5/);
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent), "Next", "focus starts on Next");
+  const violations = (await axeScan(page, "tour")).filter((v) => v.impact === "serious" || v.impact === "critical");
+  assert.deepEqual(violations, [], JSON.stringify(violations, null, 2));
+  for (const title of ["Plan", "Groceries", "Prep", "Everything else"]) {
+    await tour.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("dialog", { name: title }).waitFor();
+  }
+  await tour.getByRole("button", { name: "Got it" }).click();
+  await tour.waitFor({ state: "detached" });
+  // once only: a reload of Home doesn't bring it back
+  await page.reload();
+  await page.getByRole("navigation", { name: "Main" }).first().waitFor();
+  await page.waitForTimeout(1500);
+  assert.equal(await page.getByRole("dialog").count(), 0, "the tour shows only once");
+  // Settings replays it; Skip tour and Escape both close it
+  await page.goto(base + "/settings/");
+  await page.getByRole("button", { name: "Replay the tour" }).click();
+  await page.waitForURL(base + "/");
+  await page.getByRole("dialog", { name: "Welcome to MacroAisle" }).waitFor();
+  await page.getByRole("button", { name: "Skip tour" }).click();
+  await page.getByRole("dialog").waitFor({ state: "detached" });
+  await page.goto(base + "/settings/");
+  await page.getByRole("button", { name: "Replay the tour" }).click();
+  await page.getByRole("dialog", { name: "Welcome to MacroAisle" }).waitFor();
+  await page.keyboard.press("Escape");
+  await page.getByRole("dialog").waitFor({ state: "detached" });
+});
+
 test("the plan solves and hits the calorie target within 5%", async () => {
   await openPlan(page);
   const { actual, target } = await calories(page);

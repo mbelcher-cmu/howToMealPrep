@@ -16,6 +16,8 @@ import { Card, PageHeader, Segmented, SectionTitle } from "@/components/ui";
 import { useAccount } from "@/lib/account";
 import { useApp } from "@/lib/store";
 import { useHydrated } from "@/lib/use-planner";
+import { useRouter } from "next/navigation";
+import { startTour } from "@/components/tour";
 
 function Section({ id, title, lead, children }: { id: string; title: string; lead?: string; children: ReactNode }) {
   return (
@@ -37,6 +39,8 @@ export default function Settings() {
   const ent = useEntitlements();
   const accounts = useFlag("accounts");
   const training = useFlag("fitnessSync");
+  const tourOn = useFlag("tour");
+  const router = useRouter();
   const account = useAccount();
   const signedIn = account.status === "signedIn";
   const [noAnalytics, setNoAnalytics] = useState(() => typeof window !== "undefined" && analyticsOptedOut());
@@ -108,6 +112,9 @@ export default function Settings() {
           </Section>
         ) : plus && <Section id="plus" title="MacroAisle Plus" lead="AI meal swaps, live prices and more, coming later.">
           <Link href="/plus/" className="btn">See what's in Plus</Link>
+        </Section>}
+        {tourOn && <Section id="tour" title="App tour" lead="A 20-second look at where everything is.">
+          <button className="btn" onClick={() => { startTour(); router.push("/"); }}>Replay the tour</button>
         </Section>}
         <Section id="data" title="Your data" lead={signedIn ? "Your data syncs to your account. You can also keep a backup file." : "Back up your settings and plans to a file to move them to another device."}>
           <div className="flex flex-wrap gap-2">

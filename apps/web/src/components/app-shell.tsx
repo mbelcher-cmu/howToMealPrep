@@ -9,6 +9,10 @@ import { cx } from "@/lib/format";
 import { initTelemetry } from "@/lib/telemetry";
 import { initAccount, useAccount } from "@/lib/account";
 import { useFlag } from "@/lib/flags";
+import { Tour } from "@/components/tour";
+
+/** Which tour stop lights up each menu item (see components/tour.tsx). */
+const TOUR_ID: Record<string, string> = { "/": "home", "/plan/": "plan", "/groceries/": "groceries", "/prep/": "prep", "/more/": "more" };
 
 const NAV = [
   { href: "/", label: "Home", icon: Home, primary: true },
@@ -74,7 +78,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const v2 = useFlag("redesign");
   if (isOnboarding || isShopping) return <main id="main" className="min-h-dvh">{children}</main>;
-  if (v2) return <ShellV2 path={path} solving={status === "solving"}>{children}</ShellV2>;
+  if (v2) return <><ShellV2 path={path} solving={status === "solving"}>{children}</ShellV2><Tour /></>;
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[232px_minmax(0,1fr)]">
@@ -86,7 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
         <nav aria-label="Main" className="grid gap-0.5">
           {NAV.map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href} aria-current={active(path, href) ? "page" : undefined}
+            <Link key={href} href={href} data-tour={TOUR_ID[href]} aria-current={active(path, href) ? "page" : undefined}
               className={cx("flex min-h-[40px] items-center gap-3 rounded-lg px-3 text-sm font-medium", active(path, href) ? "bg-accent-soft text-ink" : "text-muted hover:bg-sunk hover:text-ink")}>
               <Icon size={18} aria-hidden /> {label}
             </Link>
@@ -111,14 +115,25 @@ export function AppShell({ children }: { children: ReactNode }) {
         {[...NAV.filter((n) => n.primary), { href: "/more/", label: "More", icon: Menu, primary: true }].map(({ href, label, icon: Icon }) => {
           const on = href === "/more/" ? active(path, href) || MORE_ROUTES.some((h) => active(path, h)) : active(path, href);
           return (
-            <Link key={href} href={href} aria-current={on ? "page" : undefined}
+            <Link key={href} href={href} data-tour={TOUR_ID[href]} aria-current={on ? "page" : undefined}
               className={cx("press flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium", on ? "text-accent" : "text-muted")}>
               <Icon size={20} aria-hidden /> {label}
             </Link>
           );
         })}
       </nav>
+      <Tour />
     </div>
+  );
+}
+
+function SideLink({ href, label, icon: Icon, path }: (typeof NAV)[number] & { path: string }) {
+  const on = active(path, href);
+  return (
+    <Link href={href} data-tour={TOUR_ID[href]} aria-current={on ? "page" : undefined}
+      className={cx("press flex min-h-[44px] items-center gap-3 rounded-full px-4 text-[14px]", on ? "bg-surface font-semibold text-ink shadow-[var(--shadow-card)]" : "font-medium text-muted hover:bg-surface/60 hover:text-ink")}>
+      <Icon size={18} strokeWidth={on ? 2.4 : 2} aria-hidden /> {label}
+    </Link>
   );
 }
 
@@ -140,15 +155,11 @@ function ShellV2({ path, solving, children }: { path: string; solving: boolean; 
       <aside aria-label="App menu" className="sticky top-0 hidden h-dvh flex-col px-4 py-6 md:flex">
         <Link href="/" className="mb-8 px-3"><Wordmark className="text-[19px]" /></Link>
         <nav aria-label="Main" className="grid gap-1">
-          {NAV.map(({ href, label, icon: Icon }) => {
-            const on = active(path, href);
-            return (
-              <Link key={href} href={href} aria-current={on ? "page" : undefined}
-                className={cx("press flex min-h-[44px] items-center gap-3 rounded-full px-4 text-[14px]", on ? "bg-surface font-semibold text-ink shadow-[var(--shadow-card)]" : "font-medium text-muted hover:bg-surface/60 hover:text-ink")}>
-                <Icon size={18} strokeWidth={on ? 2.4 : 2} aria-hidden /> {label}
-              </Link>
-            );
-          })}
+          {NAV.filter((n) => n.primary).map((n) => <SideLink key={n.href} {...n} path={path} />)}
+          {/* the tour's last stop lights up these together on wide screens */}
+          <div data-tour="more" className="grid gap-1">
+            {MORE.map((n) => <SideLink key={n.href} {...n} path={path} />)}
+          </div>
         </nav>
         <div role="status" className="mt-auto px-4 text-xs text-muted">
           {solving ? <span className="inline-flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" aria-hidden /> Updating your plan</span> : "Prices are estimates until you add receipts."}
@@ -171,14 +182,14 @@ function ShellV2({ path, solving, children }: { path: string; solving: boolean; 
           {tabs.map(({ href, label, icon: Icon }) => {
             const on = href === "/more/" ? active(path, href) || MORE_ROUTES.some((h) => active(path, h)) : active(path, href);
             return (
-              <Link key={href} href={href} aria-current={on ? "page" : undefined}
+              <Link key={href} href={href} data-tour={TOUR_ID[href]} aria-current={on ? "page" : undefined}
                 className={cx("press flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-full text-[11px]", on ? "bg-sunk font-semibold text-ink" : "font-medium text-muted")}>
                 <Icon size={20} strokeWidth={on ? 2.4 : 2} aria-hidden /> {label}
               </Link>
             );
           })}
         </div>
-        <Link href="/groceries/" aria-label="Groceries" aria-current={groceriesOn ? "page" : undefined}
+        <Link href="/groceries/" data-tour="groceries" aria-label="Groceries" aria-current={groceriesOn ? "page" : undefined}
           className={cx("press pointer-events-auto grid h-16 w-16 shrink-0 place-items-center rounded-full bg-accent text-accent-ink shadow-[var(--shadow-float)]", groceriesOn && "ring-4 ring-ink/15")}>
           <ShoppingCart size={24} aria-hidden />
         </Link>

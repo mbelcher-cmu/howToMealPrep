@@ -95,3 +95,15 @@ h1, h2, h3 { text-wrap: balance; }
 
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tint { background: hsl(var(--h, 140) 22% 20%); } }
 :root[data-theme="dark"] .tint { background: hsl(var(--h, 140) 22% 20%); }
+
+/* first-time app tour: a dim layer with a rounded cut-out that glides between menu items */
+.tour-hole {
+  box-shadow: 0 0 0 9999px rgb(10 10 16 / 0.58);
+  transition: top 260ms var(--ease-out), left 260ms var(--ease-out), width 260ms var(--ease-out), height 260ms var(--ease-out);
+}
+.tour-card { animation: tour-in 200ms var(--ease-out); }
+@keyframes tour-in { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) {
+  .tour-hole { transition: none; }
+  .tour-card { animation: none; }
+}
