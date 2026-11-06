@@ -14,7 +14,7 @@ const { chromium } = require("playwright");
 const axe = require("axe-core");
 const { serve } = require("./serve.cjs");
 
-const PAGES = ["", "plan/", "groceries/", "shop/", "prep/", "recipes/", "recipes/chicken_tikka/", "recipes/import/", "pantry/", "settings/", "eat-out/", "preps/", "more/", "next-week/", "cook/", "calendar/"];
+const PAGES = ["", "plan/", "groceries/", "shop/", "prep/", "recipes/", "recipes/chicken_tikka/", "recipes/import/", "pantry/", "settings/", "eat-out/", "preps/", "more/", "next-week/", "cook/", "calendar/", "pick/"];
 /** axe rule sets we hold the app to: WCAG 2.1 A and AA plus axe's best practices */
 const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 
@@ -691,6 +691,32 @@ test("Costco: a club pack counts only what the week uses, and the calendar buys 
   }, before);
   await page.goto(base + "/?flags=reset");
   await page.locator("main").waitFor();
+});
+
+test("the meal picker: one meal at a time from Netflix-style rows, then the cart uses those picks", async () => {
+  await page.goto(base + "/pick/");
+  await page.getByRole("heading", { name: "Community picks" }).first().waitFor({ timeout: 20000 });
+  const picked = [];
+  for (let i = 0; i < 12; i++) {
+    if (await page.getByRole("button", { name: "Build my cart" }).isVisible()) break;
+    const card = page.getByRole("button", { name: /^Pick / }).first();
+    picked.push((await card.getAttribute("aria-label")).replace(/^Pick /, ""));
+    await card.click();
+  }
+  assert.ok(picked.length >= 2, "picked at least two recipes");
+  const found = await axeScan(page, "/pick/ summary");
+  assert.deepEqual(found.filter((v) => v.impact === "serious" || v.impact === "critical"), [], JSON.stringify(found, null, 1));
+  await page.getByRole("button", { name: "Build my cart" }).click();
+  await page.waitForURL("**/groceries/**");
+  await openPlan(page);
+  for (const name of picked) await page.getByText(name).first().waitFor({ timeout: 45000 });
+  // let the planner choose again, so later tests see a normal week
+  await page.evaluate(() => {
+    const k = Object.keys(localStorage).find((x) => /^prep-cart-(\w+-)?v1$/.test(x));
+    const saved = JSON.parse(localStorage.getItem(k));
+    saved.state.locked = [];
+    localStorage.setItem(k, JSON.stringify(saved));
+  });
 });
 
 test("no script errors along the way", () => {
