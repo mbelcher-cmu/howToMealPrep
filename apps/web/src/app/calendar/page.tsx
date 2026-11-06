@@ -13,6 +13,8 @@ import { isoDay, useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { useWeek } from "@/lib/use-week";
 import { useFlag } from "@/lib/flags";
+import { DealTag, hintFor } from "@/components/price-trends";
+import type { DealHint } from "@prep-cart/planner";
 import { chainName, cx, money, plural } from "@/lib/format";
 
 /** Raw meat and fish: bought fresh each trip, and any extra goes in the freezer. */
@@ -30,6 +32,7 @@ const weekday = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(
 export default function CalendarPage() {
   const hydrated = useHydrated();
   const on = useFlag("calendar");
+  const trendsOn = useFlag("priceTrends");
   const { plan } = usePlanner();
   const s = useApp();
   const week = useWeek();
@@ -60,7 +63,9 @@ export default function CalendarPage() {
       if (l.priceSource !== "sale") { add(l.ingredientId, l.chain, l.unitPrice); continue; }
       const regular = usualPrice(l.ingredientId, l.chain, s.priceOverrides);
       const deal = s.deals.find((d) => d.ingredientId === l.ingredientId && d.chain === l.chain);
-      add(l.ingredientId, l.chain, l.unitPrice, { ...(regular ? { regular } : {}), ...(deal ? { saleEndsOn: deal.endsOn } : {}) });
+      // a deal worth stocking up on: even raw meat is bought ahead while it lasts, and the extra goes in the freezer
+      const freezeAhead = trendsOn && hintFor(s, l.ingredientId, l.chain, l.unitPrice)?.kind === "stockUp" ? { stockUp: true } : {};
+      add(l.ingredientId, l.chain, l.unitPrice, { ...(regular ? { regular } : {}), ...(deal ? { saleEndsOn: deal.endsOn } : {}), ...freezeAhead });
     }
     // food the plan takes from home this week still has to be bought in later weeks
     for (const [id] of fromHome) {
@@ -68,7 +73,7 @@ export default function CalendarPage() {
       if (best) add(id, best.c, best.q!.price);
     }
     return out;
-  }, [plan, s.pantry, s.pantryForPlan, s.priceOverrides, s.deals]);
+  }, [plan, s.pantry, s.pantryForPlan, s.priceOverrides, s.deals, s.priceHistory, trendsOn]);
 
   // shop and cook the day before each plan week starts
   const firstTrip = addDaysIso(week.start, -1);
@@ -82,6 +87,11 @@ export default function CalendarPage() {
   const budget = plan.result.budget;
   const trip = cal.trips[Math.min(picked, n - 1)]!;
   const byId = new Map(items.map((i) => [i.id, i]));
+  // the deal hint for a price paid on a trip (later trips may pay the usual price once a sale ends)
+  const hintAt = (id: string, unit: number): DealHint | null => {
+    const it = byId.get(id);
+    return trendsOn && it ? hintFor(s, id, it.chain as never, unit) : null;
+  };
   const stockUps = cal.items.filter((p) => p.kind === "stockUp" && (p.buysWeekly > p.buys || p.saved > 0));
   const spoils = cal.items.filter((p) => p.wasteCost >= 0.25).sort((a, b) => b.wasteCost - a.wasteCost);
   const sessions = plan.schedule.sessions;
@@ -129,7 +139,7 @@ export default function CalendarPage() {
                       </>
                     );
                     return (
-                      <div role="gridcell" key={d} className={cx("min-h-[64px] rounded-lg border p-1 sm:min-h-[76px] sm:p-1.5", past && "opacity-50", d === today ? "border-accent" : "border-line", t && ri === picked && "ring-2 ring-accent")}>
+                      <div role="gridcell" key={d} className={cx("min-h-[64px] rounded-lg border p-1 sm:min-h-[76px] sm:p-1.5", past && "border-dashed", d === today ? "border-accent" : "border-line", t && ri === picked && "ring-2 ring-accent")}>
                         {t ? (
                           <button className="block h-full w-full text-left" onClick={() => setPicked(t.index)} aria-label={`Trip ${t.index + 1} on ${shortDate(d)}: ${money(t.cost)}${t.stockUpCost > 0 ? ", stock-up trip" : ""}`} aria-pressed={ri === picked}>{content}</button>
                         ) : content}
@@ -146,7 +156,7 @@ export default function CalendarPage() {
             </p>
           </Card>
 
-          <TripCard trip={trip} budget={budget} byId={byId} weeks={n} />
+          <TripCard trip={trip} budget={budget} byId={byId} weeks={n} hintAt={hintAt} />
         </div>
 
         <aside className="grid content-start gap-4 lg:sticky lg:top-6 lg:self-start">
@@ -189,6 +199,7 @@ export default function CalendarPage() {
                           {p.buysWeekly > p.buys && <> · one trip instead of {p.buysWeekly}</>}
                           {p.saved > 0 && <> · saves {money(p.saved)} while it&apos;s on sale</>}
                         </span>
+                        <DealTag hint={hintAt(p.id, it.price)} />
                       </span>
                     </li>
                   );
@@ -218,7 +229,7 @@ export default function CalendarPage() {
   );
 }
 
-function TripCard({ trip, budget, byId, weeks }: { trip: Trip; budget: number; byId: Map<string, CalendarItem>; weeks: number }) {
+function TripCard({ trip, budget, byId, weeks, hintAt }: { trip: Trip; budget: number; byId: Map<string, CalendarItem>; weeks: number; hintAt: (id: string, unit: number) => DealHint | null }) {
   const stock = trip.lines.filter((l) => l.stockUp);
   const fresh = trip.lines.filter((l) => !l.stockUp);
   const Section = ({ title, lead, lines }: { title: string; lead: string; lines: Trip["lines"] }) => (
@@ -234,6 +245,7 @@ function TripCard({ trip, budget, byId, weeks }: { trip: Trip; budget: number; b
               <span className="min-w-0 flex-1">
                 <span className="block font-medium leading-snug">{it.name}</span>
                 <span className="block text-xs text-muted">{l.packages} × {it.pkgLabel} · {chainName(it.chain as never)}</span>
+                <DealTag hint={hintAt(l.id, l.cost / l.packages)} />
               </span>
               <span className="num shrink-0 text-sm font-semibold">{money(l.cost)}</span>
             </li>

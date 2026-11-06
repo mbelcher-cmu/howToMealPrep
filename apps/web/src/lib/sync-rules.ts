@@ -17,7 +17,8 @@ export type Json = Record<string, unknown>;
 /** A pantry row as stored in the cloud. grams null means a staple you always have. */
 export interface PantryRec { grams: number | null; useBy: string | null }
 
-export type PriceSource = "manual" | "receipt" | "sale";
+/** "trip" is the price a finished shopping trip paid for an item. */
+export type PriceSource = "manual" | "receipt" | "sale" | "trip";
 export interface PriceRec { ingredientId: string; chain: string; price: number; on: string; source: PriceSource }
 
 /** A saved plan, as the app keeps it. Only id matters to the merge. */

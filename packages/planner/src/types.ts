@@ -113,6 +113,8 @@ export interface PlanRequest {
   timeLimit?: number;
   /** takeout meals that replace prepped ones; their cost comes out of the budget */
   eatingOut?: EatOut[];
+  /** lean toward recipes that use items on sale, beyond what the lower price already does */
+  favorDeals?: boolean;
   /** other people who eat the same prepped meals, each with their own daily calories */
   household?: HouseholdMember[];
 }

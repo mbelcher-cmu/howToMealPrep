@@ -14,7 +14,7 @@ const { chromium } = require("playwright");
 const axe = require("axe-core");
 const { serve } = require("./serve.cjs");
 
-const PAGES = ["", "plan/", "groceries/", "shop/", "prep/", "recipes/", "recipes/chicken_tikka/", "recipes/import/", "pantry/", "settings/", "eat-out/", "preps/", "more/", "next-week/", "cook/"];
+const PAGES = ["", "plan/", "groceries/", "shop/", "prep/", "recipes/", "recipes/chicken_tikka/", "recipes/import/", "pantry/", "settings/", "eat-out/", "preps/", "more/", "next-week/", "cook/", "calendar/"];
 /** axe rule sets we hold the app to: WCAG 2.1 A and AA plus axe's best practices */
 const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 
@@ -146,7 +146,8 @@ test("locking calories and fat: raising carbs takes from protein and nothing loc
   await c.fill(String(carbs + 40));
   await c.blur();
   await page.getByText("Nothing else is unlocked to make room").waitFor();
-  assert.equal(await num("Carbs"), carbs + 20);
+  // the refused number goes back to what it was; the field can show the typed value for a moment first
+  await page.waitForFunction((v) => Number(document.getElementById([...document.querySelectorAll("label")].find((l) => l.textContent === "Carbs")?.htmlFor ?? "")?.value?.replace(/,/g, "")) === v, carbs + 20, { timeout: 5000 });
   await ensure("fat", false);
   await ensure("carbs", false);
   await page.reload();
@@ -285,6 +286,56 @@ test("adding takeout on Eat out takes that meal out of the prep", async () => {
   await page.waitForFunction(() => /takeout/i.test(document.querySelector("main")?.innerText ?? ""), null, { timeout: 45000 });
   await page.goto(base + "/eat-out/");
   await page.getByRole("button", { name: /^Remove takeout on Friday/ }).first().click();
+});
+
+test("a sale shows up as a deal on Groceries and the shopping calendar (price trends on)", async () => {
+  // the flag stays on for this device, so the page and accessibility scans below cover the deal hints too
+  await page.goto(base + "/groceries/?flags=pricetrends=on,calendar=on");
+  await page.locator("main li input[type=checkbox]").first().waitFor({ timeout: 45000 });
+  // shop at one store only: with several, each store's solve is time-limited and a re-plan can
+  // land on a different store, which drops the sale item from the list for reasons unrelated to deals
+  const storesBefore = await page.evaluate(() => {
+    const k = Object.keys(localStorage).find((x) => /^prep-cart-(\w+-)?v1$/.test(x));
+    const saved = JSON.parse(localStorage.getItem(k));
+    const before = saved.state.stores;
+    const chain = document.querySelector("main .card h2").textContent.trim().toLowerCase().replace(/[^a-z]/g, "");
+    saved.state.stores = [chain];
+    localStorage.setItem(k, JSON.stringify(saved));
+    return before;
+  });
+  await page.reload();
+  await page.locator("main li input[type=checkbox]").first().waitFor({ timeout: 45000 });
+  const item = await page.evaluate(() => {
+    const li = [...document.querySelectorAll("main li")].find((x) => x.querySelector("input[type=checkbox]"));
+    return { name: li.querySelector("span.font-medium").textContent.trim(), store: li.closest(".card").querySelector("h2").textContent.trim() };
+  });
+  await page.goto(base + "/pantry/");
+  await page.getByRole("radio", { name: /^Sales/ }).click();
+  await page.getByLabel("Item").fill(item.name.slice(0, 14));
+  await page.locator("main li button", { hasText: item.name }).first().click();
+  await page.getByLabel("Store").selectOption({ label: item.store });
+  await page.getByLabel("Sale price").fill("0.25");
+  await page.getByRole("button", { name: "Add sale" }).click();
+  await page.getByRole("button", { name: `Remove the ${item.name} sale` }).waitFor();
+
+  await page.goto(base + "/groceries/");
+  await page.getByText(/^Deals save about \$/).waitFor({ timeout: 45000 });
+  assert.ok(await page.getByText(/(Stock up|Good deal) · \d+% off/).count() >= 1, "a deal hint on the sale item");
+  await page.goto(base + "/calendar/");
+  await page.getByText(/(Stock up|Good deal) · \d+% off/).first().waitFor({ timeout: 45000 });
+
+  // put the week back as it was
+  await page.goto(base + "/pantry/");
+  await page.getByRole("radio", { name: /^Sales/ }).click();
+  await page.getByRole("button", { name: `Remove the ${item.name} sale` }).click();
+  await page.evaluate((stores) => {
+    const k = Object.keys(localStorage).find((x) => /^prep-cart-(\w+-)?v1$/.test(x));
+    const saved = JSON.parse(localStorage.getItem(k));
+    saved.state.stores = stores;
+    localStorage.setItem(k, JSON.stringify(saved));
+  }, storesBefore);
+  await page.reload();
+  await page.locator("main").waitFor();
 });
 
 test("a lighter dinner moves calories to the other meals and the day still adds up", async () => {

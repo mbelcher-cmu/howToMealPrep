@@ -9,7 +9,8 @@ import {
   SPLIT_PRESETS, type ActivityLevel, type Balancer, type EatingOccasion, type Goal, type MacroGrams, type MacroKey, type Sex,
   type SplitPreset, type Targets,
 } from "@prep-cart/nutrition";
-import type { Deal, EatOut, PantryItem, PlanResult, Preferences, PriceQuote, Schedule, Variety, Wish } from "@prep-cart/planner";
+import { recordTrip, type Deal, type EatOut, type PantryItem, type PlanResult, type Preferences, type PriceHistory, type PriceQuote, type Schedule, type Variety, type Wish } from "@prep-cart/planner";
+import { flag } from "./flags";
 import { decode, encode, safeStorage } from "./storage";
 import { mergeSaved } from "./sanitize";
 
@@ -113,8 +114,8 @@ export interface AppState {
   nearbyRestaurants: { zip: string; on: string; miles: Record<string, number> } | null;
   /** sales the person entered from a weekly ad or the shelf */
   deals: (Deal & { id: string; addedOn: string })[];
-  /** every price the person recorded, newest last */
-  priceHistory: Record<string, { chain: ChainId; price: number; on: string; source: "manual" | "receipt" | "sale" }[]>;
+  /** every price the person recorded or a shopping trip paid, newest last */
+  priceHistory: PriceHistory;
 
   // actions
   setProfile: (p: Partial<Profile>) => void;
@@ -362,6 +363,8 @@ export const useApp = create<AppState>()(
             return grams !== Infinity && u ? { ingredientId, grams, useBy: u } : { ingredientId, grams };
           }),
           shoppedPlanId: cur.id,
+          // remember what this trip paid, so later weeks can tell a deal from a usual price
+          ...(flag("priceTrends") ? { priceHistory: recordTrip(get().priceHistory, cur.result.cart, isoDay()) } : {}),
           // keep this week's plan as it is; the leftovers count from next week's plan on
           pantryForPlan: get().pantryForPlan ?? get().pantry,
         });
