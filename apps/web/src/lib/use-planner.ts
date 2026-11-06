@@ -38,7 +38,7 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
     today: isoDay(),
     timeLimit: 2,
     household: (s.household ?? []).map((m) => ({ id: m.id, name: m.name.trim() || "Someone", kcal: memberKcal(m) })),
-    eatingOut: s.eatingOut.filter((e) => e.day < s.days && s.occasions.some((o) => o.id === e.occasionId)),
+    eatingOut: s.eatingOut.filter((e) => e.day < s.days && s.occasions.some((o) => o.id === e.occasionId)).map(({ day, occasionId, itemId }) => ({ day, occasionId, itemId })),
   };
 }
 type Req = ReturnType<typeof requestFrom>;
