@@ -1,10 +1,10 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, Shuffle, ShoppingCart, Star, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Search, Shuffle, ShoppingCart, Star, X } from "lucide-react";
 import { PREP_PACKS, RECIPES, RECIPES_BY_ID, type MealType } from "@prep-cart/catalog";
 import { fitsBreakfastMode, freshBreakfast } from "@/lib/shop-day";
-import { buildPriceTable, pickedDay, pickerGoals, pickerRows, servingCost, surprisePick, type PickCard, type PickerInput, type Picks } from "@prep-cart/planner";
+import { buildPriceTable, pickedDay, pickerGoals, pickerRows, searchPicks, servingCost, surprisePick, type PickCard, type PickerInput, type Picks } from "@prep-cart/planner";
 import type { Recipe } from "@prep-cart/catalog";
 import { RecipeArt } from "@/components/food";
 import { periodBudget, useApp } from "@/lib/store";
@@ -63,13 +63,14 @@ export function MealPicker({ onDone }: { onDone?: () => void }) {
       return memo.get(r.id)!;
     };
   }, [prices, s.stores]);
-  const mealsPerDay = s.occasions.filter((o) => o.prepped).length || 1;
-  const mealBudget = periodBudget(s) / Math.max(1, s.days * mealsPerDay);
+  const total = periodBudget(s);
   const input: PickerInput | null = goal ? {
-    servingCost: costOf, mealBudget,
+    servingCost: costOf, budget: { total, days: s.days },
     goals, picks, slot: goal.slot, prefs: s.prefs, ratings: s.ratings ?? {}, rankings: rankingsOf(s.favorites), affinity, stats, featured: FEATURED, recipes: RECIPES.filter((r) => fitsBreakfastMode(r, freshBreakfast(s.occasions))),
   } : null;
-  const rows = useMemo(() => (input ? pickerRows(input) : null), [input?.slot, picks, goals, s.prefs, s.ratings, s.favorites, affinity, stats, costOf, mealBudget]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rows = useMemo(() => (input ? pickerRows(input) : null), [input?.slot, picks, goals, s.prefs, s.ratings, s.favorites, affinity, stats, costOf, total, s.days]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [query, setQuery] = useState("");
+  const found = useMemo(() => (input && query.trim() ? searchPicks(input, query) : null), [input?.slot, query, picks, goals, s.prefs, s.ratings, s.favorites, affinity, stats, costOf, total, s.days]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!goals.length) return <p className="card p-4 text-sm text-muted">Mark at least one meal as prepped in Goals to pick recipes.</p>;
 
@@ -79,6 +80,7 @@ export function MealPicker({ onDone }: { onDone?: () => void }) {
     const next = { ...picks, [goal.slot]: list };
     setPicks(next);
     track("picker_pick", { slot: goal.slot, how });
+    setQuery("");
     if (list.length >= goal.picks) { setAt(at + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }
   };
   const remove = (slot: MealType, id: string) => {
@@ -137,7 +139,10 @@ export function MealPicker({ onDone }: { onDone?: () => void }) {
                   Pick {goal.picks === 1 ? `your ${NOUN[goal.slot][0]}` : `${NOUN[goal.slot][0]} ${(picks[goal.slot]?.length ?? 0) + 1} of ${goal.picks}`}
                 </h2>
                 <p className="num text-sm text-muted">
-                  Aiming for about {Math.round(rows.target.kcal)} kcal and {Math.round(rows.target.protein)}g protein a {goal.slot === "snack" ? "snack" : "meal"}{(picks[goal.slot]?.length || at > 0) ? ", adjusted for what you've picked" : ""}. Your budget allows about {money(mealBudget)} a meal.
+                  Aiming for about {Math.round(rows.target.kcal)} kcal and {Math.round(rows.target.protein)}g protein a {goal.slot === "snack" ? "snack" : "meal"}{(picks[goal.slot]?.length || at > 0) ? ", adjusted for what you've picked" : ""}.
+                  {rows.budget && (rows.budget.left > 0
+                    ? <> You have about {money(rows.budget.left)} left for {rows.budget.mealsLeft} meals, so about {money(rows.budget.perMeal)} for this one.</>
+                    : <> Your picks so far use up the budget, so the cheapest fits come first.</>)}
                 </p>
               </div>
               <button type="button" className="btn btn-sm" onClick={surprise}><Shuffle size={15} aria-hidden /> Surprise me</button>
@@ -149,13 +154,30 @@ export function MealPicker({ onDone }: { onDone?: () => void }) {
               </select>
             </label>
             <Tray slot={goal.slot} ids={picks[goal.slot] ?? []} onRemove={remove} />
+            <div className="relative">
+              <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
+              <input type="search" className="input rounded-full bg-surface pl-9" placeholder={`Search ${NOUN[goal.slot][1]}`}
+                value={query} onChange={(e) => setQuery(e.target.value)} aria-label={`Search ${NOUN[goal.slot][1]}`} />
+            </div>
           </header>
 
-          <Row title="Community picks" lead={rows.communitySource === "ratings" ? "Most loved by MacroAisle cooks." : "Our most popular meal preps while community ratings come in."}
-            cards={rows.community} cost={costOf} onPick={(id) => add(id, "community")} badge={(c) => <CommunityBadge id={c.id} stats={stats} />} />
-          {rows.favorites.length > 0 && <Row title="Your favorites" lead="Recipes you rated highly or ranked at setup." cards={rows.favorites} cost={costOf} onPick={(id) => add(id, "favorites")} badge={(c) => <Stars id={c.id} />} />}
-          <Row title="Recommended for you" lead={Object.keys(s.ratings ?? {}).length ? "From your ratings and people with similar taste." : "Rate recipes you've cooked and these get more personal."}
-            cards={rows.recommended} cost={costOf} onPick={(id) => add(id, "recommended")} badge={(c) => <MatchBadge taste={c.taste} />} />
+          {found ? (
+            <section className="min-w-0" aria-label="Search results">
+              <h3 className="font-display text-xl font-bold">Results</h3>
+              <p className="mb-2 text-sm text-muted" aria-live="polite">
+                {found.length ? `${found.length === 1 ? "1 match" : `${found.length} matches`}, best for you first.` : `No ${NOUN[goal.slot][1]} match "${query.trim()}". Try another word.`}
+              </p>
+              {found.length > 0 && <Cards cards={found} onPick={(id) => add(id, "search")} badge={(c) => <MatchBadge taste={c.taste} />} grid />}
+            </section>
+          ) : (
+            <>
+              <Row title="Recommended for you" lead={Object.keys(s.ratings ?? {}).length ? "Best for you first, from your ratings, people with similar taste and what's left of your budget." : "Best for you first, by your macros and what's left of your budget. Rate recipes you've cooked and these get more personal."}
+                cards={rows.recommended} onPick={(id) => add(id, "recommended")} badge={(c) => <MatchBadge taste={c.taste} />} />
+              {rows.favorites.length > 0 && <Row title="Your favorites" lead="Recipes you rated highly or ranked at setup." cards={rows.favorites} onPick={(id) => add(id, "favorites")} badge={(c) => <Stars id={c.id} />} />}
+              <Row title="Community picks" lead={rows.communitySource === "ratings" ? "Most loved by MacroAisle cooks, in the order you're likely to enjoy them." : "Our most popular meal preps while community ratings come in, best for you first."}
+                cards={rows.community} onPick={(id) => add(id, "community")} badge={(c) => <CommunityBadge id={c.id} stats={stats} />} />
+            </>
+          )}
 
           <div className="flex justify-between">
             <button type="button" className="btn btn-sm" disabled={at === 0} onClick={() => setAt(at - 1)}><ArrowLeft size={15} aria-hidden /> Back</button>
@@ -214,32 +236,38 @@ function Tray({ slot, ids, onRemove }: { slot: MealType; ids: string[]; onRemove
   );
 }
 
-function Row({ title, lead, cards, onPick, badge, cost }: { title: string; lead: string; cards: PickCard[]; onPick: (id: string) => void; badge: (c: PickCard) => React.ReactNode; cost: (r: Recipe) => number | null }) {
+function Row({ title, lead, cards, onPick, badge }: { title: string; lead: string; cards: PickCard[]; onPick: (id: string) => void; badge: (c: PickCard) => React.ReactNode }) {
   if (!cards.length) return null;
   return (
     <section className="min-w-0" aria-label={title}>
       <h3 className="font-display text-xl font-bold">{title}</h3>
       <p className="mb-2 text-sm text-muted">{lead}</p>
-      <div className="rail" role="group" aria-label={title}>
-        {cards.map((c) => {
-          const r = RECIPES_BY_ID[c.id]!;
-          const p = c.portion;
-          return (
-            <button key={c.id} type="button" onClick={() => onPick(c.id)} aria-label={`Pick ${r.name}`}
-              className="card tap-card press flex w-[200px] shrink-0 flex-col overflow-hidden text-left sm:w-[220px]">
-              <RecipeArt recipe={r} className="art-zoom aspect-[4/3] w-full" badges={false} />
-              <span className="flex flex-1 flex-col gap-1 p-3">
-                <span className="label truncate">{badge(c)}</span>
-                <span className="line-clamp-2 font-display text-[15px] font-bold leading-snug">{r.name}</span>
-                <span className="num text-[13px] font-semibold">{Math.round(p.kcal)} kcal · {Math.round(p.protein)}g protein</span>
-                <span className="num text-xs text-muted">{p.portion === 1 ? "1 serving" : `${p.portion} servings`} per meal · {Math.round(p.carbs)}g carbs · {Math.round(p.fat)}g fat</span>
-                {cost(r) != null && <span className="num text-xs font-semibold">About {money(cost(r)! * p.portion)} a meal</span>}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <Cards cards={cards} onPick={onPick} badge={badge} label={title} />
     </section>
+  );
+}
+
+function Cards({ cards, onPick, badge, label, grid }: { cards: PickCard[]; onPick: (id: string) => void; badge: (c: PickCard) => React.ReactNode; label?: string; grid?: boolean }) {
+  return (
+    <div className={grid ? "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" : "rail"} role="group" aria-label={label}>
+      {cards.map((c) => {
+        const r = RECIPES_BY_ID[c.id]!;
+        const p = c.portion;
+        return (
+          <button key={c.id} type="button" onClick={() => onPick(c.id)} aria-label={`Pick ${r.name}`}
+            className={cx("card tap-card press flex shrink-0 flex-col overflow-hidden text-left", grid ? "min-w-0" : "w-[200px] sm:w-[220px]")}>
+            <RecipeArt recipe={r} className="art-zoom aspect-[4/3] w-full" badges={false} />
+            <span className="flex flex-1 flex-col gap-1 p-3">
+              <span className="label truncate">{badge(c)}</span>
+              <span className="line-clamp-2 font-display text-[15px] font-bold leading-snug">{r.name}</span>
+              <span className="num text-[13px] font-semibold">{Math.round(p.kcal)} kcal · {Math.round(p.protein)}g protein</span>
+              <span className="num text-xs text-muted">{p.portion === 1 ? "1 serving" : `${p.portion} servings`} per meal · {Math.round(p.carbs)}g carbs · {Math.round(p.fat)}g fat</span>
+              {c.cost != null && <span className="num text-xs font-semibold">About {money(c.cost)} a meal{c.overBudget && <span className="font-normal text-muted"> · over budget</span>}</span>}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

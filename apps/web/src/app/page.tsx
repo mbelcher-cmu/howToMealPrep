@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { ArrowRight, ShoppingCart, Shuffle } from "lucide-react";
+import { ShoppingCart, Shuffle } from "lucide-react";
 import { MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID } from "@prep-cart/catalog";
 import { usualPrice } from "@/components/deals";
 import { BudgetBar, MacroRings, PlanMacros, PlanStatus, SolvingNote, usePreppedTargets } from "@/components/plan-bits";
@@ -8,7 +8,8 @@ import { ItemCard, RecipeArt, RecipeCard, Rail } from "@/components/food";
 import { PrepPackCard, usePackCost, useVisiblePacks } from "@/components/preps";
 import { Card, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
 import { isoDay, useApp } from "@/lib/store";
-import { planDayFrom } from "@/lib/shop-day";
+import { planDayFrom, plusDays } from "@/lib/shop-day";
+import { MealCalendar, NextTripCard } from "@/components/home-week";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { chainName, money, plural, recipeHref } from "@/lib/format";
 import { linePkgLabel } from "@/lib/bulk";
@@ -37,7 +38,6 @@ export default function Home() {
   const week = useWeek();
   const lastWeek = useApp((s) => s.lastWeek);
   const simple = useFlag("simple");
-  const budget = useApp((s) => s.budget);
   if (!hydrated) return null;
   if (!plan) {
     return (
@@ -65,44 +65,14 @@ export default function Home() {
   const saved = sales.reduce((a, l) => a + (l.regular ? (l.regular - l.unitPrice) * l.packages : 0), 0);
   const todo = r.cart.filter((l) => !checked[`${l.chain}:${l.ingredientId}`]);
   if (simple) {
-    // simple mode: the four things that matter, in order: budget, calories, meals, cart
-    const step = (n: number, title: string, href: string, link: string, body: React.ReactNode) => (
-      <section className="card flex min-w-0 flex-col p-4" aria-label={title}>
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 font-display text-lg font-bold"><span aria-hidden className="grid h-6 w-6 place-items-center rounded-full bg-accent text-xs text-accent-ink">{n}</span>{title}</h2>
-          <Link href={href} className="text-sm font-semibold text-accent hover:underline">{link}</Link>
-        </div>
-        <div className="mt-3 flex-1">{body}</div>
-      </section>
-    );
+    // simple mode: when the next grocery trip is, and the week's meals. Nothing else.
+    const start = eating !== plan && lastWeek ? plusDays(week.start, -lastWeek.days) : week.start;
     return (
       <>
-        <PageHeader title="This week" eyebrow={new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })} lead={<>Your {plan.days}-day plan from {r.stores.map(chainName).join(" and ") || "your stores"}.</>} action={<SolvingNote />} />
-        <PlanStatus />
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {step(1, "Budget", "/plan/", "Change", <>
-            <p className="mb-2 text-sm text-muted">{money(budget.amount)} a {budget.period} · {plural(plan.days, "day")} planned</p>
-            <BudgetBar cost={r.cost} budget={r.budget} takeout={r.takeout?.cost ?? 0} />
-            <p className="mt-3 text-sm text-muted">About <b className="num text-ink">{money(r.cost / Math.max(1, plan.days * Math.max(1, plan.schedule.days[0]?.meals.length ?? 1)))}</b> a meal</p>
-          </>)}
-          {step(2, "Calories", "/plan/", "Change", <MacroRings result={r} flat />)}
-          {step(3, "Meals", "/meals/", "See all", <><Link href="/pick/" className="btn mb-3 w-full"><Shuffle size={16} aria-hidden /> Pick this week&apos;s meals</Link><ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
-            {r.recipes.map((p) => (
-              <li key={p.recipe.id}>
-                <Link href={recipeHref(p.recipe.id)} className="flex items-center gap-3 rounded-lg hover:bg-sunk">
-                  <RecipeArt recipe={p.recipe} badges={false} className="h-11 w-11 shrink-0 rounded-lg" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold">{p.recipe.name}</span>
-                    <span className="block text-xs text-muted">{p.meals > 0 ? plural(p.meals, "meal") : "for the household"} · {p.slot === "main" ? "lunch or dinner" : p.slot}</span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul></>)}
-          {step(4, "Cart", "/groceries/", "Full list", <>
-            <p className="text-sm text-muted">{bought} of {plural(r.cart.length, "item")} in the cart · about <b className="num text-ink">{money(r.registerCost ?? r.cost)}</b></p>
-            <Link href="/groceries/" className="btn btn-primary mt-3 w-full"><ShoppingCart size={16} aria-hidden /> See your cart <ArrowRight size={16} aria-hidden /></Link>
-          </>)}
+        <PageHeader title="This week" eyebrow={new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })} action={<SolvingNote />} />
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
+          <NextTripCard />
+          <MealCalendar plan={eating} start={start} />
         </div>
       </>
     );

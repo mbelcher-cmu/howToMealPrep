@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PREP_PACKS, RECIPES, RECIPES_BY_ID } from "@prep-cart/catalog";
 import { defaultOccasions, targetsFromSplit, SPLIT_PRESETS } from "@prep-cart/nutrition";
-import { bestPortion, nextTarget, pickedDay, pickerGoals, pickerRows, surprisePick, type PickerInput } from "../src";
+import { bestPortion, budgetLeft, nextTarget, pickedDay, pickerGoals, pickerRows, searchPicks, surprisePick, type PickerInput } from "../src";
 import { baseRequest } from "./fixtures";
 
 const targets = targetsFromSplit(2400, SPLIT_PRESETS.highProtein.split);
@@ -84,5 +84,56 @@ describe("meal picker", () => {
     const day = pickedDay(goals, { breakfast: [b] }, RECIPES_BY_ID);
     expect(day.got.kcal).toBeGreaterThan(0);
     expect(day.want.kcal).toBeGreaterThan(day.got.kcal);
+  });
+  it("sorts every row best first: what the person should like most leads", () => {
+    const base = pickerRows(input({ slot: "main" }));
+    // the recipe that would sit last in Recommended becomes the one the person should love
+    const loved = base.recommended[base.recommended.length - 1]!.id;
+    const mains = RECIPES.filter((r) => r.mealType === "main");
+    const stats = mains.slice(0, 8).map((r, i) => ({ id: r.id, avg: 4.2 + i * 0.05, n: 20 }));
+    const rows = pickerRows(input({ slot: "main", affinity: { [loved]: 1 }, stats }));
+    for (const row of [rows.recommended, rows.community, rows.favorites]) {
+      for (let i = 1; i < row.length; i++) expect(row[i - 1]!.score).toBeGreaterThanOrEqual(row[i]!.score);
+    }
+    expect(rows.recommended[0]!.id).toBe(loved);
+  });
+
+  it("prices picks against what's left of the budget, and a pricey recipe sinks when money is tight", () => {
+    const flat = pickerRows(input({ slot: "main", servingCost: () => 2, budget: { total: 400, days: 7 } }));
+    const pricey = flat.recommended[0]!.id;
+    const cost = (r: { id: string }) => (r.id === pricey ? 9 : 2);
+    const rich = pickerRows(input({ slot: "main", servingCost: cost, budget: { total: 2000, days: 7 } }));
+    const tight = pickerRows(input({ slot: "main", servingCost: cost, budget: { total: 60, days: 7 } }));
+    expect(tight.budget!.perMeal).toBeLessThan(rich.budget!.perMeal);
+    expect(rich.recommended[0]!.id).toBe(pricey);
+    const inTight = tight.recommended.findIndex((c) => c.id === pricey);
+    expect(inTight === -1 || inTight > 0).toBe(true);
+    expect(tight.recommended.find((c) => c.id === pricey)?.overBudget ?? true).toBe(true);
+  });
+
+  it("counts what the picks so far will cost, and gives a snack less money than a dinner", () => {
+    const cost = () => 3;
+    const b = RECIPES.find((r) => r.mealType === "breakfast")!.id;
+    const none = budgetLeft(goals, {}, "main", RECIPES_BY_ID, cost, { total: 100, days: 7 });
+    expect(none.spent).toBe(0);
+    expect(none.mealsLeft).toBe(7 * 4);
+    const one = budgetLeft(goals, { breakfast: [b] }, "main", RECIPES_BY_ID, cost, { total: 100, days: 7 });
+    expect(one.spent).toBeGreaterThan(0);
+    expect(one.left).toBeCloseTo(100 - one.spent, 5);
+    expect(one.mealsLeft).toBe(7 * 3);
+    const snack = budgetLeft(goals, { breakfast: [b] }, "snack", RECIPES_BY_ID, cost, { total: 100, days: 7 });
+    expect(snack.perMeal).toBeLessThan(one.perMeal);
+  });
+
+  it("searches this kind of meal by name, ingredient or cuisine, and leaves picked recipes out", () => {
+    const target = RECIPES.find((r) => r.mealType === "main" && r.name.split(" ").length > 1)!;
+    const word = target.name.split(" ").find((w) => w.length > 3)!.toLowerCase();
+    const found = searchPicks(input({ slot: "main" }), word);
+    expect(found.length).toBeGreaterThan(0);
+    expect(found.every((c) => RECIPES_BY_ID[c.id]!.mealType === "main")).toBe(true);
+    expect(found.every((c) => RECIPES_BY_ID[c.id]!.name.toLowerCase().includes(word) || JSON.stringify(RECIPES_BY_ID[c.id]).toLowerCase().includes(word))).toBe(true);
+    expect(searchPicks(input({ slot: "main", picks: { main: [target.id] } }), word).map((c) => c.id)).not.toContain(target.id);
+    expect(searchPicks(input({ slot: "main" }), "   ")).toEqual([]);
+    expect(searchPicks(input({ slot: "main" }), "zzzqqq")).toEqual([]);
   });
 });

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Check, Loader2, PackageOpen, RefreshCw, Shuffle } from "lucide-react";
 import { CUISINES, INGREDIENTS, MOODS, RECIPES_BY_ID } from "@prep-cart/catalog";
@@ -23,6 +24,9 @@ type Done = { before: string[]; fromId: string | undefined };
 export default function NextWeekPage() {
   const hydrated = useHydrated();
   const on = useFlag("nextWeek");
+  // simple mode redoes the whole selection: rate the week, pick the trip, then the meal picker from the top
+  const simple = useFlag("simple");
+  const router = useRouter();
   const s = useApp();
   const { plan, status, replan, tryAnother } = usePlanner();
   const w = useWeek();
@@ -105,6 +109,13 @@ export default function NextWeekPage() {
       if (want && !cur) s.setWish(g, k, "nice");
       if (!want && (cur === "nice" || cur === "must")) s.setWish(g, k, null);
     }
+    if (simple) {
+      // every recipe from this week sits out unless it's picked again, so whatever the planner fills in is new
+      s.startNextWeek({ startsOn, locked: otherLocks, resting: reviewed, shopped: bought && !alreadyShopped });
+      s.set({ weekStart: startPatch(shopDay, sameDay).weekStart, pickerDone: false });
+      router.push("/meals/");
+      return;
+    }
     setDone({ before: reviewed, fromId: plan.id });
     s.startNextWeek({ startsOn, locked: [...otherLocks, ...locked], resting, shopped: bought && !alreadyShopped });
     s.set({ weekStart: startPatch(shopDay, sameDay).weekStart });
@@ -158,19 +169,19 @@ export default function NextWeekPage() {
   return (
     <>
       <PageHeader eyebrow={`${startsToday ? "This week" : "Next week"} · from ${dayLabel(startsOn)}`} title={startsToday ? "Plan this week" : "Plan next week"}
-        lead={rateOn ? "Rate what you ate, keep what you liked and swap the rest. Your ratings shape what we suggest next, and your pantry carries over." : "Keep what you liked and swap the rest for something new. Your pantry carries over."} />
+        lead={simple ? `${rateOn ? "Rate what you ate and pick" : "Pick"} your shopping day. Then you pick ${startsToday ? "this" : "next"} week's meals from the top, the same way you did the first time.` : rateOn ? "Rate what you ate, keep what you liked and swap the rest. Your ratings shape what we suggest next, and your pantry carries over." : "Keep what you liked and swap the rest for something new. Your pantry carries over."} />
 
       <div className="grid min-w-0 grid-cols-1 gap-7 pb-28 md:pb-4">
         <section aria-labelledby="nw-food">
           <div className="mb-2 flex items-end justify-between gap-3">
             <div>
               <h2 id="nw-food" className="font-display text-xl font-bold">{startsToday ? "Last week's food" : "This week's food"}</h2>
-              <p className="text-sm text-muted">Swapped recipes sit out one week.</p>
+              <p className="text-sm text-muted">{simple ? (rateOn ? "Your stars shape what we suggest next." : "These sit out a week unless you pick them again.") : "Swapped recipes sit out one week."}</p>
             </div>
-            <button type="button" className="shrink-0 text-sm font-semibold text-accent hover:underline"
+            {!simple && <button type="button" className="shrink-0 text-sm font-semibold text-accent hover:underline"
               onClick={() => setChoice(Object.fromEntries(reviewed.map((id) => [id, swapCount === 0 ? "swap" : "keep"])))}>
               {swapCount === 0 ? "Swap all" : "Keep all"}
-            </button>
+            </button>}
           </div>
           <ul className="card divide-y divide-line">
             {reviewed.map((id) => {
@@ -185,10 +196,10 @@ export default function NextWeekPage() {
                     <span className="block text-xs text-muted">{p ? `${p.meals > 0 ? plural(p.meals, "meal") : `for ${p.household?.eaters.map((e) => e.name).join(" and ") ?? "the household"}`} · ${p.slot === "main" ? "lunch or dinner" : p.slot}` : "Locked in"}</span>
                     {rateOn && <span className="-ml-1 block"><Stars compact label={`Rate ${r.name}`} value={s.ratings[id]} onChange={(v) => rate(id, v)} /></span>}
                   </span>
-                  <div className="w-[124px] shrink-0 sm:w-[168px]">
+                  {!simple && <div className="w-[124px] shrink-0 sm:w-[168px]">
                     <Segmented size="sm" label={`${r.name} next week`} value={pick(id)} onChange={(v) => setChoice({ ...choice, [id]: v })}
                       options={[{ value: "keep", label: "Keep" }, { value: "swap", label: "Swap" }]} />
-                  </div>
+                  </div>}
                 </li>
               );
             })}
@@ -203,7 +214,7 @@ export default function NextWeekPage() {
           </div>
         </section>
 
-        <section aria-labelledby="nw-mood">
+        {!simple && <section aria-labelledby="nw-mood">
           <h2 id="nw-mood" className="font-display text-xl font-bold">In the mood for</h2>
           <p className="mb-2 text-sm text-muted">Optional. New picks lean toward what you choose.</p>
           <div className="flex flex-wrap gap-2">
@@ -212,7 +223,7 @@ export default function NextWeekPage() {
             ))}
             {!moreMoods && <button type="button" className="min-h-[36px] px-2 text-sm font-semibold text-accent" onClick={() => setMoreMoods(true)}>More cuisines</button>}
           </div>
-        </section>
+        </section>}
 
         <section aria-labelledby="nw-pantry">
           <h2 id="nw-pantry" className="font-display text-xl font-bold">Carrying over</h2>
@@ -242,13 +253,22 @@ export default function NextWeekPage() {
       {/* the one action, pinned above the tab bar on phones */}
       <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+76px)] z-20 px-4 md:static md:mt-2 md:px-0">
         <div className="card mx-auto flex max-w-[560px] items-center gap-3 p-2 pl-4 shadow-lg md:max-w-none md:shadow-none">
-          <p className="min-w-0 flex-1 text-sm">
-            <span className="font-semibold">{swapCount ? `${swapCount} new` : "Same menu"}</span>
-            <span className="text-muted">{keepCount ? ` · ${keepCount} kept` : ""}</span>
-          </p>
-          <button className="btn btn-primary" onClick={build} disabled={status === "solving"}>
-            {status === "solving" ? <RefreshCw size={16} className="animate-spin" aria-hidden /> : <Check size={16} aria-hidden />} Build {startsToday ? "this week" : "next week"}
-          </button>
+          {simple ? (
+            <>
+              <p className="min-w-0 flex-1 text-sm"><span className="font-semibold">Shop {dayLabel(shopDay, false)}</span></p>
+              <button className="btn btn-primary" onClick={build}>Pick {startsToday ? "this" : "next"} week&apos;s meals <ArrowRight size={16} aria-hidden /></button>
+            </>
+          ) : (
+            <>
+              <p className="min-w-0 flex-1 text-sm">
+                <span className="font-semibold">{swapCount ? `${swapCount} new` : "Same menu"}</span>
+                <span className="text-muted">{keepCount ? ` · ${keepCount} kept` : ""}</span>
+              </p>
+              <button className="btn btn-primary" onClick={build} disabled={status === "solving"}>
+                {status === "solving" ? <RefreshCw size={16} className="animate-spin" aria-hidden /> : <Check size={16} aria-hidden />} Build {startsToday ? "this week" : "next week"}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </>

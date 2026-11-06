@@ -14,7 +14,7 @@ const { chromium } = require("playwright");
 const axe = require("axe-core");
 const { serve } = require("./serve.cjs");
 
-const PAGES = ["", "meals/", "plan/", "groceries/", "shop/", "prep/", "recipes/", "recipes/chicken_tikka/", "recipes/import/", "pantry/", "settings/", "eat-out/", "preps/", "more/", "next-week/", "cook/", "calendar/", "pick/"];
+const PAGES = ["", "meals/", "plan/", "groceries/", "shop/", "prep/", "recipes/", "recipes/chicken_tikka/", "recipes/import/", "pantry/", "settings/", "eat-out/", "preps/", "more/", "next-week/", "cook/", "calendar/", "pick/", "discover/"];
 /** axe rule sets we hold the app to: WCAG 2.1 A and AA plus axe's best practices */
 const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 
@@ -755,6 +755,13 @@ test("simple mode: budget, calories, meals, then the cart, and nothing else in t
   await p.getByRole("heading", { level: 1, name: "Pick your meals" }).waitFor();
   await p.getByRole("heading", { name: "Community picks" }).first().waitFor({ timeout: 20000 });
   found.push(...(await axeScan(p, "simple /meals/ picker")));
+  // Recommended for you comes before Community picks, and search narrows to matches
+  const rowOrder = await p.locator("main h3").allTextContents();
+  assert.ok(rowOrder.indexOf("Recommended for you") >= 0 && rowOrder.indexOf("Recommended for you") < rowOrder.indexOf("Community picks"), `row order: ${rowOrder.join(", ")}`);
+  await p.getByRole("searchbox", { name: /^Search / }).fill("egg");
+  await p.getByRole("heading", { name: "Results" }).waitFor();
+  await p.getByRole("searchbox", { name: /^Search / }).fill("");
+  await p.getByRole("heading", { name: "Community picks" }).first().waitFor();
   const cart = p.getByRole("button", { name: "Build my cart" });
   for (let n = 0; n < 12 && !(await cart.isVisible()); n++) await p.getByRole("button", { name: /^Pick / }).first().click();
   await cart.click();
@@ -763,9 +770,18 @@ test("simple mode: budget, calories, meals, then the cart, and nothing else in t
   await p.getByText("This week's recipes").first().waitFor({ timeout: 45000 });
   // the menu is just the four steps; hidden pages are not linked
   const nav = p.getByRole("navigation", { name: "Main" });
-  for (const name of ["Home", "Goals", "Meals", "Cart"]) assert.ok(await nav.getByRole("link", { name, exact: true }).count(), `${name} in the menu`);
+  for (const name of ["Home", "Goals", "Meals", "Cart", "Discover"]) assert.ok(await nav.getByRole("link", { name, exact: true }).count(), `${name} in the menu`);
   for (const name of ["Prep", "More", "Pantry", "Eat out"]) assert.equal(await nav.getByRole("link", { name, exact: true }).count(), 0, `${name} is hidden`);
-  for (const path of ["", "meals/", "plan/", "groceries/", "settings/"]) {
+  // Home is just the next grocery trip and the week's meals
+  await p.goto(base + "/");
+  await p.getByRole("region", { name: "Next grocery trip" }).waitFor({ timeout: 45000 });
+  await p.getByRole("heading", { name: "Your meals this week" }).waitFor();
+  // the end-of-week review in simple mode sends you back through the whole picker
+  await p.goto(base + "/next-week/");
+  await p.getByRole("button", { name: /^Pick (this|next) week's meals/ }).click();
+  await p.waitForURL("**/meals/", { timeout: 15000 });
+  await p.getByRole("heading", { level: 1, name: "Pick your meals" }).waitFor();
+  for (const path of ["", "meals/", "plan/", "groceries/", "discover/", "settings/"]) {
     await p.goto(base + "/" + path);
     await p.locator("main h1").first().waitFor();
     await p.waitForTimeout(600);

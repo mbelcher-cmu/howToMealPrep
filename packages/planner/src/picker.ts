@@ -128,7 +128,18 @@ export function pickedDay(goals: SlotGoal[], picks: Picks, recipes: Record<strin
   return { got, want };
 }
 
-export interface PickCard { id: string; portion: Portion; taste: number; score: number }
+export interface PickCard { id: string; portion: Portion; taste: number; score: number; /** what this meal costs at that portion, when known */ cost?: number | null; /** cost over the remaining budget for a meal like this */ overBudget?: boolean }
+export interface BudgetLeft {
+  /** the whole period's grocery budget */
+  total: number;
+  /** what the picks so far are expected to cost over the period */
+  spent: number;
+  left: number;
+  /** prepped meals not covered by a pick yet */
+  mealsLeft: number;
+  /** what the next meal of the current kind can cost, given what's left */
+  perMeal: number;
+}
 export interface PickerRows {
   recommended: PickCard[];
   favorites: PickCard[];
@@ -137,6 +148,8 @@ export interface PickerRows {
   communitySource: "ratings" | "featured";
   /** the target the cards are sized for */
   target: Macro4;
+  /** the money left once the picks so far are paid for, when the budget is known */
+  budget: BudgetLeft | null;
 }
 
 export interface PickerInput {
@@ -154,10 +167,12 @@ export interface PickerInput {
   /** recipes from the featured meal preps, the fallback for community picks */
   featured: string[];
   recipes?: readonly Recipe[];
-  /** cost of one serving, when known: very pricey recipes sink a little */
+  /** cost of one serving, when known */
   servingCost?: (r: Recipe) => number | null;
-  /** dollars per meal the budget allows */
+  /** dollars per meal the budget allows, used when `budget` isn't given */
   mealBudget?: number;
+  /** the period's grocery budget and its length in days: cards are then priced against what's left after the picks so far */
+  budget?: { total: number; days: number };
 }
 
 /** How much the person should like a recipe, -1..1: their rating if they gave one, else the prediction. */
@@ -169,28 +184,85 @@ export function tasteOf(id: string, ratings: Record<string, number>, rankings: R
   return affinity[id] ?? 0;
 }
 
-/** The rows of the picker for one kind of meal. */
-export function pickerRows(input: PickerInput): PickerRows {
+/**
+ * What's left of the budget once the picks so far are bought. Each pick covers its share of that kind
+ * of meal over the period (two lunch-and-dinner picks over 7 days with 2 a day: 7 meals each), at the
+ * portion that fits. The next meal's allowance is the money left over the meals left, scaled by how
+ * big this kind of meal is (a snack gets less than a dinner).
+ */
+export function budgetLeft(goals: SlotGoal[], picks: Picks, slot: MealType, recipes: Record<string, Recipe>, servingCost: (r: Recipe) => number | null, budget: { total: number; days: number }): BudgetLeft {
+  const days = Math.max(1, budget.days);
+  let spent = 0; let mealsLeft = 0; let mealsAll = 0; let kcalAll = 0;
+  for (const g of goals) {
+    const meals = g.perDay * days;
+    mealsAll += meals; kcalAll += meals * g.perMeal.kcal;
+    const chosen = (picks[g.slot] ?? []).map((id) => recipes[id]).filter((r): r is Recipe => !!r).slice(0, g.picks);
+    for (const r of chosen) {
+      const c = servingCost(r);
+      if (c != null && Number.isFinite(c)) spent += c * bestPortion(r, g.perMeal).portion * (meals / g.picks);
+    }
+    mealsLeft += meals * (1 - chosen.length / g.picks);
+  }
+  const left = budget.total - spent;
+  const avgKcal = kcalAll / Math.max(1, mealsAll) || 1;
+  const goal = goals.find((g) => g.slot === slot);
+  const size = goal ? goal.perMeal.kcal / avgKcal : 1;
+  const perMeal = mealsLeft > 0.01 ? (Math.max(0, left) / mealsLeft) * size : 0;
+  return { total: budget.total, spent, left, mealsLeft: Math.round(mealsLeft), perMeal };
+}
+
+/**
+ * The person's predicted preference for a recipe as a meal right now, the order every row is sorted
+ * by: how much they should like it comes first, then how well a portion fits the macros left, then
+ * the price against what's left of the budget (over it sinks hard, under it rises a little).
+ */
+export function pickScore(taste: number, fit: number, cost: number | null | undefined, mealBudget: number | undefined): number {
+  let money = 0;
+  if (cost != null && mealBudget != null) {
+    const ratio = mealBudget > 0 ? cost / mealBudget : 3;
+    money = ratio > 1 ? -0.45 * Math.min(1.5, ratio - 1) : 0.08 * (1 - ratio);
+  }
+  return 0.6 * ((taste + 1) / 2) + 0.4 * fit + money;
+}
+
+interface Pool { target: Macro4; budget: BudgetLeft | null; cards: PickCard[]; byId: Record<string, Recipe> }
+
+/** Every recipe that could be this pick, scored and priced. */
+function scoredPool(input: PickerInput): Pool {
   const recipes = input.recipes ?? RECIPES;
   const byId = Object.fromEntries(recipes.map((r) => [r.id, r]));
   const target = nextTarget(input.goals, input.picks, input.slot, byId);
+  const budget = input.budget && input.servingCost ? budgetLeft(input.goals, input.picks, input.slot, byId, input.servingCost, input.budget) : null;
+  const mealBudget = budget ? budget.perMeal : input.mealBudget;
   const taken = new Set(Object.values(input.picks).flat());
   const pool = recipes.filter((r) => r.mealType === input.slot && !taken.has(r.id) && !hardRejection(r, { ...input.prefs, ratings: input.ratings }));
   const cards = pool.map((r): PickCard => {
     const portion = bestPortion(r, target);
     const taste = tasteOf(r.id, input.ratings, input.rankings, input.affinity);
-    const cost = input.servingCost?.(r);
-    const pricey = cost != null && input.mealBudget ? Math.max(0, (cost * portion.portion) / input.mealBudget - 1.2) : 0;
-    return { id: r.id, portion, taste, score: 0.55 * portion.fit + 0.45 * ((taste + 1) / 2) - 0.15 * Math.min(2, pricey) };
+    const per = input.servingCost?.(r);
+    const cost = per != null && Number.isFinite(per) ? per * portion.portion : null;
+    return { id: r.id, portion, taste, cost, overBudget: cost != null && mealBudget != null && cost > mealBudget * 1.05, score: pickScore(taste, portion.fit, cost, mealBudget) };
   });
-  const byScore = (a: PickCard, b: PickCard) => b.score - a.score;
-  // each recipe shows up in one row only: favorites first, then community picks, then recommendations
+  return { target, budget, cards, byId };
+}
+
+const byScore = (a: PickCard, b: PickCard) => b.score - a.score;
+
+/**
+ * The rows of the picker for one kind of meal. Each recipe shows up in one row only (favorites claim
+ * theirs, then community picks, then recommendations), and every row is sorted best first by the
+ * person's predicted preference with the remaining budget priced in.
+ */
+export function pickerRows(input: PickerInput): PickerRows {
+  const { cards, target, budget } = scoredPool(input);
   const favorites = cards.filter((c) => (input.ratings[c.id] ?? 0) >= 4 || input.rankings[c.id]).sort(byScore).slice(0, 12);
   const shown = new Set(favorites.map((c) => c.id));
   const stat = new Map(input.stats.filter((s) => s.n >= 3).map((s) => [s.id, s]));
-  // Bayesian average: a 5.0 from 3 people ranks below a 4.7 from 40
+  // Bayesian average: a 5.0 from 3 people counts for less than a 4.7 from 40
   const loved = (id: string) => { const s = stat.get(id)!; return (s.avg * s.n + 3.5 * 5) / (s.n + 5); };
-  let community = cards.filter((c) => !shown.has(c.id) && stat.has(c.id) && loved(c.id) >= 3.6).sort((a, b) => loved(b.id) + b.portion.fit - loved(a.id) - a.portion.fit).slice(0, 12);
+  // the community row holds what cooks love most, in the order this person should like them
+  let community = cards.filter((c) => !shown.has(c.id) && stat.has(c.id) && loved(c.id) >= 3.6)
+    .sort((a, b) => loved(b.id) - loved(a.id)).slice(0, 12).sort(byScore);
   let communitySource: PickerRows["communitySource"] = "ratings";
   if (community.length < 3) {
     const featured = new Set(input.featured);
@@ -199,7 +271,16 @@ export function pickerRows(input: PickerInput): PickerRows {
   }
   for (const c of community) shown.add(c.id);
   const recommended = cards.filter((c) => !shown.has(c.id) && !input.ratings[c.id] && c.portion.fit >= 0.25).sort(byScore).slice(0, 12);
-  return { recommended, favorites, community, communitySource, target };
+  return { recommended, favorites, community, communitySource, target, budget };
+}
+
+/** Recipes of this kind matching a search (name, ingredient or cuisine), best first. Picked and ruled-out recipes are left out. */
+export function searchPicks(input: PickerInput, query: string, limit = 24): PickCard[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  const { cards, byId } = scoredPool(input);
+  const text = (r: Recipe) => [r.name, ...r.cuisines, ...r.moods, ...r.lines.map((l) => l.ingredientId.replace(/_/g, " "))].join(" ").toLowerCase();
+  return cards.filter((c) => { const t = text(byId[c.id]!); return words.every((w) => t.includes(w)); }).sort(byScore).slice(0, limit);
 }
 
 /**
