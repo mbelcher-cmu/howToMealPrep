@@ -1,7 +1,8 @@
 "use client";
 import { useMemo, useState } from "react";
 import { Infinity as InfinityIcon, Plus, Trash2 } from "lucide-react";
-import { CHAINS, formatAmount, INGREDIENTS, type ChainId } from "@prep-cart/catalog";
+import { CHAINS, formatAmount, INGREDIENTS, pkgAt, type ChainId } from "@prep-cart/catalog";
+import { useChains } from "@/lib/bulk";
 import { DealsPanel, PriceHistoryLine } from "@/components/deals";
 import { PriceTrendLine } from "@/components/price-trends";
 import { useFlag } from "@/lib/flags";
@@ -31,7 +32,8 @@ function PriceCell({ ingredientId, chain }: { ingredientId: string; chain: Chain
     <td className="px-1 py-1">
       <input
         className={cx("input num h-9 w-[84px] px-2 py-1 text-right text-sm", o !== undefined && "border-accent bg-accent-soft")}
-        aria-label={`${ing.name} at ${name}, price per ${ing.pkg.label}`}
+        aria-label={`${ing.name} at ${name}, price per ${pkgAt(ingredientId, chain).label}`}
+        title={`Price per ${pkgAt(ingredientId, chain).label}`}
         placeholder={est == null ? "n/a" : money(est)}
         value={text ?? (current == null ? (o === null ? "n/a" : "") : current.toFixed(2))}
         onChange={(e) => setText(e.target.value)}
@@ -44,6 +46,7 @@ function PriceCell({ ingredientId, chain }: { ingredientId: string; chain: Chain
 }
 
 export default function Pantry() {
+  const chains = useChains();
   const trendsOn = useFlag("priceTrends");
   const hydrated = useHydrated();
   const s = useApp();
@@ -135,7 +138,7 @@ export default function Pantry() {
               <thead>
                 <tr className="text-left">
                   <th scope="col" className="label py-2">Item and package</th>
-                  {CHAINS.map((c) => <th key={c.id} scope="col" className="label px-1 py-2 text-right">{c.name}</th>)}
+                  {chains.map((c) => <th key={c.id} scope="col" className="label px-1 py-2 text-right">{c.name}{c.bulk && <span className="block font-normal normal-case text-muted">club pack</span>}</th>)}
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -146,7 +149,7 @@ export default function Pantry() {
                       <span className="block text-xs text-muted">{i.pkg.label}</span>
                       {trendsOn ? <PriceTrendLine ingredientId={i.id} /> : <PriceHistoryLine ingredientId={i.id} />}
                     </th>
-                    {CHAINS.map((c) => <PriceCell key={c.id} ingredientId={i.id} chain={c.id} />)}
+                    {chains.map((c) => <PriceCell key={c.id} ingredientId={i.id} chain={c.id} />)}
                   </tr>
                 ))}
               </tbody>

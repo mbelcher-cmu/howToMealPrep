@@ -9,8 +9,9 @@ import {
   SPLIT_PRESETS, type ActivityLevel, type Balancer, type EatingOccasion, type Goal, type MacroGrams, type MacroKey, type Sex,
   type SplitPreset, type Targets, type TrainingWeek,
 } from "@prep-cart/nutrition";
-import { recordTrip, type Deal, type EatOut, type PantryItem, type PlanResult, type Preferences, type PriceHistory, type PriceQuote, type Schedule, type Variety, type Wish } from "@prep-cart/planner";
+import { FREEZER_DAYS, recordTrip, type Deal, type EatOut, type PantryItem, type PlanResult, type Preferences, type PriceHistory, type PriceQuote, type Schedule, type Variety, type Wish } from "@prep-cart/planner";
 import { flag } from "./flags";
+import { addPaid, DEFAULT_BULK_WEEKS, leftoverPerGram } from "./bulk";
 import { decode, encode, safeStorage } from "./storage";
 import { mergeSaved } from "./sanitize";
 
@@ -70,6 +71,8 @@ export interface AppState {
   variety: Variety;
   stores: ChainId[];
   storeMode: "one" | "any";
+  /** weeks one Costco or Sam's Club trip should cover, 2 to 4 (bulkStores flag) */
+  bulkWeeks: number;
   costVsMacros: number;
   priceOverrides: Record<string, Partial<Record<ChainId, PriceQuote | null>>>;
   pantry: PantryRow[];
@@ -178,6 +181,7 @@ function initial(): Omit<AppState, keyof Actions> {
     variety: { breakfast: 1, main: 2, snack: 1 },
     stores: ["aldi", "gianteagle", "walmart", "traderjoes"],
     storeMode: "one",
+    bulkWeeks: DEFAULT_BULK_WEEKS,
     costVsMacros: 0.5,
     priceOverrides: {},
     pantry: Object.values(INGREDIENTS).filter((i) => i.staple).map((i) => ({ ingredientId: i.id, grams: Infinity })),
@@ -320,12 +324,17 @@ export const useApp = create<AppState>()(
         const rest = get().pantry.filter((p) => p.ingredientId !== id);
         if (grams == null || grams <= 0) { set({ pantry: rest, pantryForPlan: null }); return; }
         const keep = useBy === undefined ? (old?.useBy ?? (grams === Infinity ? undefined : defaultUseBy(id))) : useBy ?? undefined;
-        set({ pantry: [...rest, { ingredientId: id, grams, ...(keep && grams !== Infinity ? { useBy: keep } : {}) }], pantryForPlan: null });
+        // food from a club pack keeps what's left of its price, so later weeks still count it
+        const paid = old?.costPerGram && grams !== Infinity ? { costPerGram: old.costPerGram } : {};
+        set({ pantry: [...rest, { ingredientId: id, grams, ...(keep && grams !== Infinity ? { useBy: keep } : {}), ...paid }], pantryForPlan: null });
       },
       addToPantry: (id, grams) => {
         const old = get().pantry.find((p) => p.ingredientId === id);
         if (old?.grams === Infinity) return;
-        get().setPantryAmount(id, (old?.grams ?? 0) + grams);
+        if (!old?.costPerGram) { get().setPantryAmount(id, (old?.grams ?? 0) + grams); return; }
+        // food the person already had wasn't paid for on a club trip: average it in at no cost
+        const rest = get().pantry.filter((p) => p.ingredientId !== id);
+        set({ pantry: [...rest, { ...old, ...addPaid(old, grams, 0) }], pantryForPlan: null });
       },
       setPrice: (id, chain, price) => {
         const o = { ...get().priceOverrides };
@@ -351,19 +360,27 @@ export const useApp = create<AppState>()(
         track("done_shopping", { items: cur.result.cart.length, ticked: Math.round(shoppedShare(get()) * 100) });
         const pantry = new Map(get().pantry.map((p) => [p.ingredientId, p.grams]));
         const useBy = new Map(get().pantry.map((p) => [p.ingredientId, p.useBy]));
+        const paid = new Map(get().pantry.filter((p) => p.costPerGram).map((p) => [p.ingredientId, p.costPerGram!]));
         for (const u of cur.result.pantryUsed) {
           const g = pantry.get(u.ingredientId);
           if (g != null && g !== Infinity) pantry.set(u.ingredientId, Math.max(0, g - u.grams));
         }
         for (const l of cur.result.cart) if (l.leftoverGrams > 0) {
-          pantry.set(l.ingredientId, (pantry.get(l.ingredientId) ?? 0) + l.leftoverGrams);
-          // what's left of a fresh package keeps about as long as the package
-          useBy.set(l.ingredientId, defaultUseBy(l.ingredientId));
+          const had = pantry.get(l.ingredientId);
+          // what's left of a club pack still carries the part of its price the plan didn't count
+          const perGram = leftoverPerGram(l);
+          const next = addPaid(had == null ? undefined : { ingredientId: l.ingredientId, grams: had, costPerGram: paid.get(l.ingredientId) }, l.leftoverGrams, perGram);
+          pantry.set(l.ingredientId, next.grams);
+          if (next.costPerGram) paid.set(l.ingredientId, next.costPerGram); else paid.delete(l.ingredientId);
+          // what's left of a fresh package keeps about as long as the package; raw meat from a club pack goes in the freezer
+          const freeze = l.countedCost != null && INGREDIENTS[l.ingredientId]?.aisle === "Meat and seafood";
+          useBy.set(l.ingredientId, freeze ? addDays(isoDay(), FREEZER_DAYS) : defaultUseBy(l.ingredientId));
         }
         set({
           pantry: [...pantry].filter(([, g]) => g > 0).map(([ingredientId, grams]) => {
             const u = useBy.get(ingredientId);
-            return grams !== Infinity && u ? { ingredientId, grams, useBy: u } : { ingredientId, grams };
+            const c = grams !== Infinity && paid.get(ingredientId) ? { costPerGram: paid.get(ingredientId)! } : {};
+            return grams !== Infinity && u ? { ingredientId, grams, useBy: u, ...c } : { ingredientId, grams, ...c };
           }),
           shoppedPlanId: cur.id,
           // remember what this trip paid, so later weeks can tell a deal from a usual price

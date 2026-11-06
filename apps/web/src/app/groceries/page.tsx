@@ -14,6 +14,7 @@ import { chainName, cx, money } from "@/lib/format";
 import { aisleOrderFor } from "@/lib/aisles";
 import { useFlag } from "@/lib/flags";
 import { DealTag, hintFor } from "@/components/price-trends";
+import { linePkgLabel } from "@/lib/bulk";
 
 const SOURCE_LABEL = { estimate: "Estimate", receipt: "Receipt", manual: "Your price", live: "Live", sale: "On sale" } as const;
 const lineKey = (l: CartLine) => `${l.chain}:${l.ingredientId}`;
@@ -58,8 +59,8 @@ export default function Groceries() {
 
   const copy = async () => {
     const text = [...byStore].map(([chain, aisles]) =>
-      [`${chainName(chain)}`, ...aisleOrderFor(chain, s.aisleOrder).filter((a) => aisles.has(a)).flatMap((a) => [`  ${a}`, ...aisles.get(a)!.map((l) => `  [ ] ${INGREDIENTS[l.ingredientId]!.name}: ${l.packages} × ${INGREDIENTS[l.ingredientId]!.pkg.label} (${money(l.cost)})`)])].join("\n"),
-    ).join("\n\n") + `\n\nTotal about ${money(r.cost)}`;
+      [`${chainName(chain)}`, ...aisleOrderFor(chain, s.aisleOrder).filter((a) => aisles.has(a)).flatMap((a) => [`  ${a}`, ...aisles.get(a)!.map((l) => `  [ ] ${INGREDIENTS[l.ingredientId]!.name}: ${l.packages} × ${linePkgLabel(l)} (${money(l.cost)})`)])].join("\n"),
+    ).join("\n\n") + `\n\nTotal about ${money(r.registerCost ?? r.cost)}`;
     try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { setCopied(false); }
   };
 
@@ -94,13 +95,14 @@ export default function Groceries() {
                                 <span className={cx("min-w-0", on && "text-muted line-through")}>
                                   <span className="block font-medium">{ing.name}</span>
                                   <span className="block text-xs text-muted">
-                                    {(() => { const u = formatUseAndLeftover(ing.id, l.needGrams, l.leftoverGrams, s.profile.units); return <>{l.packages} × {ing.pkg.label} · recipes use {u.use}{u.left && <> · {u.left} left over</>}{pantryOn && fromHome.has(ing.id) && <> · <span className="font-semibold text-accent">{formatAmount(ing.id, fromHome.get(ing.id)!, s.profile.units)} from home</span></>}</>; })()}
+                                    {(() => { const u = formatUseAndLeftover(ing.id, l.needGrams, l.leftoverGrams, s.profile.units); return <>{l.packages} × {linePkgLabel(l)} · recipes use {u.use}{u.left && <> · {u.left} left over</>}{pantryOn && fromHome.has(ing.id) && <> · <span className="font-semibold text-accent">{formatAmount(ing.id, fromHome.get(ing.id)!, s.profile.units)} from home</span></>}</>; })()}
                                   </span>
                                   <DealTag hint={hints.get(k) ?? null} />
                                 </span>
                               </label>
                               <div className="shrink-0 text-right">
                                 <div className="num text-sm font-semibold">{money(l.cost)}</div>
+                                {l.countedCost != null && l.countedCost < l.cost - 0.004 && <div className="num text-[11px] font-medium text-accent">counts {money(l.countedCost)}</div>}
                                 <div className="hidden text-[11px] text-muted sm:block">{l.packages > 1 && `${money(l.unitPrice)} ea · `}{SOURCE_LABEL[l.priceSource]}</div>
                               </div>
                               <button className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted hover:bg-sunk hover:text-ink" title="I already have this" aria-label={`I already have ${ing.name}`}
@@ -134,6 +136,13 @@ export default function Groceries() {
           <Card>
             <SectionTitle>Total</SectionTitle>
             <BudgetBar cost={r.cost} budget={r.budget} takeout={r.takeout?.cost ?? 0} />
+            {r.registerCost != null && (
+              <p className="mt-2 text-sm text-muted">
+                About <span className="num font-semibold text-ink">{money(r.registerCost)}</span> at the register.
+                {r.registerCost > r.cost && <> Club packs last beyond this week, so the plan counts only what it uses; the rest goes in your pantry and counts in the weeks that use it.</>}
+              </p>
+            )}
+            {(r.pantryCost ?? 0) > 0 && <p className="mt-2 text-sm text-muted">Includes {money(r.pantryCost!)} of club-pack food already in your pantry.</p>}
             {saved > 0 && <p className="mt-2 text-sm font-medium text-accent">Deals save about {money(saved)} on this trip</p>}
             <p className="mt-3 text-sm text-muted">{got} of {total} in the cart</p>
             <div className="mt-1 h-1.5 rounded-full bg-sunk"><div className="h-full rounded-full bg-accent" style={{ width: `${total ? (got / total) * 100 : 0}%` }} /></div>

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CalendarDays, ChefHat, Package, ShoppingCart, Snowflake } from "lucide-react";
-import { INGREDIENTS, shelfLifeDays } from "@prep-cart/catalog";
+import { INGREDIENTS, isBulkChain, pkgAt, shelfLifeDays, type ChainId } from "@prep-cart/catalog";
 import { buildPriceTable } from "@prep-cart/planner";
 import { ItemArt } from "@/components/food";
 import { usualPrice } from "@/components/deals";
@@ -25,6 +25,7 @@ const WEEK_OPTIONS = [
   { value: "4", label: "4 weeks" },
 ];
 
+const r0HasClub = (cart: { chain: ChainId }[]) => cart.some((l) => isBulkChain(l.chain));
 const keepsLabel = (days: number) => (days >= 300 ? "keeps a year" : days >= 60 ? `keeps ${Math.round(days / 30)} months` : `keeps ${Math.round(days / 7)} weeks`);
 const shortDate = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 const weekday = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { weekday: "short" });
@@ -33,10 +34,13 @@ export default function CalendarPage() {
   const hydrated = useHydrated();
   const on = useFlag("calendar");
   const trendsOn = useFlag("priceTrends");
+  const bulkOn = useFlag("bulkStores");
   const { plan } = usePlanner();
   const s = useApp();
   const week = useWeek();
-  const [weeks, setWeeks] = useState("4");
+  // with a club in the plan, start at the weeks one bulk trip should cover
+  const [weeksPick, setWeeks] = useState<string | null>(null);
+  const weeks = weeksPick ?? (bulkOn && plan && r0HasClub(plan.result.cart) ? String(s.bulkWeeks ?? 4) : "4");
   const [picked, setPicked] = useState(0);
 
   const items = useMemo<CalendarItem[]>(() => {
@@ -53,10 +57,14 @@ export default function CalendarPage() {
       seen.add(id);
       const meat = ing.aisle === "Meat and seafood";
       const need = r.cart.filter((l) => l.ingredientId === id).reduce((a, l) => a + l.needGrams, 0);
+      const pkg = pkgAt(id, chain as ChainId);
+      const keepsDays = meat ? FREEZER_DAYS : shelfLifeDays(id);
+      // a club pack is bought to last: even raw meat (it goes in the freezer), as long as it keeps two weeks
+      const club = isBulkChain(chain as ChainId);
       out.push({
-        id, name: ing.name, aisle: ing.aisle, pkgGrams: ing.pkg.grams, pkgLabel: ing.pkg.label, chain, price,
+        id, name: ing.name, aisle: ing.aisle, pkgGrams: pkg.grams, pkgLabel: pkg.label, chain, price,
         weeklyGrams: need + (fromHome.get(id) ?? 0), onHand: fromHome.get(id) ?? 0,
-        keepsDays: meat ? FREEZER_DAYS : shelfLifeDays(id), ...(meat ? { stockUp: false } : {}), ...extra,
+        keepsDays, ...(club ? { stockUp: keepsDays >= 14 } : meat ? { stockUp: false } : {}), ...extra,
       });
     };
     for (const l of r.cart) {
@@ -69,7 +77,7 @@ export default function CalendarPage() {
     }
     // food the plan takes from home this week still has to be bought in later weeks
     for (const [id] of fromHome) {
-      const best = r.stores.map((c) => ({ c, q: prices[id]?.[c] })).filter((x) => x.q).sort((a, b) => a.q!.price - b.q!.price)[0];
+      const best = r.stores.map((c) => ({ c, q: prices[id]?.[c] })).filter((x) => x.q).sort((a, b) => a.q!.price / pkgAt(id, a.c).grams - b.q!.price / pkgAt(id, b.c).grams)[0];
       if (best) add(id, best.c, best.q!.price);
     }
     return out;
@@ -92,7 +100,8 @@ export default function CalendarPage() {
     const it = byId.get(id);
     return trendsOn && it ? hintFor(s, id, it.chain as never, unit) : null;
   };
-  const stockUps = cal.items.filter((p) => p.kind === "stockUp" && (p.buysWeekly > p.buys || p.saved > 0));
+  // club packs always show: they're the reason for the bulk trip
+  const stockUps = cal.items.filter((p) => p.kind === "stockUp" && (p.buysWeekly > p.buys || p.saved > 0 || isBulkChain(byId.get(p.id)!.chain as ChainId)));
   const spoils = cal.items.filter((p) => p.wasteCost >= 0.25).sort((a, b) => b.wasteCost - a.wasteCost);
   const sessions = plan.schedule.sessions;
   const today = isoDay();
@@ -205,7 +214,12 @@ export default function CalendarPage() {
                   );
                 })}
               </ul>
-              <p className="mt-3 text-xs text-muted">Pick these up on the first trip. Warehouse-size packs (Costco, Sam&apos;s Club) are coming later.</p>
+              <p className="mt-3 text-xs text-muted">
+                Pick these up on the first trip.{" "}
+                {bulkOn
+                  ? (r0HasClub(plan.result.cart) ? "Club packs from Costco or Sam's Club are counted here at their register price; each week's plan counts only its share." : <>Shopping at Costco or Sam&apos;s Club? Add it under Stores on the <Link href="/plan/" className="underline">Plan</Link> page and the plan buys club packs that last several weeks.</>)
+                  : "Warehouse-size packs (Costco, Sam's Club) are coming later."}
+              </p>
             </Card>
           )}
 

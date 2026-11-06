@@ -1,4 +1,4 @@
-import { CUISINES, FLAVORS, INGREDIENTS, MOODS, processedIn, PROTEIN_SOURCES, RECIPES, RECIPES_BY_ID, type ChainId, type Equipment, type MealType, type Recipe } from "@prep-cart/catalog";
+import { CUISINES, FLAVORS, INGREDIENTS, MOODS, pkgAt, processedIn, PROTEIN_SOURCES, RECIPES, RECIPES_BY_ID, type ChainId, type Equipment, type MealType, type Recipe } from "@prep-cart/catalog";
 import type { EatingOccasion } from "@prep-cart/nutrition";
 import type { Preferences, PriceTable, Wish } from "./types";
 
@@ -92,14 +92,25 @@ export function cheapestPrice(prices: PriceTable, ingredientId: string, stores: 
   return best;
 }
 
+/** Cheapest price per gram among the stores (club packs are bigger, so compare by weight). */
+export function cheapestPerGram(prices: PriceTable, ingredientId: string, stores: ChainId[]): number | null {
+  let best: number | null = null;
+  for (const s of stores) {
+    const q = prices[ingredientId]?.[s];
+    if (!q) continue;
+    const g = q.price / pkgAt(ingredientId, s).grams;
+    if (best == null || g < best) best = g;
+  }
+  return best;
+}
+
 /** Estimated cost of one serving at the cheapest selected store (no package rounding). */
 export function servingCost(r: Recipe, prices: PriceTable, stores: ChainId[], freeIds: Set<string>): number {
   let c = 0;
   for (const l of r.lines) {
     if (freeIds.has(l.ingredientId)) continue;
-    const p = cheapestPrice(prices, l.ingredientId, stores);
-    const ing = INGREDIENTS[l.ingredientId]!;
-    c += ((p ?? 6) * l.grams) / ing.pkg.grams;
+    const g = cheapestPerGram(prices, l.ingredientId, stores);
+    c += g == null ? (6 * l.grams) / INGREDIENTS[l.ingredientId]!.pkg.grams : g * l.grams;
   }
   return c / r.servings;
 }

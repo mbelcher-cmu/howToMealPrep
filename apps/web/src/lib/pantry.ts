@@ -1,4 +1,4 @@
-import { INGREDIENTS, type Aisle, type ChainId, type Recipe } from "@prep-cart/catalog";
+import { INGREDIENTS, isBulkChain, type Aisle, type ChainId, type Recipe } from "@prep-cart/catalog";
 
 /**
  * Pantry helpers (pure, tested in test/pantry.test.ts).
@@ -43,7 +43,8 @@ export function nearestQuick(id: string, grams: number): number | null {
 export function packagePrice(id: string, overrides: Record<string, Partial<Record<ChainId, { price: number } | null>>> = {}): number | null {
   const ing = INGREDIENTS[id];
   if (!ing) return null;
-  const prices = (Object.keys(ing.estPrice) as ChainId[]).map((c) => {
+  // club prices are for a bigger pack, so they don't compare package for package
+  const prices = (Object.keys(ing.estPrice) as ChainId[]).filter((c) => !isBulkChain(c)).map((c) => {
     const o = overrides[id]?.[c];
     return o === undefined ? ing.estPrice[c] : o?.price ?? null;
   }).filter((p): p is number => p != null && p > 0);

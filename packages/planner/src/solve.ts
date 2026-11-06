@@ -1,8 +1,8 @@
-import { CHAINS, INGREDIENTS, MENU_BY_ID, type ChainId, type MealType, type Recipe } from "@prep-cart/catalog";
+import { CHAINS, INGREDIENTS, isBulkChain, MENU_BY_ID, pkgAt, shelfLifeDays, type ChainId, type MealType, type Recipe } from "@prep-cart/catalog";
 import { splitTargets } from "@prep-cart/nutrition";
 import { LpModel } from "./lp";
 import { candidatePool, preferenceFit, servingCost, slotTypeFor } from "./filters";
-import type { CartLine, DayNutrition, EatOut, HouseholdMember, HouseholdResult, PlanRequest, PlanResult, PlannedRecipe, Weights } from "./types";
+import type { CartLine, DayNutrition, EatOut, HouseholdMember, HouseholdResult, PantryUse, PlanRequest, PlanResult, PlannedRecipe, Weights } from "./types";
 
 /** Minimal shape of the HiGHS solver object we use. */
 export interface HighsLike {
@@ -22,6 +22,8 @@ const MAX_PORTION_Q = 10; // 2.5 servings
 const EXTRA_POOL: Record<MealType, number> = { breakfast: 2, main: 4, snack: 2 };
 /** objective cost of cooking a recipe only someone else eats: a shared recipe wins unless this one fits far better */
 const EXTRA_COST = 6;
+/** raw meat and fish bought in a club pack go in the freezer: days they keep there */
+export const FREEZER_DAYS = 90;
 const MACROS = ["kcal", "protein", "carbs", "fat"] as const;
 
 /** preference-fit bonus per sale ingredient when the plan favors deals, and its cap */
@@ -133,6 +135,14 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   const pantryGrams = new Map<string, number>();
   for (const p of req.pantry) pantryGrams.set(p.ingredientId, (pantryGrams.get(p.ingredientId) ?? 0) + p.grams);
   const freeIds = new Set([...pantryGrams].filter(([, g]) => g === Infinity).map(([id]) => id));
+  // already-paid pantry food (club-pack leftovers): dollars per gram, averaged over the pantry rows
+  const paidPerGram = new Map<string, number>();
+  for (const id of new Set(req.pantry.filter((p) => (p.costPerGram ?? 0) > 0 && p.grams !== Infinity).map((p) => p.ingredientId))) {
+    const rows = req.pantry.filter((p) => p.ingredientId === id && p.grams !== Infinity);
+    const g = rows.reduce((a, p) => a + p.grams, 0);
+    if (g > 0) paidPerGram.set(id, rows.reduce((a, p) => a + p.grams * (p.costPerGram ?? 0), 0) / g);
+  }
+  const bulkWeeks = Math.max(1, Math.min(4, Math.round(req.bulkWeeks ?? 1)));
   // pantry food that spoils during the plan: recipes that use it up get a bonus
   const useSoon = new Map(req.pantry.filter((p) => p.grams !== Infinity && p.grams > 0 && p.daysLeft != null && p.daysLeft <= Math.max(days, 4)).map((p) => [p.ingredientId, p.grams]));
 
@@ -360,7 +370,8 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   // groceries: whole packages at chosen stores cover what the plan uses beyond the pantry
   const ingredientIds = new Set(cookable.flatMap((a) => a.r.lines.map((l) => l.ingredientId)));
   const costTerms: [number, string][] = [];
-  const buyVars: { id: string; chain: ChainId; v: string; price: number }[] = [];
+  const pantryCostTerms: [number, string][] = [];
+  const buyVars: { id: string; chain: ChainId; v: string; price: number; pkg: number; club?: { horizon: number; perGram: number } }[] = [];
   let ii = 0;
   for (const id of ingredientIds) {
     if (freeIds.has(id)) continue;
@@ -377,25 +388,47 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
       useTerms.push([-coef, o.v]);
       maxNeed += coef * slotCount[o.a.slot] * days;
     }
-    const maxPk = Math.max(1, Math.ceil(maxNeed / ing.pkg.grams));
+    // weeks a club pack can cover: the bulk window, but no longer than the food keeps (raw meat goes in the freezer)
+    const keeps = ing.aisle === "Meat and seafood" ? FREEZER_DAYS : shelfLifeDays(id);
+    const horizon = Math.max(1, Math.floor(Math.min(bulkWeeks * 7, keeps) / days));
     const buyTerms: [number, string][] = [];
     for (const c of stores) {
       const q = req.prices[id]?.[c];
       if (!q) continue;
+      const pk = pkgAt(id, c).grams;
+      const club = isBulkChain(c);
+      const maxPk = Math.max(1, Math.ceil((maxNeed * (club ? horizon : 1)) / pk));
       const v = `x_${ii}_${c}`;
       m.integer(v); m.bound(v, 0, maxPk);
       if (stores.length > 1) m.addRow([[1, v], [-maxPk, `z_${c}`]], "<=", 0);
-      buyTerms.push([ing.pkg.grams, v]);
-      costTerms.push([q.price, v]);
-      buyVars.push({ id, chain: c, v, price: q.price });
+      if (!club) {
+        buyTerms.push([pk, v]);
+        costTerms.push([q.price, v]);
+        buyVars.push({ id, chain: c, v, price: q.price, pkg: pk });
+        continue;
+      }
+      // a club pack counts only what this plan uses (u), plus what won't be used within the horizon (w)
+      const u = `u_${ii}_${c}`, w = `w_${ii}_${c}`, perGram = q.price / pk;
+      m.bound(u, 0, null); m.bound(w, 0, null);
+      m.addRow([[1, u], [-pk, v]], "<=", 0);
+      m.addRow([[pk, v], [-horizon, u], [-1, w]], "<=", 0);
+      buyTerms.push([1, u]);
+      costTerms.push([perGram, u], [perGram, w]);
+      buyVars.push({ id, chain: c, v, price: q.price, pkg: pk, club: { horizon, perGram } });
     }
     const have = pantryGrams.get(id) ?? 0;
-    if (!buyTerms.length) {
-      // nobody carries it: recipes that need it beyond the pantry are not possible
-      m.addRow(useTerms, ">=", -have);
-    } else {
-      m.addRow([...buyTerms, ...useTerms], ">=", -have);
+    const paid = paidPerGram.get(id);
+    // already-paid pantry food: how much the plan draws (p) counts toward the budget, not the objective
+    const draw: [number, string][] = [];
+    if (paid != null && have > 0 && have !== Infinity) {
+      const pv = `p_${ii}`;
+      m.bound(pv, 0, have);
+      draw.push([1, pv]);
+      pantryCostTerms.push([paid, pv]);
     }
+    const rhs = draw.length ? 0 : -have;
+    // nobody carries it: recipes that need it beyond the pantry are not possible
+    m.addRow([...buyTerms, ...draw, ...useTerms], ">=", rhs);
     ii++;
   }
   if (stores.length > 1) {
@@ -405,7 +438,13 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   // cost and budget
   m.addRow([...costTerms, [-1, "cost"]], "=", 0);
   m.bound("cost", 0, null);
-  m.addRow([[1, "cost"], [-1, "over"]], "<=", groceryBudget);
+  if (pantryCostTerms.length) {
+    m.addRow([...pantryCostTerms, [-1, "paid"]], "=", 0);
+    m.bound("paid", 0, null);
+    m.addRow([[1, "cost"], [1, "paid"], [-1, "over"]], "<=", groceryBudget);
+  } else {
+    m.addRow([[1, "cost"], [-1, "over"]], "<=", groceryBudget);
+  }
   m.bound("over", 0, null);
   m.addObjective("cost", costW);
   m.addObjective("over", 6);
@@ -483,26 +522,47 @@ function planFor(req: PlanRequest, highs: HighsLike, stores: ChainId[]): { resul
   const need = new Map<string, number>();
   for (const p of recipes) for (const l of p.recipe.lines) need.set(l.ingredientId, (need.get(l.ingredientId) ?? 0) + (l.grams / p.recipe.servings) * p.servings);
   const cart: CartLine[] = [];
-  const pantryUsed: { ingredientId: string; grams: number }[] = [];
+  const pantryUsed: PantryUse[] = [];
   for (const [id, g] of need) {
     const have = pantryGrams.get(id) ?? 0;
-    if (have > 0) pantryUsed.push({ ingredientId: id, grams: Math.min(have, g) });
+    const paid = paidPerGram.get(id);
+    if (have > 0) {
+      const used = Math.min(have, g);
+      pantryUsed.push({ ingredientId: id, grams: used, ...(paid != null && have !== Infinity ? { cost: Math.round(used * paid * 100) / 100 } : {}) });
+    }
     const lines = buyVars.filter((b) => b.id === id && val(b.v) > 0);
-    const bought = lines.reduce((s, b) => s + val(b.v) * INGREDIENTS[id]!.pkg.grams, 0);
+    const bought = lines.reduce((s, b) => s + val(b.v) * b.pkg, 0);
+    const toBuy = Math.max(0, g - Math.min(have, g));
+    // regular packages cover the plan first; club packs supply the rest
+    let rest = Math.max(0, toBuy - lines.filter((b) => !b.club).reduce((s, b) => s + val(b.v) * b.pkg, 0));
     for (const b of lines) {
       const k = val(b.v);
       const q = req.prices[id]![b.chain]!;
-      cart.push({ ingredientId: id, chain: b.chain, packages: k, unitPrice: b.price, cost: Math.round(k * b.price * 100) / 100, priceSource: q.source, needGrams: Math.round(Math.max(0, g - Math.min(have, g))), leftoverGrams: Math.max(0, Math.round(bought + Math.min(have, g) - g)) });
+      const cost = Math.round(k * b.price * 100) / 100;
+      const pkg = pkgAt(id, b.chain);
+      let club = {};
+      if (b.club) {
+        // what this plan uses from the pack, plus whatever won't be used before it spoils or the bulk window ends
+        const usedG = Math.min(rest, k * b.pkg);
+        rest -= usedG;
+        const spoilG = Math.max(0, k * b.pkg - b.club.horizon * usedG);
+        club = { pkg, countedCost: Math.min(cost, Math.round((usedG + spoilG) * b.club.perGram * 100) / 100) };
+      }
+      cart.push({ ingredientId: id, chain: b.chain, packages: k, unitPrice: b.price, cost, priceSource: q.source, needGrams: Math.round(toBuy), leftoverGrams: Math.max(0, Math.round(bought + Math.min(have, g) - g)), ...club });
     }
   }
-  const cost = Math.round(cart.reduce((s, l) => s + l.cost, 0) * 100) / 100;
+  const registerCost = Math.round(cart.reduce((s, l) => s + l.cost, 0) * 100) / 100;
+  const pantryCost = Math.round(pantryUsed.reduce((s, u) => s + (u.cost ?? 0), 0) * 100) / 100;
+  const cost = Math.round((cart.reduce((s, l) => s + (l.countedCost ?? l.cost), 0) + pantryCost) * 100) / 100;
   const usedStores = stores.filter((c) => cart.some((l) => l.chain === c));
   const over = cost + takeoutCost > req.budget + 0.005;
   return wrap({
     status: over ? "over_budget" : "ok",
     ...(over ? { message: `Groceries${takeoutCost ? " plus takeout" : ""} cost $${(cost + takeoutCost - req.budget).toFixed(2)} more than your budget. Raise the budget, ${takeoutCost ? "drop a takeout meal, " : ""}lower protein, or allow more stores.` } : {}),
     recipes: recipes.sort((a, b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot)),
-    daily, allowanceKcal, cart, pantryUsed, cost, stores: usedStores, budget: req.budget, takeout: { meals: takeout, cost: takeoutCost }, household, solveMs: Date.now() - t0,
+    daily, allowanceKcal, cart, pantryUsed, cost,
+    ...(Math.abs(registerCost - cost) > 0.004 ? { registerCost } : {}), ...(pantryCost > 0 ? { pantryCost } : {}),
+    stores: usedStores, budget: req.budget, takeout: { meals: takeout, cost: takeoutCost }, household, solveMs: Date.now() - t0,
   }, sol.ObjectiveValue ?? Infinity);
 }
 

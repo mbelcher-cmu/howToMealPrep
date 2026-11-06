@@ -8,6 +8,7 @@ import { reportError, track } from "./telemetry";
 import { styledOccasions } from "./meal-styles";
 import { plannerRecommendations, refreshCommunity } from "./recommend";
 import { dayScalesOf } from "./training";
+import { plannerStores, usesClub } from "./bulk";
 
 export type PlannerStatus = "idle" | "solving" | "error";
 
@@ -20,6 +21,7 @@ export function rankingsOf(favorites: AppState["favorites"] | undefined): Record
 
 function requestFrom(s: AppState, avoidSets: string[][] = []) {
   const resting = (s.resting ?? []).filter((id) => !s.locked.includes(id));
+  const bulkOn = flag("bulkStores");
   return {
     days: s.days,
     targets: s.targets,
@@ -28,10 +30,14 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
     prefs: { ...s.prefs, ratings: s.ratings, rankings: rankingsOf(s.favorites), recommended: plannerRecommendations(s.ratings), ...(resting.length ? { excludeRecipes: [...(s.prefs.excludeRecipes ?? []), ...resting] } : {}) },
     customRecipes: s.customRecipes,
     variety: s.variety,
-    stores: s.stores,
+    stores: plannerStores(s.stores, bulkOn),
     storeMode: s.storeMode,
-    // drop spoiled food; tell the planner what spoils soon
-    pantry: (s.pantryForPlan ?? s.pantry).filter((p) => !p.useBy || daysUntil(p.useBy) >= 0).map(({ useBy, ...p }) => (useBy ? { ...p, daysLeft: daysUntil(useBy) } : p)),
+    // a club trip covers several weeks, so its packs count only what each week uses
+    ...(usesClub(s.stores, bulkOn) ? { bulkWeeks: s.bulkWeeks ?? 4 } : {}),
+    // drop spoiled food; tell the planner what spoils soon (and, with clubs on, what's already paid for)
+    pantry: (s.pantryForPlan ?? s.pantry).filter((p) => !p.useBy || daysUntil(p.useBy) >= 0).map(({ useBy, costPerGram, ...p }) => ({
+      ...p, ...(useBy ? { daysLeft: daysUntil(useBy) } : {}), ...(bulkOn && costPerGram ? { costPerGram } : {}),
+    })),
     weights: { costVsMacros: s.costVsMacros },
     lockedRecipes: s.locked,
     preferRecipes: (s.held ?? []).filter((id) => !(s.prefs.excludeRecipes ?? []).includes(id)),

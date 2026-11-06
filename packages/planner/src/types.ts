@@ -51,6 +51,12 @@ export interface PantryItem {
   grams: number;
   /** days left before it spoils, counted from the plan's first day; the planner tries to use it up first */
   daysLeft?: number;
+  /**
+   * Already paid for, such as what's left of a Costco or Sam's Club pack: dollars per gram. The plan's
+   * cost counts what it uses at this rate, but using it costs nothing extra (the money is spent), so
+   * the planner still reaches for it first.
+   */
+  costPerGram?: number;
 }
 
 export interface Weights {
@@ -117,6 +123,12 @@ export interface PlanRequest {
   favorDeals?: boolean;
   /** other people who eat the same prepped meals, each with their own daily calories */
   household?: HouseholdMember[];
+  /**
+   * Weeks one warehouse-club pack (Costco, Sam's Club) should cover, 1 to 4. A club line counts only
+   * the share this plan uses toward its cost; whatever won't be used within that many weeks, or spoils
+   * first, counts too. Missing or 1: club packs count in full, like any other package.
+   */
+  bulkWeeks?: number;
 }
 
 export interface PlannedRecipe {
@@ -144,9 +156,20 @@ export interface CartLine {
   needGrams: number;
   /** grams left over after the plan (goes to the pantry) */
   leftoverGrams: number;
+  /** the package bought, when it isn't the usual one (club packs) */
+  pkg?: { grams: number; label: string };
+  /**
+   * Club packs: the share of `cost` this plan counts (what it uses, plus anything that won't keep
+   * until it's used). `cost` stays what you pay at the register. Missing = the whole cost counts.
+   */
+  countedCost?: number;
 }
 
-export interface PantryUse { ingredientId: string; grams: number }
+export interface PantryUse {
+  ingredientId: string; grams: number;
+  /** value counted for already-paid food (club-pack leftovers) */
+  cost?: number;
+}
 
 export interface DayNutrition { kcal: number; protein: number; carbs: number; fat: number; fiber: number; sodiumMg: number }
 
@@ -172,7 +195,12 @@ export interface PlanResult {
   allowanceKcal: number;
   cart: CartLine[];
   pantryUsed: PantryUse[];
+  /** what the plan counts against the budget: groceries it uses (club packs only in part) plus already-paid pantry food it uses */
   cost: number;
+  /** what this trip costs at the register, when it differs from `cost` (club packs) */
+  registerCost?: number;
+  /** already-paid pantry food the plan uses, included in `cost` */
+  pantryCost?: number;
   stores: ChainId[];
   budget: number;
   /** takeout meals the plan accounted for (invalid ones are dropped) */
