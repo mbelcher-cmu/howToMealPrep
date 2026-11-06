@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
-import { BookOpen, CalendarDays, ChefHat, Home, Package, Settings, ShoppingCart, Loader2, Menu, Target, UtensilsCrossed } from "lucide-react";
+import { BookOpen, CalendarDays, ChefHat, Compass, Home, Package, Settings, ShoppingCart, Loader2, Menu, Target, UtensilsCrossed } from "lucide-react";
 import { shoppedShare, useApp } from "@/lib/store";
 import { useHydrated, usePlanner, usePlannerSync } from "@/lib/use-planner";
 import { cx } from "@/lib/format";
@@ -21,7 +21,8 @@ const NAV = [
   { href: "/settings/", label: "Settings", icon: Settings, primary: false },
 ];
 /**
- * Simple mode: budget and calories (Goals), the week's recipes (Meals), and the shopping list (Cart).
+ * Simple mode: the trip and the week (Home), budget and calories (Goals), the week's recipes (Meals),
+ * the shopping list (Cart), and browsing recipes and the community (Discover).
  * Everything else is hidden but still reachable by its address.
  */
 const SIMPLE_NAV = [
@@ -29,6 +30,7 @@ const SIMPLE_NAV = [
   { href: "/plan/", label: "Goals", icon: Target, primary: true },
   { href: "/meals/", label: "Meals", icon: UtensilsCrossed, primary: true },
   { href: "/groceries/", label: "Cart", icon: ShoppingCart, primary: true },
+  { href: "/discover/", label: "Discover", icon: Compass, primary: true },
   { href: "/settings/", label: "Settings", icon: Settings, primary: false },
 ];
 /** Pages reached from the phone's More tab. */
@@ -184,7 +186,7 @@ function ShellV2({ path, solving, simple = false, children }: { path: string; so
 
       {/* one landmark holds both the tab pill and the round Groceries button */}
       <nav aria-label="Main" className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 px-4 md:hidden" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
-        <div className={cx("pointer-events-auto grid flex-1 gap-1", simple ? "grid-cols-3" : "grid-cols-4", " rounded-full bg-surface/95 p-1.5 shadow-[var(--shadow-float)] backdrop-blur-xl")}>
+        <div className={cx("pointer-events-auto grid flex-1 grid-cols-4 gap-1 rounded-full bg-surface/95 p-1.5 shadow-[var(--shadow-float)] backdrop-blur-xl")}>
           {tabs.map(({ href, label, icon: Icon }) => {
             const on = href === "/more/" ? active(path, href) || MORE_ROUTES.some((h) => active(path, h)) : active(path, href);
             return (

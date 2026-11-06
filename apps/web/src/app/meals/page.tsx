@@ -1,29 +1,27 @@
 "use client";
 import Link from "next/link";
-import { ArrowRight, ShoppingCart, Shuffle } from "lucide-react";
+import { ArrowRight, Shuffle } from "lucide-react";
 import { useState } from "react";
-import { RECIPES_BY_ID } from "@prep-cart/catalog";
 import { MealPicker } from "@/components/meal-picker";
 import { PlanStatus } from "@/components/plan-bits";
-import { RecipeCard, Rail } from "@/components/food";
 import { EmptyState, PageHeader } from "@/components/ui";
-import { WeekGlance, WeekRecipes } from "@/components/week-recipes";
+import { WeekRecipes } from "@/components/week-recipes";
+import { useNextTrip } from "@/components/home-week";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { useDays } from "@/lib/days";
-import { isoDay, useApp } from "@/lib/store";
-import { planDayFrom } from "@/lib/shop-day";
+import { useApp } from "@/lib/store";
 import { dayLabel } from "@/lib/use-week";
-import { money, plural } from "@/lib/format";
+import { plural } from "@/lib/format";
 
 /**
- * Meals: the recipes chosen for this week, on their own tab. Keep, swap or skip any of them;
- * the cart follows. This page is also where the meal picker lives.
+ * Meals: only the recipes chosen for this week. Keep, swap or skip any of them; the cart follows.
+ * This page is also where the meal picker lives. The week's calendar is on Home, browsing on Discover.
  */
 export default function Meals() {
   const hydrated = useHydrated();
   const { plan, status } = usePlanner();
-  const { DAY_LONG, weekStart, cookDayName } = useDays();
-  const weekOf = useApp((s) => s.weekOf);
+  const { cookDayName } = useDays();
+  const trip = useNextTrip();
   const pickerDone = useApp((st) => st.pickerDone);
   const [picking, setPicking] = useState<boolean | null>(null);
   if (!hydrated) return null;
@@ -48,31 +46,22 @@ export default function Meals() {
     );
   }
   const r = plan.result;
-  // a plan with a start date counts days from it; before it starts, show its first day
-  const fromStart = weekOf ? planDayFrom(weekOf, isoDay()) : null;
-  const today = fromStart == null ? ((new Date().getDay() + 6) % 7 - weekStart + 7) % 7 : Math.max(0, fromStart);
-  const dayIdx = Math.min(today, plan.days - 1);
   const cooks = plan.schedule.sessions.filter((x) => x.batches.length).map((x) => cookDayName(x.beforeDay));
-  const fresh = r.recipes.filter((p) => p.recipe.cookFresh);
-  const day = plan.schedule.days[dayIdx];
+  const fresh = r.recipes.some((p) => p.recipe.cookFresh);
+  const ahead = trip.phase === "ahead";
   return (
     <>
-      <PageHeader title="Your meals" lead={<>{plural(r.recipes.length, "recipe")} for {plural(plan.days, "day")}, portioned to your calories. Swap anything you don&apos;t want and your cart updates.{cooks.length > 0 && <> Cook on {cooks.join(" and ")}{fresh.length > 0 ? "; breakfast is made fresh each morning" : ""}.</>}{fromStart != null && fromStart < 0 && <> Starts {dayLabel(weekOf!)}.</>}</>} action={<button type="button" className="btn" onClick={() => setPicking(true)}><Shuffle size={16} aria-hidden /> Pick meals</button>} />
+      <PageHeader title={ahead ? "Next week's meals" : "Your meals"} lead={<>{plural(r.recipes.length, "recipe")} for {plural(plan.days, "day")}, portioned to your calories. Swap anything you don&apos;t want and your cart updates.{cooks.length > 0 && <> Cook on {cooks.join(" and ")}{fresh ? "; breakfast is made fresh each morning" : ""}.</>}{ahead && <> Starts {dayLabel(trip.start)}.</>}</>}
+        action={<button type="button" className="btn" onClick={() => setPicking(true)}><Shuffle size={16} aria-hidden /> Pick meals</button>} />
       <PlanStatus />
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
-        {day && day.meals.length > 0 && (
-          <Rail title={`${DAY_LONG[dayIdx]}'s food`}>
-            {day.meals.map((m) => {
-              const rec = RECIPES_BY_ID[m.recipeId];
-              return rec ? <RecipeCard key={m.occasionId} recipe={rec} portion={m.portion} eyebrow={m.fresh ? `${m.occasionName} · make fresh` : m.occasionName} /> : null;
-            })}
-          </Rail>
+        {trip.needsPicks && (
+          <Link href="/next-week/" className="card pop tap-card press flex items-center justify-between gap-3 p-4">
+            <span><span className="block font-display text-lg font-bold">{trip.phase === "over" ? "Your meals ran out" : "Time to pick next week's meals"}</span><span className="text-sm text-muted">Rate this week, then pick everything again from the top.</span></span>
+            <ArrowRight size={20} aria-hidden className="shrink-0" />
+          </Link>
         )}
-        <WeekRecipes title="This week's recipes" />
-        <WeekGlance />
-        <Link href="/groceries/" className="btn btn-primary w-full sm:w-auto sm:justify-self-end">
-          <ShoppingCart size={16} aria-hidden /> Go to cart · {money(r.registerCost ?? r.cost)} <ArrowRight size={16} aria-hidden />
-        </Link>
+        <WeekRecipes title={ahead ? "Next week's recipes" : "This week's recipes"} />
       </div>
     </>
   );
