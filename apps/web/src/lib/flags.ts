@@ -15,7 +15,7 @@ export const FLAG_DEFAULTS = {
   /** Plus page (swaps are free for everyone) */
   plus: { production: true, staging: true, development: true },
   /** Plus tier: free vs Plus entitlements, paywalls and a test-mode upgrade (no real payments). See docs/payments.md */
-  plusTier: { production: false, staging: true, development: true },
+  plusTier: { production: true, staging: true, development: true },
   /** November 2026 visual redesign (skin v2). Mirrored in app/layout.tsx so the first paint is right. */
   redesign: { production: true, staging: true, development: true },
   /** "Plan next week" review: keep or swap each recipe, carry leftovers over, on in production since Nov 5 2026 */
@@ -25,29 +25,29 @@ export const FLAG_DEFAULTS = {
   /** setup asks the person to rank about 10 options for breakfast, lunch and dinner, and snacks, on in production since Nov 5 2026 */
   mealRanking: { production: true, staging: true, development: true },
   /** per-meal styles (high-protein breakfast, lighter dinner...), meal edits that keep the meal's calories, macro locks shown up front */
-  mealStyles: { production: false, staging: true, development: true },
+  mealStyles: { production: true, staging: true, development: true },
   /** calories get a lock like protein, carbs and fat; all four locks shown up front with a one-line rule */
-  macroLocks: { production: false, staging: true, development: true },
+  macroLocks: { production: true, staging: true, development: true },
   /** Netflix-style recommendations from star ratings: yours, and everyone's via the database (staging first) */
-  recommendations: { production: false, staging: true, development: true },
+  recommendations: { production: true, staging: true, development: true },
   /** Eat out, more: "plan takeout for me", chains near you, search and sort, cost against cooking, just-this-week takeout */
-  eatOutPlus: { production: false, staging: true, development: true },
+  eatOutPlus: { production: true, staging: true, development: true },
   /** prep day knows the kitchen (two oven racks, four burners), plus step-by-step cook mode with timers and storage notes */
-  cookMode: { production: false, staging: true, development: true },
+  cookMode: { production: true, staging: true, development: true },
   /** in-store list: jump between aisles, "can't find it", and a buzz on each tick */
-  aisleMode: { production: false, staging: true, development: true },
+  aisleMode: { production: true, staging: true, development: true },
   /** pantry tracker: fridge/freezer/cupboard groups, quick amounts, savings, "cook from your pantry", per-item "have at home" on the list */
-  pantryV2: { production: false, staging: true, development: true },
+  pantryV2: { production: true, staging: true, development: true },
   /** "Whole foods only" switch, processed items named on recipes, meal preps filtered to fit your diet */
-  wholeFoods: { production: false, staging: true, development: true },
+  wholeFoods: { production: true, staging: true, development: true },
   /** household members with their own protein goal, diet and allergies; shared recipes, extra ones only when needed */
-  householdGoals: { production: false, staging: true, development: true },
+  householdGoals: { production: true, staging: true, development: true },
   /** price history from each shopping trip, deal and stock-up hints on Groceries and the calendar, plans lean on sales */
-  priceTrends: { production: false, staging: true, development: true },
+  priceTrends: { production: true, staging: true, development: true },
   /** training and rest days: workouts move calories to the days you train, plus workout file import */
-  fitnessSync: { production: false, staging: true, development: true },
+  fitnessSync: { production: true, staging: true, development: true },
   /** recipe import v2: one box for a link or text, a bookmark for any site, smarter matching, edit, cost, add to plan */
-  recipeImportV2: { production: false, staging: true, development: true },
+  recipeImportV2: { production: true, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */

@@ -37,8 +37,8 @@ describe("entitlements", () => {
     }
   });
 
-  it("is off in production and on in staging", () => {
-    expect(FLAG_DEFAULTS.plusTier).toEqual({ production: false, staging: true, development: true });
+  it("is on in production, staging and development (turned on Nov 6 2026)", () => {
+    expect(FLAG_DEFAULTS.plusTier).toEqual({ production: true, staging: true, development: true });
   });
 
   it("starts and ends test-mode Plus without a payment", () => {
