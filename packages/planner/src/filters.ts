@@ -1,4 +1,4 @@
-import { CUISINES, FLAVORS, INGREDIENTS, MOODS, PROTEIN_SOURCES, RECIPES, RECIPES_BY_ID, type ChainId, type Equipment, type MealType, type Recipe } from "@prep-cart/catalog";
+import { CUISINES, FLAVORS, INGREDIENTS, MOODS, processedIn, PROTEIN_SOURCES, RECIPES, RECIPES_BY_ID, type ChainId, type Equipment, type MealType, type Recipe } from "@prep-cart/catalog";
 import type { EatingOccasion } from "@prep-cart/nutrition";
 import type { Preferences, PriceTable, Wish } from "./types";
 
@@ -15,6 +15,11 @@ export interface Rejection { recipeId: string; reason: string }
 /** Hard rules: diets, allergens, dislikes, equipment, time. Returns the reason a recipe is out, or null. */
 export function hardRejection(r: Recipe, p: Preferences): string | null {
   for (const d of p.diets) if (!r.diets.includes(d)) return `not ${d}`;
+  // checked against the ingredients too, so a recipe saved before the tags changed can't slip through
+  if (p.diets.includes("wholeFoods")) {
+    const bad = processedIn(r)[0];
+    if (bad) return `contains ${INGREDIENTS[bad]?.name ?? bad}, a processed food`;
+  }
   for (const a of p.allergens) if (r.allergens.includes(a)) return `contains ${a}`;
   for (const l of r.lines) if (p.dislikes.includes(l.ingredientId)) return `contains ${INGREDIENTS[l.ingredientId]?.name ?? l.ingredientId}`;
   const needs = r.equipment.filter((e) => !OPTIONAL_EQUIPMENT.has(e));

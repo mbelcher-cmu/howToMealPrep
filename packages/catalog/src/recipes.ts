@@ -46,6 +46,11 @@ function dietsFor(lines: { ingredientId: string }[], allergens: Set<Allergen>, p
   return out;
 }
 
+/** The processed ingredients in a recipe (empty when it fits a whole-foods plan). */
+export function processedIn(r: { lines: { ingredientId: string }[] }): string[] {
+  return [...new Set(r.lines.map((l) => l.ingredientId).filter((id) => PROCESSED.has(id)))];
+}
+
 export function buildRecipe(s: RecipeSeed): Recipe {
   if (!["breakfast", "main", "snack"].includes(s.meal)) throw new Error(`Recipe ${s.id}: bad meal type ${s.meal}`);
   const lines = s.items.map(([ingredientId, grams]) => {

@@ -463,6 +463,32 @@ test("a damaged or odd-shaped save never leaves the app blank or crashed", async
   }
 });
 
+test("whole foods only keeps processed food out of the plan and meal preps", async () => {
+  // staging-only flag: switch it on for this device, and off again at the end
+  await page.goto(base + "/plan/?flags=wholeFoods=on");
+  await page.getByText("Recipes this week").first().waitFor({ timeout: 45000 });
+  await page.getByRole("button", { name: "Diet, allergies and dislikes" }).click();
+  const sw = page.getByRole("switch", { name: /Whole foods only/ });
+  await sw.check({ force: true });
+  assert.equal(await sw.isChecked(), true);
+  const found = await axeScan(page, "whole foods /plan/");
+  // the Pittsburgh comfort prep has bacon and pierogies, so it drops out
+  await page.goto(base + "/preps/");
+  await page.getByText(/fit your diet/).first().waitFor();
+  assert.equal(await page.getByRole("heading", { name: "Pittsburgh comfort" }).count(), 0);
+  assert.ok((await page.getByRole("button", { name: /Use this prep|In your plan/ }).count()) >= 3);
+  found.push(...(await axeScan(page, "whole foods /preps/")));
+  await page.goto(base + "/recipes/bacon_potato_bowls/");
+  await page.getByText(/left out of whole-foods plans/).waitFor();
+  assert.deepEqual(found.filter((v) => v.impact === "serious" || v.impact === "critical"), []);
+  // back to how the earlier tests left things
+  await openPlan(page);
+  await page.getByRole("button", { name: "Diet, allergies and dislikes" }).click();
+  await page.getByRole("switch", { name: /Whole foods only/ }).uncheck({ force: true });
+  await page.goto(base + "/?flags=reset");
+  await page.locator("main").waitFor();
+});
+
 test("no script errors along the way", () => {
   assert.deepEqual(errors, []);
 });
