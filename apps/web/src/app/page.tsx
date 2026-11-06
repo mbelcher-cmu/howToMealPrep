@@ -75,8 +75,9 @@ export default function Home() {
         <PlanStatus />
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {step(1, "Budget", "/plan/", "Change", <>
-            <p className="mb-2 text-sm text-muted">{money(budget.amount)} a {budget.period}</p>
+            <p className="mb-2 text-sm text-muted">{money(budget.amount)} a {budget.period} · {plural(plan.days, "day")} planned</p>
             <BudgetBar cost={r.cost} budget={r.budget} takeout={r.takeout?.cost ?? 0} />
+            <p className="mt-3 text-sm text-muted">About <b className="num text-ink">{money(r.cost / Math.max(1, plan.days * Math.max(1, plan.schedule.days[0]?.meals.length ?? 1)))}</b> a meal</p>
           </>)}
           {step(2, "Calories", "/plan/", "Change", <MacroRings result={r} flat />)}
           {step(3, "Meals", "/meals/", "See all", <><Link href="/pick/" className="btn mb-3 w-full"><Shuffle size={16} aria-hidden /> Pick this week&apos;s meals</Link><ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
