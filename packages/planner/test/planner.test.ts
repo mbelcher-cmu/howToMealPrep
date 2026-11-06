@@ -75,7 +75,7 @@ describe("planner", async () => {
 
   it("a swap changes only the swapped recipe when the rest of the week still fits", () => {
     let checked = 0;
-    for (const kcal of [1800, 2200, 2800]) {
+    for (const kcal of [1800, 2200, 2500, 2800]) {
       const req = baseRequest({ targets: targetsFromSplit(kcal, SPLIT_PRESETS.highProtein.split) });
       const before = plan(req, highs).recipes;
       for (const out of before) {

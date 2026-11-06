@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { ALLERGENS, DIETS, type Allergen, type Diet } from "@prep-cart/catalog";
 import { ACTIVITY_LEVELS, feetInchesToCm, lbToKg, suggestTargets, type ActivityLevel, type Goal } from "@prep-cart/nutrition";
@@ -9,10 +9,11 @@ import { NearbyFinder } from "@/components/nearby";
 import { FavoritesRanker, MEAL_LABELS, useRankedMeals } from "@/components/favorites";
 import { useFlag } from "@/lib/flags";
 import { BudgetEditor, RotationPicker, StoresEditor } from "@/components/editors";
-import { ShoppingDayEditor } from "@/components/shopping-day";
+import { menusFor, ShoppingDayEditor } from "@/components/shopping-day";
 import { BreakfastChoice } from "@/components/meal-pattern";
 import { Chip, Segmented, Stepper } from "@/components/ui";
-import { useApp } from "@/lib/store";
+import { isoDay, useApp } from "@/lib/store";
+import { startPatch, suggestedCookDays } from "@/lib/shop-day";
 import { cx } from "@/lib/format";
 import { track } from "@/lib/telemetry";
 
@@ -159,6 +160,18 @@ export default function Welcome() {
   const ranking = useFlag("mealRanking");
   const simple = useFlag("simple");
   const meals = useRankedMeals();
+  // someone new shops today and starts eating today, cooking often enough that nothing sits more
+  // than a few days; the budget step shows all of it and they can change any of it
+  useEffect(() => {
+    const start = () => {
+      const st = useApp.getState();
+      if (st.onboarded || st.weekOf) return;
+      const k = suggestedCookDays(st.days);
+      st.set({ ...startPatch(isoDay(), true), cookDays: k, variety: menusFor(st.variety, k, k >= 2) });
+    };
+    if (useApp.persist.hasHydrated()) start();
+    else return useApp.persist.onFinishHydration(start);
+  }, []);
   // which meal the favorites step is on; Next walks through them before moving on
   const [m, setM] = useState(0);
   const [d, setD] = useState<Draft>({ sex: null, age: "", ft: "", inch: "", cm: "", lb: "", kg: "", activity: "", goal: null });
