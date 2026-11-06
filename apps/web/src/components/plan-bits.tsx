@@ -112,6 +112,7 @@ export function BudgetBar({ cost: groceries, budget, takeout = 0 }: { cost: numb
 /** Solving / stale / error / budget messages shown above a plan. */
 export function PlanStatus() {
   const { status, error, plan, replan } = usePlanner();
+  const simple = useFlag("simple");
   const t = usePreppedTargets();
   if (status === "error") {
     return (
@@ -138,7 +139,7 @@ export function PlanStatus() {
           {r.status === "over_budget"
             ? "Raise the budget, move the slider toward lowest cost, or allow more stores in "
             : "Loosen a diet, allergen, dislike or Must choice in "}
-          <Link href="/plan/" className="underline">Plan</Link> or <Link href="/settings/" className="underline">Settings</Link>.
+          <Link href="/plan/" className="underline">{simple ? "Goals" : "Plan"}</Link> or <Link href="/settings/" className="underline">Settings</Link>.
         </p>
       </div>
     </div>

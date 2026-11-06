@@ -89,7 +89,8 @@ function AboutYou({ d, setD }: { d: Draft; setD: (d: Draft) => void }) {
   );
 }
 
-function YourWeek() {
+/** The week step. Simple mode splits it in two: the budget first, then meals and diet. */
+function YourWeek({ part = "all" }: { part?: "all" | "budget" | "meals" }) {
   const s = useApp();
   const p = s.prefs;
   const toggle = <T extends string>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
@@ -97,9 +98,10 @@ function YourWeek() {
   const diets = (["vegetarian", "vegan", "pescatarian", "glutenFree", "dairyFree", ...(wholeFoodsOn ? ["wholeFoods"] : [])] as Diet[]).filter((d) => DIETS[d]);
   return (
     <div className="grid gap-5">
-      <BudgetEditor />
-      <div className="border-t border-line pt-4"><ShoppingDayEditor compact /></div>
-      <div className="grid grid-cols-2 gap-3 border-t border-line pt-4">
+      {part !== "meals" && <BudgetEditor />}
+      {part !== "meals" && <div className="border-t border-line pt-4"><ShoppingDayEditor compact /></div>}
+      {part === "budget" ? null : <>
+      <div className={cx("grid grid-cols-2 gap-3", part === "all" && "border-t border-line pt-4")}>
         <Stepper label="Meals a day" value={s.meals} min={1} max={6} onChange={(m) => s.setStructure(m, s.snacks)} />
         <Stepper label="Snacks a day" value={s.snacks} min={0} max={3} onChange={(n) => s.setStructure(s.meals, n)} />
       </div>
@@ -121,8 +123,9 @@ function YourWeek() {
           </div>
           <p className="mt-2 text-xs text-muted">Allergy filtering is a convenience. Always check product labels.</p>
         </details>
-        <p className="text-xs text-muted">Cuisines, moods, foods you won't eat and kitchen equipment are on the Plan page whenever you want them.</p>
+        {part === "all" && <p className="text-xs text-muted">Cuisines, moods, foods you won't eat and kitchen equipment are on the Plan page whenever you want them.</p>}
       </div>
+      </>}
     </div>
   );
 }
@@ -139,8 +142,10 @@ function Stores() {
   );
 }
 
-type StepId = "about" | "week" | "favorites" | "stores";
+type StepId = "about" | "week" | "budget" | "meals" | "favorites" | "stores";
 const STEPS: Record<StepId, { title: string; lead: string }> = {
+  budget: { title: "Your budget", lead: "How much do you want to spend on groceries?" },
+  meals: { title: "Your meals", lead: "How many meals and snacks a day, and any diet." },
   about: { title: "About you", lead: "So we can size your meals. It stays on this device." },
   week: { title: "Your week", lead: "Your budget and how you like to eat. Everything else can wait." },
   favorites: { title: "What sounds good?", lead: "Tap what you'd eat, favorite first. We plan your top picks when they fit your budget and macros." },
@@ -152,11 +157,14 @@ export default function Welcome() {
   const router = useRouter();
   const s = useApp();
   const ranking = useFlag("mealRanking");
+  const simple = useFlag("simple");
   const meals = useRankedMeals();
   // which meal the favorites step is on; Next walks through them before moving on
   const [m, setM] = useState(0);
   const [d, setD] = useState<Draft>({ sex: null, age: "", ft: "", inch: "", cm: "", lb: "", kg: "", activity: "", goal: null });
-  const ids: StepId[] = ranking && meals.length ? ["about", "week", "favorites", "stores"] : ["about", "week", "stores"];
+  const fav: StepId[] = ranking && meals.length ? ["favorites"] : [];
+  // simple mode follows the app's order: budget, calories (about you), meals, then stores for the cart
+  const ids: StepId[] = simple ? ["budget", "about", "meals", ...fav, "stores"] : ["about", "week", ...fav, "stores"];
   const TITLES = ids.map((id) => STEPS[id]);
   const id = ids[i]!;
   const step = STEPS[id];
@@ -167,10 +175,10 @@ export default function Welcome() {
     s.set({ onboarded: true });
     const fav = s.favorites ?? {};
     track("onboarding_done", { rotation: s.variety.rotation ?? "mix", diets: s.prefs.diets.length, nearby: s.nearby.length > 0, ranked: (fav.breakfast?.length ?? 0) + (fav.main?.length ?? 0) + (fav.snack?.length ?? 0) });
-    router.push("/");
+    router.push(simple ? "/meals/" : "/");
   };
   const next = () => {
-    if (i === 0 && stats) { s.setProfile(stats); s.applySuggestedTargets(); }
+    if (id === "about" && stats) { s.setProfile(stats); s.applySuggestedTargets(); }
     if (id === "favorites" && m < meals.length - 1) { setM(m + 1); window.scrollTo({ top: 0 }); return; }
     if (ids[i + 1] === "favorites") setM(0);
     setI(i + 1);
@@ -201,14 +209,14 @@ export default function Welcome() {
         </section>
       ) : (
         <section className="card mt-5 self-start p-4 sm:p-5" aria-label={step.title}>
-          {id === "about" ? <AboutYou d={d} setD={setD} /> : id === "week" ? <YourWeek /> : <Stores />}
+          {id === "about" ? <AboutYou d={d} setD={setD} /> : id === "week" ? <YourWeek /> : id === "budget" ? <YourWeek part="budget" /> : id === "meals" ? <YourWeek part="meals" /> : <Stores />}
         </section>
       )}
       <footer className="sticky bottom-0 z-10 mt-6 flex items-center justify-between gap-3 border-t border-line bg-bg py-3" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
         <button className="btn" onClick={back} disabled={i === 0}><ArrowLeft size={16} aria-hidden /> Back</button>
         {last
           ? <button className="btn btn-primary" onClick={finish} disabled={s.stores.length === 0}><Check size={16} aria-hidden /> Build my plan</button>
-          : <button className="btn btn-primary" onClick={next} disabled={i === 0 && !stats}>{id === "favorites" && !(s.favorites?.[meal!]?.length) ? "Skip" : "Next"} <ArrowRight size={16} aria-hidden /></button>}
+          : <button className="btn btn-primary" onClick={next} disabled={id === "about" && !stats}>{id === "favorites" && !(s.favorites?.[meal!]?.length) ? "Skip" : "Next"} <ArrowRight size={16} aria-hidden /></button>}
       </footer>
     </div>
   );

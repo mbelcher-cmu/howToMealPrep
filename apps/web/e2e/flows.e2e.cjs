@@ -14,11 +14,20 @@ const { chromium } = require("playwright");
 const axe = require("axe-core");
 const { serve } = require("./serve.cjs");
 
-const PAGES = ["", "plan/", "groceries/", "shop/", "prep/", "recipes/", "recipes/chicken_tikka/", "recipes/import/", "pantry/", "settings/", "eat-out/", "preps/", "more/", "next-week/", "cook/", "calendar/", "pick/"];
+const PAGES = ["", "meals/", "plan/", "groceries/", "shop/", "prep/", "recipes/", "recipes/chicken_tikka/", "recipes/import/", "pantry/", "settings/", "eat-out/", "preps/", "more/", "next-week/", "cook/", "calendar/", "pick/"];
 /** axe rule sets we hold the app to: WCAG 2.1 A and AA plus axe's best practices */
 const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 
 let server, base, browser, ctx, page;
+
+/** Keeps "Show all features" on for this device, even across ?flags=reset. Runs before the app on every page. */
+const SHOW_ALL = () => {
+  const KEY = "prep-cart-flags";
+  const keep = () => { try { const o = JSON.parse(localStorage.getItem(KEY) || "{}"); if (o.simple !== false) localStorage.setItem(KEY, JSON.stringify({ ...o, simple: false })); } catch { /* ignore */ } };
+  keep();
+  const remove = Storage.prototype.removeItem;
+  Storage.prototype.removeItem = function (k) { remove.call(this, k); if (k === KEY) keep(); };
+};
 const errors = [];
 
 function watch(p, label) {
@@ -61,6 +70,8 @@ before(async () => {
   }
   browser = await chromium.launch();
   ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, acceptDownloads: true });
+  // these flows cover every feature, so they run with simple mode off; simple-mode.e2e.cjs covers the simple app
+  await ctx.addInitScript(SHOW_ALL);
   page = await ctx.newPage();
   watch(page, "phone");
 });
@@ -716,6 +727,53 @@ test("shop on any day, prep 7 days in two cooks, and make breakfast fresh", asyn
   await openPlan(page);
   await page.getByRole("button", { name: "Meals and rotation" }).click();
   await page.getByRole("radiogroup", { name: "Breakfast", exact: true }).getByRole("radio", { name: "Prep ahead" }).click();
+});
+
+test("simple mode: budget, calories, meals, then the cart, and nothing else in the menu", async () => {
+  const fresh = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const p = await fresh.newPage();
+  watch(p, "simple");
+  await p.goto(base + "/");
+  await p.waitForURL("**/welcome/**", { timeout: 15000 });
+  await p.getByRole("heading", { level: 1, name: "Your budget" }).waitFor();
+  await p.getByRole("button", { name: /^Next/ }).click();
+  await p.getByRole("radio", { name: "Maintain" }).click();
+  await p.getByRole("radio", { name: "Female", exact: true }).click();
+  await p.getByLabel("Age", { exact: true }).fill("28");
+  await p.getByLabel("Height", { exact: true }).fill("5");
+  await p.getByLabel("Inches").fill("6");
+  await p.getByLabel("Weight", { exact: true }).fill("140");
+  await p.getByLabel("How active are you?").selectOption("moderate");
+  await p.getByRole("button", { name: /^Next/ }).click();
+  await p.getByRole("heading", { level: 1, name: "Your meals" }).waitFor();
+  const found = await axeScan(p, "simple /welcome/ meals");
+  const build = p.getByRole("button", { name: /Build my plan/ });
+  for (let step = 0; step < 8 && !(await build.isVisible()); step++) await p.getByRole("button", { name: /^(Next|Skip)/ }).click();
+  await build.click();
+  await p.waitForURL("**/meals/", { timeout: 15000 });
+  await p.getByText("This week's recipes").first().waitFor({ timeout: 45000 });
+  // the menu is just the four steps; hidden pages are not linked
+  const nav = p.getByRole("navigation", { name: "Main" });
+  for (const name of ["Home", "Goals", "Meals", "Cart"]) assert.ok(await nav.getByRole("link", { name, exact: true }).count(), `${name} in the menu`);
+  for (const name of ["Prep", "More", "Pantry", "Eat out"]) assert.equal(await nav.getByRole("link", { name, exact: true }).count(), 0, `${name} is hidden`);
+  for (const path of ["", "meals/", "plan/", "groceries/", "settings/"]) {
+    await p.goto(base + "/" + path);
+    await p.locator("main h1").first().waitFor();
+    await p.waitForTimeout(600);
+    const sw = await p.evaluate(() => document.documentElement.scrollWidth);
+    assert.ok(sw <= 390, `simple /${path} scrolls sideways (${sw}px wide)`);
+    found.push(...(await axeScan(p, `simple /${path}`)));
+  }
+  await p.goto(base + "/groceries/");
+  await p.locator('main input[type="checkbox"]').first().waitFor({ state: "attached", timeout: 45000 });
+  assert.equal(await p.getByRole("link", { name: /Plan 4 weeks of shopping/ }).count(), 0, "calendar is hidden");
+  // "Show all features" brings the full menu back on this device
+  await p.goto(base + "/settings/");
+  await p.getByLabel("Show all features on this device").check();
+  await p.waitForLoadState("load");
+  await p.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "More", exact: true }).waitFor();
+  await fresh.close();
+  assert.deepEqual(found.filter((v) => v.impact === "serious" || v.impact === "critical"), [], JSON.stringify(found, null, 1));
 });
 
 test("the meal picker: one meal at a time from Netflix-style rows, then the cart uses those picks", async () => {

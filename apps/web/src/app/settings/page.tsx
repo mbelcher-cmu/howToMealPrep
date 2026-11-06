@@ -1,6 +1,6 @@
 "use client";
 import { STORE_KEY } from "@/lib/env";
-import { useFlag } from "@/lib/flags";
+import { setDeviceFlag, useFlag } from "@/lib/flags";
 import { analyticsOptedOut, setAnalyticsOptOut } from "@/lib/telemetry";
 import Link from "next/link";
 import { useRef, useState, type ReactNode } from "react";
@@ -37,6 +37,7 @@ export default function Settings() {
   const ent = useEntitlements();
   const accounts = useFlag("accounts");
   const training = useFlag("fitnessSync");
+  const simple = useFlag("simple");
   const account = useAccount();
   const signedIn = account.status === "signedIn";
   const [noAnalytics, setNoAnalytics] = useState(() => typeof window !== "undefined" && analyticsOptedOut());
@@ -63,7 +64,7 @@ export default function Settings() {
     <>
       <PageHeader title="Settings" lead={signedIn ? "Saved on this device and synced to your account." : "Everything here is saved on this device only."} />
       <nav aria-label="Settings sections" className="rail mb-4 text-sm">
-        {[...(accounts && account.status !== "off" ? [["account", "Account"]] : []), ["you", "You"], ["household", "Household"], ["fitness", "Fitness apps"], ["plus", "MacroAisle Plus"], ["data", "Data"]].map(([id, label]) => (
+        {[...(accounts && account.status !== "off" ? [["account", "Account"]] : []), ["you", "You"], ["household", "Household"], ...(simple ? [] : [["fitness", "Fitness apps"], ["plus", "MacroAisle Plus"]]), ["data", "Data"], ["features", "Features"]].map(([id, label]) => (
           <a key={id} href={`#${id}`} className="press inline-flex min-h-[40px] shrink-0 items-center whitespace-nowrap rounded-full bg-surface px-4 font-semibold shadow-[var(--shadow-card)] hover:bg-sunk">{label}</a>
         ))}
       </nav>
@@ -93,8 +94,11 @@ export default function Settings() {
           {accounts && <HouseholdShare />}
         </Section>
         <Card>
-          <p className="text-sm">Calories, meals, diet, moods and stores are on the <Link href="/plan/" className="font-semibold text-accent underline">Plan page</Link>, next to the plan they change.</p>
+          <p className="text-sm">{simple
+            ? <>Budget, calories, meals, diet and stores are on <Link href="/plan/" className="font-semibold text-accent underline">Goals</Link>.</>
+            : <>Calories, meals, diet, moods and stores are on the <Link href="/plan/" className="font-semibold text-accent underline">Plan page</Link>, next to the plan they change.</>}</p>
         </Card>
+        {!simple && <>
         <Section id="fitness" title="Fitness apps" lead="Use what your watch or tracker measured instead of an estimate.">
           <PlusGate feature="fitnessSync"><FitnessSync /></PlusGate>
           {training && <p className="mt-4 border-t border-line pt-4 text-sm">Train on some days and rest on others? Set your <Link href="/plan/" className="font-semibold text-accent underline">training days on the Plan page</Link> and import Strava, Garmin or Apple Health workouts there.</p>}
@@ -109,6 +113,7 @@ export default function Settings() {
         ) : plus && <Section id="plus" title="MacroAisle Plus" lead="AI meal swaps, live prices and more, coming later.">
           <Link href="/plus/" className="btn">See what's in Plus</Link>
         </Section>}
+        </>}
         <Section id="data" title="Your data" lead={signedIn ? "Your data syncs to your account. You can also keep a backup file." : "Back up your settings and plans to a file to move them to another device."}>
           <div className="flex flex-wrap gap-2">
             <button className="btn" onClick={exportData}><Download size={16} aria-hidden /> Download backup</button>
@@ -124,6 +129,12 @@ export default function Settings() {
             <span>Share anonymous usage stats, like how many plans are built, to help improve MacroAisle. Never your body stats, food or prices.</span>
           </label>
           <p className="mt-4 text-xs text-muted">Nutrition is estimated from USDA ingredient data and is not medical advice. Prices are estimates from Pittsburgh-area stores (Walmart and Aldi are similar nationwide) and change often.</p>
+        </Section>
+        <Section id="features" title="Features" lead={simple ? "MacroAisle shows just budget, goals, meals and your cart. Pantry, prep day, eating out, the shopping calendar, fitness and Plus are hidden, not gone." : "Every feature is showing."}>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-1" checked={!simple} onChange={(e) => setDeviceFlag("simple", !e.target.checked)} />
+            <span>Show all features on this device</span>
+          </label>
         </Section>
       </div>
     </>
