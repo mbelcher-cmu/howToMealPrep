@@ -6,6 +6,8 @@ import { useApp, type Member } from "@/lib/store";
 import { memberGoals, memberKcal } from "@/lib/household";
 import { useFlag } from "@/lib/flags";
 import { Chip, NumberField, Segmented } from "./ui";
+import { Paywall } from "./paywall";
+import { useEntitlements } from "@/lib/entitlements";
 
 /** Diets that change what a person can eat (the cook's own diet lives in Preferences). */
 const MEMBER_DIETS: Diet[] = ["vegetarian", "vegan", "pescatarian", "glutenFree", "dairyFree", "noPork"];
@@ -18,6 +20,9 @@ export function HouseholdEditor() {
   const ownGoals = useFlag("householdGoals");
   const us = s.profile.units === "us";
   const people = s.household;
+  const ent = useEntitlements();
+  // free covers one more person; existing members are never removed when Plus ends
+  const atLimit = !ent.canAdd("household", people.length) && people.length < 5;
   const update = (id: string, patch: Partial<Member>) => s.set({ household: people.map((m) => (m.id === id ? { ...m, ...patch } : m)) });
   return (
     <div className="grid gap-4">
@@ -71,7 +76,7 @@ export function HouseholdEditor() {
         );
       })}
       <div className="flex flex-wrap items-center gap-3">
-        <button className="btn" onClick={() => s.set({ household: [...people, newMember(people.length)] })} disabled={people.length >= 5}><UserPlus size={16} aria-hidden /> Add a person</button>
+        {!atLimit && <button className="btn" onClick={() => s.set({ household: [...people, newMember(people.length)] })} disabled={people.length >= 5}><UserPlus size={16} aria-hidden /> Add a person</button>}
         {people.length > 0 && (
           <p className="text-xs text-muted">
             {ownGoals
@@ -80,6 +85,7 @@ export function HouseholdEditor() {
           </p>
         )}
       </div>
+      {atLimit && <Paywall feature="household">Free plans cover you and one more person. Plus cooks for up to 6 from one list, each with portions sized to their calories.</Paywall>}
     </div>
   );
 }

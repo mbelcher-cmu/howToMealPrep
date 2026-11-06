@@ -14,6 +14,8 @@ export const FLAG_DEFAULTS = {
   googleSignIn: { production: false, staging: false, development: false },
   /** Plus page (swaps are free for everyone) */
   plus: { production: true, staging: true, development: true },
+  /** Plus tier: free vs Plus entitlements, paywalls and a test-mode upgrade (no real payments). See docs/payments.md */
+  plusTier: { production: false, staging: true, development: true },
   /** November 2026 visual redesign (skin v2). Mirrored in app/layout.tsx so the first paint is right. */
   redesign: { production: true, staging: true, development: true },
   /** "Plan next week" review: keep or swap each recipe, carry leftovers over, on in production since Nov 5 2026 */
@@ -54,7 +56,7 @@ const LOCAL_KEY = "prep-cart-flags";
 /** Parses "a=on,b=off" into overrides; unknown flags and values are ignored. */
 export function parseFlags(raw: string | null | undefined): Partial<Record<Flag, boolean>> {
   const out: Partial<Record<Flag, boolean>> = {};
-  // names match in any case, so ?flags=pantryv2=on works as well as pantryV2=on
+  // names match in any case, so ?flags=plustier=on works as well as plusTier=on
   const names = new Map((Object.keys(FLAG_DEFAULTS) as Flag[]).map((f) => [f.toLowerCase(), f]));
   for (const part of (raw ?? "").split(",")) {
     const [k, v] = part.split("=").map((x) => x?.trim().toLowerCase());

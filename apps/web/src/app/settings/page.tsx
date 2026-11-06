@@ -10,6 +10,8 @@ import { HouseholdShare } from "@/components/household-share";
 import { BodyStatsEditor } from "@/components/editors";
 import { FitnessSync } from "@/components/fitness";
 import { HouseholdEditor } from "@/components/household";
+import { PlusBadge, PlusGate } from "@/components/paywall";
+import { useEntitlements } from "@/lib/entitlements";
 import { Card, PageHeader, Segmented, SectionTitle } from "@/components/ui";
 import { useAccount } from "@/lib/account";
 import { useApp } from "@/lib/store";
@@ -32,6 +34,7 @@ export default function Settings() {
   const file = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState("");
   const plus = useFlag("plus");
+  const ent = useEntitlements();
   const accounts = useFlag("accounts");
   const account = useAccount();
   const signedIn = account.status === "signedIn";
@@ -92,9 +95,16 @@ export default function Settings() {
           <p className="text-sm">Calories, meals, diet, moods and stores are on the <Link href="/plan/" className="font-semibold text-accent underline">Plan page</Link>, next to the plan they change.</p>
         </Card>
         <Section id="fitness" title="Fitness apps" lead="Use what your watch or tracker measured instead of an estimate.">
-          <FitnessSync />
+          <PlusGate feature="fitnessSync"><FitnessSync /></PlusGate>
         </Section>
-        {plus && <Section id="plus" title="MacroAisle Plus" lead="AI meal swaps, live prices and more, coming later.">
+        {ent.gating ? (
+          <Section id="plus" title="MacroAisle Plus" lead={ent.isPlus ? "You have Plus on this device (test mode)." : "Household plans for more people, unlimited recipe imports and fitness app sync. Planning stays free."}>
+            <div className="flex flex-wrap items-center gap-3">
+              {ent.isPlus && <PlusBadge />}
+              <Link href="/plus/" className="btn">{ent.isPlus ? "Manage Plus" : "See Plus"}</Link>
+            </div>
+          </Section>
+        ) : plus && <Section id="plus" title="MacroAisle Plus" lead="AI meal swaps, live prices and more, coming later.">
           <Link href="/plus/" className="btn">See what's in Plus</Link>
         </Section>}
         <Section id="data" title="Your data" lead={signedIn ? "Your data syncs to your account. You can also keep a backup file." : "Back up your settings and plans to a file to move them to another device."}>

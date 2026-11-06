@@ -7,12 +7,16 @@ import { CUISINES, draftToSeed, INGREDIENTS, nutritionOf, parseLine, parseRecipe
 import { Card, NumberField, PageHeader, SectionTitle, Segmented } from "@/components/ui";
 import { useApp } from "@/lib/store";
 import { recipeHref } from "@/lib/format";
+import { Paywall } from "@/components/paywall";
+import { useEntitlements } from "@/lib/entitlements";
 
 const ING_OPTIONS = Object.values(INGREDIENTS).sort((a, b) => a.name.localeCompare(b.name));
 
 export default function ImportRecipe() {
   const s = useApp();
   const router = useRouter();
+  const ent = useEntitlements();
+  const atLimit = !ent.canAdd("recipeImport", s.customRecipes.length);
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -46,7 +50,7 @@ export default function ImportRecipe() {
   const edit = (patch: Partial<RecipeDraft>) => draft && setDraft({ ...draft, ...patch });
   const editLine = (i: number, patch: Partial<RecipeDraft["lines"][number]>) => draft && setDraft({ ...draft, lines: draft.lines.map((l, j) => (j === i ? { ...l, ...patch, sure: true } : l)) });
   const save = () => {
-    if (!draft || !seed?.items.length) return;
+    if (!draft || !seed?.items.length || atLimit) return;
     const id = `custom_${Date.now().toString(36)}`;
     s.set({ customRecipes: [...s.customRecipes, { ...draftToSeed(draft, id, cuisine, 4, freezer) }] });
     router.push(recipeHref(id));
@@ -56,7 +60,11 @@ export default function ImportRecipe() {
     <>
       <Link href="/recipes/" className="-ml-1 mb-2 inline-flex min-h-[44px] items-center gap-1.5 px-1 text-sm font-medium text-muted hover:text-ink"><ArrowLeft size={16} aria-hidden /> All recipes</Link>
       <PageHeader title="Add a recipe" lead="Bring in a recipe from a link or paste it. Each ingredient is matched to the store catalog so the planner can price it and count its macros." />
-      {!draft ? (
+      {atLimit && !draft ? (
+        <div className="max-w-[760px]">
+          <Paywall feature="recipeImport">You've added {s.customRecipes.length} of your own recipes, the most a free plan holds. They all stay in your recipe book. Plus lets you add as many as you like.</Paywall>
+        </div>
+      ) : !draft ? (
         <div className="grid max-w-[760px] gap-4">
           <Card>
             <SectionTitle>From a link</SectionTitle>
@@ -141,7 +149,7 @@ export default function ImportRecipe() {
                   </dl>
                 </>
               ) : <p className="text-sm text-muted">Match at least one ingredient.</p>}
-              <button className="btn btn-primary mt-4 w-full" onClick={save} disabled={!per || !draft.name.trim()}>Save to my recipes</button>
+              <button className="btn btn-primary mt-4 w-full" onClick={save} disabled={!per || !draft.name.trim() || atLimit}>Save to my recipes</button>
               <button className="btn mt-2 w-full" onClick={() => setDraft(null)}>Start over</button>
               <p className="mt-3 text-xs text-muted">Saved recipes join the planner's library and can be rated like any other.</p>
             </Card>
