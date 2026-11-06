@@ -735,7 +735,7 @@ test("simple mode: budget, calories, meals, then the cart, and nothing else in t
   watch(p, "simple");
   await p.goto(base + "/");
   await p.waitForURL("**/welcome/**", { timeout: 15000 });
-  await p.getByRole("heading", { level: 1, name: "Your budget" }).waitFor();
+  await p.getByRole("heading", { level: 1, name: "Budget and shopping" }).waitFor();
   await p.getByRole("button", { name: /^Next/ }).click();
   await p.getByRole("radio", { name: "Maintain" }).click();
   await p.getByRole("radio", { name: "Female", exact: true }).click();

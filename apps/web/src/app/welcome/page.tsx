@@ -144,7 +144,7 @@ function Stores() {
 
 type StepId = "about" | "week" | "budget" | "meals" | "favorites" | "stores";
 const STEPS: Record<StepId, { title: string; lead: string }> = {
-  budget: { title: "Your budget", lead: "How much do you want to spend on groceries?" },
+  budget: { title: "Budget and shopping", lead: "What you want to spend, when you shop, and how many days to prep." },
   meals: { title: "Your meals", lead: "How many meals and snacks a day, and any diet." },
   about: { title: "About you", lead: "So we can size your meals. It stays on this device." },
   week: { title: "Your week", lead: "Your budget and how you like to eat. Everything else can wait." },
