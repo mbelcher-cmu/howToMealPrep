@@ -20,6 +20,7 @@ const cases: [string, Partial<PlanRequest>, ("mix" | "blocks")?][] = [
   ["fresh breakfasts, two cook days, different food each", { targets: targetsFromSplit(2450, SPLIT_PRESETS.balanced.split), occasions: fresh(defaultOccasions(3, 1)), stores: ["walmart"], cookDays: 2, variety: { breakfast: 2, main: 2, snack: 1, rotation: "blocks" } }, "blocks"],
   ["two cook days, split week", { cookDays: 2, variety: { breakfast: 1, main: 2, snack: 1, rotation: "blocks" }, budget: 90 }, "blocks"],
   ["4 days, fresh breakfast, Aldi", { days: 4, occasions: fresh(defaultOccasions(3, 1)), stores: ["aldi"], budget: 50 }],
+  ["breakfast skipped, 3 days", { days: 3, occasions: defaultOccasions(2, 1), budget: 40 }],
   ["tighter budget", { budget: 60, stores: ["walmart"] }],
 ];
 
