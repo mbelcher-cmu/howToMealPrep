@@ -15,6 +15,8 @@ export interface EatingOccasion {
   macros?: MacroGrams;
   /** how this meal leans (more protein, lighter...); the day's totals never change, other meals rebalance */
   style?: MealStyle;
+  /** made fresh each time (eggs and toast) instead of coming from prep day; groceries still count */
+  fresh?: boolean;
 }
 
 /**
