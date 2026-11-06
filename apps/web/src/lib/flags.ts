@@ -24,6 +24,8 @@ export const FLAG_DEFAULTS = {
   mealRanking: { production: true, staging: true, development: true },
   /** per-meal styles (high-protein breakfast, lighter dinner...), meal edits that keep the meal's calories, macro locks shown up front */
   mealStyles: { production: false, staging: true, development: true },
+  /** calories get a lock like protein, carbs and fat; all four locks shown up front with a one-line rule */
+  macroLocks: { production: false, staging: true, development: true },
   /** prep day knows the kitchen (two oven racks, four burners), plus step-by-step cook mode with timers and storage notes */
   cookMode: { production: false, staging: true, development: true },
   /** in-store list: jump between aisles, "can't find it", and a buzz on each tick */
