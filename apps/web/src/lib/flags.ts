@@ -48,8 +48,8 @@ export const FLAG_DEFAULTS = {
   fitnessSync: { production: true, staging: true, development: true },
   /** recipe import v2: one box for a link or text, a bookmark for any site, smarter matching, edit, cost, add to plan */
   recipeImportV2: { production: true, staging: true, development: true },
-  /** Costco and Sam's Club: club packs that count only the share a week uses, leftovers paid for in the pantry, 2 to 4 week bulk trips */
-  bulkStores: { production: false, staging: true, development: true },
+  /** Costco and Sam's Club: club packs that count only the share a week uses, leftovers paid for in the pantry, 2 to 4 week bulk trips; on in production since Nov 6 2026 */
+  bulkStores: { production: true, staging: true, development: true },
   /** anonymous usage analytics, when a PostHog key is set */
   analytics: { production: true, staging: true, development: false },
   /** error reports, when a Sentry DSN is set */
