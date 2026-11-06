@@ -109,8 +109,12 @@ export interface AppState {
   favorites: Partial<Record<"breakfast" | "main" | "snack", string[]>>;
   /** preview of the planned paid tier on this device */
   plusPreview: boolean;
-  /** first day of the plan, 0 = Monday; prep day is the day before */
+  /** first day of the plan, 0 = Monday; prep day is that day (shopSameDay) or the day before */
   weekStart: number;
+  /** the person shops and cooks on the plan's first day (true) or the day before it */
+  shopSameDay: boolean;
+  /** cook days in the plan, 1 to 3: with 2 or more, each stretch of days is cooked fresh at its start */
+  cookDays: number;
   /** prep session start, HH:MM */
   prepTime: string;
   /** takeout meals placed on the week; they repeat every week unless marked once */
@@ -206,6 +210,8 @@ function initial(): Omit<AppState, keyof Actions> {
     favorites: {},
     plusPreview: false,
     weekStart: 0,
+    shopSameDay: true,
+    cookDays: 1,
     prepTime: "15:00",
     deals: [],
     priceHistory: {},
@@ -282,7 +288,7 @@ export const useApp = create<AppState>()(
         const prev = get().occasions;
         const next = defaultOccasions(meals, snacks).map((o) => {
           const old = prev.find((p) => p.id === o.id);
-          return old ? { ...o, prepped: old.prepped, ...(old.macros ? { macros: old.macros } : {}), ...(old.style ? { style: old.style } : {}) } : o;
+          return old ? { ...o, prepped: old.prepped, ...(old.macros ? { macros: old.macros } : {}), ...(old.style ? { style: old.style } : {}), ...(old.fresh && old.name === o.name ? { fresh: true } : {}) } : o;
         });
         set({ meals, snacks, occasions: next });
       },

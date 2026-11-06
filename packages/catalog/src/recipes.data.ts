@@ -4,7 +4,7 @@ import type { RecipeSeed } from "./recipe-types";
 
 const R = (
   id: string, name: string, meal: string, cuisines: string, moods: string, flavors: string, protein: string, equipment: string,
-  meta: { serv: number; active: number; total: number; fridge: number; freezer?: boolean; skill?: "beginner" | "intermediate" | "confident"; reheat?: string },
+  meta: { serv: number; active: number; total: number; fridge: number; freezer?: boolean; skill?: "beginner" | "intermediate" | "confident"; reheat?: string; fresh?: boolean },
   items: [string, number][], steps: string[],
 ): RecipeSeed => ({ id, name, meal, cuisines, moods, flavors, protein, equipment, meta, items, steps });
 

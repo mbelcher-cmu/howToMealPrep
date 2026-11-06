@@ -6,6 +6,7 @@ import { MENU_BY_ID, RECIPES_BY_ID, RESTAURANTS_BY_ID, type MealType } from "@pr
 import { FavoritesEditor } from "@/components/favorites";
 import { TrainingWeekEditor } from "@/components/training";
 import { useFlag } from "@/lib/flags";
+import { ShoppingDayEditor } from "@/components/shopping-day";
 import { BudgetEditor, MealStructureEditor, MoodEditor, RulesEditor, StoresEditor, TargetsEditor } from "@/components/editors";
 import { BudgetBar, LockedTag, PerServing, PlanMacros, PlanStatus, RecipeMeta, RecipeTile, SolvingNote } from "@/components/plan-bits";
 import { Card, EmptyState, PageHeader, SectionTitle, Tag } from "@/components/ui";
@@ -93,7 +94,7 @@ export default function PlanPage() {
           <Panel title="Calories and macros"><TargetsEditor showSuggest /></Panel>
           {training && <Panel title="Training days"><TrainingWeekEditor /></Panel>}
           <Panel title="Meals and rotation"><MealStructureEditor /></Panel>
-          <Panel title="Budget and days"><BudgetEditor /></Panel>
+          <Panel title="Budget and days"><div className="grid gap-5"><BudgetEditor /><div className="border-t border-line pt-4"><ShoppingDayEditor /></div></div></Panel>
           {ranking && <Panel title="Your favorites"><FavoritesEditor meal={favMeal} onMeal={setFavMeal} /></Panel>}
           <Panel title="In the mood for"><MoodEditor /></Panel>
           <Panel title="Diet, allergies and dislikes"><RulesEditor /></Panel>
