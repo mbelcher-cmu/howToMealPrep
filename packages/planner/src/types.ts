@@ -61,8 +61,27 @@ export interface Weights {
 }
 
 /** A takeout meal placed on one day's eating occasion. Days count from 0. */
-/** Someone else eating the plan. Portions scale by kcal against the main person's calories. */
-export interface HouseholdMember { id: string; name: string; kcal: number }
+/**
+ * Someone else eating the plan. With only kcal, they eat the main person's meals scaled by
+ * calories. With their own macros, diets or allergies, the planner sizes each of their meals
+ * on its own, checks their macros, and cooks a separate recipe for them only when no shared one fits.
+ */
+export interface HouseholdMember {
+  id: string; name: string; kcal: number;
+  /** daily grams; missing ones scale from the main person's targets by calories */
+  protein?: number; carbs?: number; fat?: number;
+  diets?: Diet[]; allergens?: Allergen[];
+}
+
+/** Who eats a planned recipe, when the household has people with their own goals or diets. */
+export interface RecipeEaters {
+  /** the main person eats it too */
+  mine: boolean;
+  /** people with their own goals: meals of this recipe and servings per meal */
+  eaters: { id: string; name: string; meals: number; portion: number }[];
+  /** containers to fill: every meal of this recipe, by everyone */
+  totalMeals: number;
+}
 
 export interface EatOut {
   day: number; occasionId: string; itemId: string;
@@ -105,9 +124,11 @@ export interface PlannedRecipe {
   meals: number;
   /** total servings to cook (multiples of 0.25) */
   servings: number;
-  /** servings per meal */
+  /** servings per meal (the main person's; for a recipe only others eat, theirs on average) */
   portion: number;
   reasons: string[];
+  /** set when someone in the household has their own goals or diet */
+  household?: RecipeEaters;
 }
 
 export interface CartLine {
@@ -127,6 +148,18 @@ export interface PantryUse { ingredientId: string; grams: number }
 
 export interface DayNutrition { kcal: number; protein: number; carbs: number; fat: number; fiber: number; sodiumMg: number }
 
+export interface HouseholdResult {
+  id: string; name: string;
+  /** share of the main person's food (people without their own goals), or their calories over the main person's */
+  scale: number;
+  /** average per day from prepped food */
+  daily: DayNutrition;
+  /** set for people with their own goals: what the plan aimed for (prepped share) */
+  target?: { kcal: number; protein: number; carbs: number; fat: number };
+  /** meals over the period, and how many of them are recipes the main person eats too */
+  meals?: number; sharedMeals?: number;
+}
+
 export interface PlanResult {
   status: "ok" | "over_budget" | "no_recipes";
   message?: string;
@@ -143,6 +176,6 @@ export interface PlanResult {
   /** takeout meals the plan accounted for (invalid ones are dropped) */
   takeout: { meals: EatOut[]; cost: number };
   /** everyone the food is cooked for. servings and the cart already include them */
-  household: { people: number; factor: number; members: { id: string; name: string; scale: number; daily: DayNutrition }[] };
+  household: { people: number; factor: number; members: HouseholdResult[] };
   solveMs: number;
 }

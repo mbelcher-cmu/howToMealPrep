@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PlanResult, Schedule } from "@prep-cart/planner";
 import { daysUntil, isoDay, periodBudget, useApp, type AppState } from "./store";
-import { memberKcal } from "@/components/household";
+import { memberRequest } from "./household";
+import { flag } from "./flags";
 import { reportError, track } from "./telemetry";
 import { styledOccasions } from "./meal-styles";
 import { plannerRecommendations, refreshCommunity } from "./recommend";
@@ -38,7 +39,7 @@ function requestFrom(s: AppState, avoidSets: string[][] = []) {
     deals: s.deals.filter((d) => d.endsOn >= isoDay()).map(({ ingredientId, chain, price, endsOn }) => ({ ingredientId, chain, price, endsOn })),
     today: isoDay(),
     timeLimit: 2,
-    household: (s.household ?? []).map((m) => ({ id: m.id, name: m.name.trim() || "Someone", kcal: memberKcal(m) })),
+    household: (s.household ?? []).map((m) => memberRequest(m, flag("householdGoals"))),
     eatingOut: s.eatingOut.filter((e) => e.day < s.days && s.occasions.some((o) => o.id === e.occasionId)).map(({ day, occasionId, itemId }) => ({ day, occasionId, itemId })),
   };
 }

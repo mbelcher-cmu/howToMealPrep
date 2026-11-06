@@ -123,7 +123,7 @@ export default function Home() {
                   <RecipeArt recipe={p.recipe} badges={false} className="h-12 w-12 shrink-0 rounded-lg" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">{p.recipe.name}</span>
-                    <span className="block text-xs text-muted">{p.meals} meal{p.meals === 1 ? "" : "s"} · {p.slot === "main" ? "lunch or dinner" : p.slot}</span>
+                    <span className="block text-xs text-muted">{p.meals > 0 ? `${p.meals} meal${p.meals === 1 ? "" : "s"}` : `for ${p.household?.eaters.map((e) => e.name).join(" and ") ?? "the household"}`} · {p.slot === "main" ? "lunch or dinner" : p.slot}</span>
                   </span>
                 </Link>
                 <SwapButton recipeId={p.recipe.id} label="always" />

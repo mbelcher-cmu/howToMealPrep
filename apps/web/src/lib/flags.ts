@@ -22,6 +22,8 @@ export const FLAG_DEFAULTS = {
   calendar: { production: true, staging: true, development: true },
   /** setup asks the person to rank about 10 options for breakfast, lunch and dinner, and snacks, on in production since Nov 5 2026 */
   mealRanking: { production: true, staging: true, development: true },
+  /** household members with their own protein goal, diet and allergies; shared recipes, extra ones only when needed */
+  householdGoals: { production: false, staging: true, development: true },
   /** "Whole foods only" switch, processed items named on recipes, meal preps filtered to fit your diet */
   wholeFoods: { production: false, staging: true, development: true },
   /** pantry tracker: fridge/freezer/cupboard groups, quick amounts, savings, "cook from your pantry", per-item "have at home" on the list */
