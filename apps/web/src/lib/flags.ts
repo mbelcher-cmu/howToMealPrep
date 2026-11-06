@@ -22,6 +22,8 @@ export const FLAG_DEFAULTS = {
   calendar: { production: true, staging: true, development: true },
   /** setup asks the person to rank about 10 options for breakfast, lunch and dinner, and snacks, on in production since Nov 5 2026 */
   mealRanking: { production: true, staging: true, development: true },
+  /** pantry tracker: fridge/freezer/cupboard groups, quick amounts, savings, "cook from your pantry", per-item "have at home" on the list */
+  pantryV2: { production: false, staging: true, development: true },
   /** per-meal styles (high-protein breakfast, lighter dinner...), meal edits that keep the meal's calories, macro locks shown up front */
   mealStyles: { production: false, staging: true, development: true },
   /** calories get a lock like protein, carbs and fat; all four locks shown up front with a one-line rule */
@@ -46,13 +48,14 @@ const LOCAL_KEY = "prep-cart-flags";
 /** Parses "a=on,b=off" into overrides; unknown flags and values are ignored. */
 export function parseFlags(raw: string | null | undefined): Partial<Record<Flag, boolean>> {
   const out: Partial<Record<Flag, boolean>> = {};
+  // names match in any case, so ?flags=pantryv2=on works as well as pantryV2=on
+  const names = new Map((Object.keys(FLAG_DEFAULTS) as Flag[]).map((f) => [f.toLowerCase(), f]));
   for (const part of (raw ?? "").split(",")) {
-    const [raw, v] = part.split("=").map((x) => x?.trim().toLowerCase());
-    // names are matched without case, so ?flags=nextweek=on and nextWeek=on both work
-    const k = (Object.keys(FLAG_DEFAULTS) as Flag[]).find((f) => f.toLowerCase() === raw);
-    if (!k) continue;
-    if (v === "on" || v === "true" || v === "1") out[k] = true;
-    else if (v === "off" || v === "false" || v === "0") out[k] = false;
+    const [k, v] = part.split("=").map((x) => x?.trim().toLowerCase());
+    const name = k ? names.get(k) : undefined;
+    if (!name) continue;
+    if (v === "on" || v === "true" || v === "1") out[name] = true;
+    else if (v === "off" || v === "false" || v === "0") out[name] = false;
   }
   return out;
 }

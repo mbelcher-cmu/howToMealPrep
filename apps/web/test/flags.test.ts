@@ -6,6 +6,7 @@ describe("feature flags", () => {
     expect(parseFlags("accounts=on, plus=off,bogus=on,analytics=maybe")).toEqual({ accounts: true, plus: false });
     expect(parseFlags("")).toEqual({});
     expect(parseFlags(undefined)).toEqual({});
+    expect(parseFlags("pantryV2=on,NEXTWEEK=off")).toEqual({ pantryV2: true, nextWeek: false });
   });
 
   it("reads camelCase flag names in any case", () => {

@@ -91,7 +91,8 @@ function YourWeek() {
   const s = useApp();
   const p = s.prefs;
   const toggle = <T extends string>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
-  const diets = (["vegetarian", "vegan", "pescatarian", "glutenFree", "dairyFree"] as Diet[]).filter((d) => DIETS[d]);
+  const wholeFoodsOn = useFlag("pantryV2");
+  const diets = (["vegetarian", "vegan", "pescatarian", "glutenFree", "dairyFree", ...(wholeFoodsOn ? ["wholeFoods"] : [])] as Diet[]).filter((d) => DIETS[d]);
   return (
     <div className="grid gap-5">
       <BudgetEditor />
