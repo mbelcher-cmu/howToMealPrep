@@ -9,6 +9,7 @@ import { daysUntil, isoDay, shoppedShare, useApp } from "@/lib/store";
 import { useHydrated, usePlanner } from "@/lib/use-planner";
 import { dayLabel, useWeek } from "@/lib/use-week";
 import { menuChange, nextWeekChoices } from "@/lib/week";
+import { shopChoices, shopDateOf, startPatch } from "@/lib/shop-day";
 import { cx, isPittsburghZip, plural, recipeHref } from "@/lib/format";
 import { useFlag } from "@/lib/flags";
 
@@ -58,6 +59,8 @@ export default function NextWeekPage() {
   const wishOf = (g: "moods" | "cuisines", k: string) => (s.prefs[g] as Record<string, string | undefined>)[k];
   const isWanted = (g: "moods" | "cuisines", k: string) => wants?.[`${g}:${k}`] ?? (wishOf(g, k) === "nice" || wishOf(g, k) === "must");
   const [moreMoods, setMoreMoods] = useState(false);
+  // the next shopping trip: defaults to the day the current plan runs out, any day this week works
+  const [shopOn, setShopOn] = useState<string | null>(null);
 
   if (!hydrated) return null;
   if (!on) {
@@ -77,7 +80,12 @@ export default function NextWeekPage() {
     );
   }
 
-  const startsOn = w.plansFrom;
+  const sameDay = s.shopSameDay ?? true;
+  const defaultShop = shopDateOf(w.plansFrom, sameDay) < isoDay() ? isoDay() : shopDateOf(w.plansFrom, sameDay);
+  const shopDay = shopOn ?? defaultShop;
+  const startsOn = startPatch(shopDay, sameDay).weekOf;
+  const trips = shopChoices(isoDay());
+  if (!trips.some((t) => t.iso === shopDay)) trips.push({ iso: shopDay, label: dayLabel(shopDay, false), long: dayLabel(shopDay) });
   const startsToday = startsOn <= isoDay();
   const keepCount = reviewed.filter((id) => pick(id) === "keep").length;
   const swapCount = reviewed.length - keepCount;
@@ -99,6 +107,7 @@ export default function NextWeekPage() {
     }
     setDone({ before: reviewed, fromId: plan.id });
     s.startNextWeek({ startsOn, locked: [...otherLocks, ...locked], resting, shopped: bought && !alreadyShopped });
+    s.set({ weekStart: startPatch(shopDay, sameDay).weekStart });
     replan();
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -184,6 +193,14 @@ export default function NextWeekPage() {
               );
             })}
           </ul>
+        </section>
+
+        <section aria-labelledby="nw-trip">
+          <h2 id="nw-trip" className="font-display text-xl font-bold">Your next shopping trip</h2>
+          <p className="mb-2 text-sm text-muted">Your new {plural(s.days, "day")} start{sameDay ? "s that day" : " the day after"}.</p>
+          <div className="flex flex-wrap gap-2" role="group" aria-labelledby="nw-trip">
+            {trips.map((t) => <Chip key={t.iso} selected={shopDay === t.iso} onClick={() => setShopOn(t.iso)} title={t.long}>{t.label}</Chip>)}
+          </div>
         </section>
 
         <section aria-labelledby="nw-mood">
